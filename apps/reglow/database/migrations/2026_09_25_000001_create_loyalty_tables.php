@@ -21,11 +21,12 @@ return new class extends Migration
         if (! Schema::hasTable('customers')) {
             Schema::create('customers', function (Blueprint $table) {
                 $table->id();
-                $table->string('phone')->index();
+                $table->string('phone');
                 $table->string('name')->nullable();
                 $table->string('brand');
                 $table->timestamp('last_seen_at')->nullable();
                 $table->timestamps();
+                $table->index(['brand', 'phone']);
             });
         }
 
@@ -42,6 +43,7 @@ return new class extends Migration
                 $table->boolean('is_capped')->default(false);
                 $table->boolean('active')->default(true);
                 $table->timestamps();
+                $table->index('brand');
             });
         }
 
@@ -58,6 +60,7 @@ return new class extends Migration
                 $table->string('gate_source')->default('stub');
                 $table->timestamp('expires_at');
                 $table->timestamps();
+                $table->index(['brand', 'customer_id']);
             });
         }
 
@@ -88,6 +91,8 @@ return new class extends Migration
                 $table->timestamp('claimed_at')->nullable();
                 $table->timestamp('expires_at');
                 $table->timestamps();
+                $table->index('game_session_id');
+                $table->index('game_prize_id');
             });
         }
 
@@ -101,6 +106,7 @@ return new class extends Migration
                 $table->date('program_start');
                 $table->date('program_end');
                 $table->timestamps();
+                $table->index('brand');
             });
         }
     }
