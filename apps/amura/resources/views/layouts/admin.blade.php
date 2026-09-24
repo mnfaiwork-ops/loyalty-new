@@ -81,7 +81,12 @@
 <body>
     <header>
         <span class="brand">{{ strtoupper(config('app.brand')) }} · Panel CS</span>
-        <nav><a href="{{ route('admin.claims') }}">Klaim</a></nav>
+        <nav>
+            @if (auth()->user()?->role === 'game_admin' || auth()->user()?->role === 'super_admin')
+                <a href="{{ route('admin.game') }}">Game</a>
+            @endif
+            <a href="{{ route('admin.claims') }}">Klaim</a>
+        </nav>
     </header>
     <main>
         @if (session('ok'))

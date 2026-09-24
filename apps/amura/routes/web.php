@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CsClaimController;
+use App\Http\Controllers\Admin\GameAdminController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\PlayController;
 use Illuminate\Support\Facades\Route;
@@ -26,4 +27,10 @@ Route::post('/play/{token}/take', [PlayController::class, 'take'])->name('play.t
 Route::middleware(['auth', 'role:cs,super_admin'])->prefix('admin')->group(function () {
     Route::get('/claims', [CsClaimController::class, 'index'])->name('admin.claims');
     Route::post('/claims/{code}/resolve', [CsClaimController::class, 'resolve'])->name('admin.claims.resolve');
+});
+
+Route::middleware(['auth', 'role:game_admin,super_admin'])->prefix('admin')->group(function () {
+    Route::get('/game', [GameAdminController::class, 'index'])->name('admin.game');
+    Route::post('/game/catalog', [GameAdminController::class, 'storeCatalog'])->name('admin.game.catalog');
+    Route::post('/game/tiers', [GameAdminController::class, 'updateTiers'])->name('admin.game.tiers');
 });

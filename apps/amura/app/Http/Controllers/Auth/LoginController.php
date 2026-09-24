@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 final class LoginController extends Controller
 {
@@ -28,7 +29,27 @@ final class LoginController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect('/admin/claims');
+        return redirect($this->landingFor(Auth::user()->role));
+    }
+
+    /** Landing per role; pakai nama route pertama yang sudah terdaftar, jika tidak ada fallback ke root. */
+    private function landingFor(?string $role): string
+    {
+        $routes = match ($role) {
+            'cs' => ['admin.claims'],
+            'game_admin' => ['admin.game'],
+            'finance' => ['admin.finance'],
+            'super_admin' => ['admin.users', 'admin.claims'],
+            default => [],
+        };
+
+        foreach ($routes as $route) {
+            if (Route::has($route)) {
+                return route($route);
+            }
+        }
+
+        return '/';
     }
 
     public function destroy(Request $request)

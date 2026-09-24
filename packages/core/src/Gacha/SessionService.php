@@ -65,7 +65,7 @@ final class SessionService
                 'session_token' => bin2hex(random_bytes(32)),
                 'chance_total' => 2,
                 'chance_used' => 0,
-                'tier_config' => TierConfig::default(),
+                'tier_config' => TierConfig::current(),
                 'awb' => $awb,
                 'gate_source' => 'stub',
                 'expires_at' => now()->addDays(30),
