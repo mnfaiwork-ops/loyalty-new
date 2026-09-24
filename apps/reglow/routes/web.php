@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\CsClaimController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GameAdminController;
+use App\Http\Controllers\Admin\SuperAdminController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\PlayController;
 use Illuminate\Support\Facades\Route;
@@ -39,4 +40,10 @@ Route::middleware(['auth', 'role:game_admin,super_admin'])->prefix('admin')->gro
 Route::middleware(['auth', 'role:finance,super_admin'])->prefix('admin')->group(function () {
     Route::get('/finance', [FinanceController::class, 'index'])->name('admin.finance');
     Route::post('/finance/{code}/approve', [FinanceController::class, 'approve'])->name('admin.finance.approve');
+});
+
+Route::middleware(['auth', 'role:super_admin'])->prefix('admin')->group(function () {
+    Route::get('/users', [SuperAdminController::class, 'index'])->name('admin.users');
+    Route::post('/users', [SuperAdminController::class, 'store'])->name('admin.users.store');
+    Route::post('/users/{id}/role', [SuperAdminController::class, 'role'])->name('admin.users.role');
 });

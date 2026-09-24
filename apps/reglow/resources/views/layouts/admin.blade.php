@@ -89,6 +89,9 @@
             @if (auth()->user()?->role === 'finance' || auth()->user()?->role === 'super_admin')
                 <a href="{{ route('admin.finance') }}">Finance</a>
             @endif
+            @if (auth()->user()?->role === 'super_admin')
+                <a href="{{ route('admin.users') }}">Pengguna</a>
+            @endif
         </nav>
     </header>
     <main>
