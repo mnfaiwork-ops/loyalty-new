@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "53b5d56b3b7e3cbac1713e68c8850f6c",
+    "content-hash": "44c7a0ed4be7631440ba3df2e1f76ec5",
     "packages": [
         {
             "name": "brick/math",
@@ -2027,6 +2027,38 @@
                 }
             ],
             "time": "2026-03-08T20:05:35+00:00"
+        },
+        {
+            "name": "loyaltynew/core",
+            "version": "dev-master",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/core",
+                "reference": "bbafac96469e1334945ad1664c1b4b8f8d15336f"
+            },
+            "require": {
+                "illuminate/database": "^12.0",
+                "illuminate/support": "^12.0",
+                "php": "^8.5"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "LoyaltyNew\\Core\\CoreServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "LoyaltyNew\\Core\\": "src/"
+                }
+            },
+            "description": "Logika inti Loyalty New (Gatcha, gate paket, kuota)",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "monolog/monolog",
@@ -8386,7 +8418,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "loyaltynew/core": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
