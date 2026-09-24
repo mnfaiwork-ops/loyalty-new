@@ -41,6 +41,23 @@ final class SessionService
             return $existing;
         }
 
+        try {
+            return $this->createSession($customer, $awb);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Lost the race to a concurrent open(): the unique (customer_id, awb)
+            // index rejected our insert, so return the winner's session.
+            $raced = GameSession::where('customer_id', $customer->id)
+                ->where('awb', $awb)
+                ->first();
+            if ($raced) {
+                return $raced;
+            }
+            throw $e;
+        }
+    }
+
+    private function createSession(Customer $customer, string $awb): GameSession
+    {
         return DB::transaction(function () use ($customer, $awb) {
             $session = GameSession::create([
                 'customer_id' => $customer->id,

@@ -26,7 +26,7 @@ return new class extends Migration
                 $table->string('brand');
                 $table->timestamp('last_seen_at')->nullable();
                 $table->timestamps();
-                $table->index(['brand', 'phone']);
+                $table->unique(['brand', 'phone']);
             });
         }
 
@@ -60,6 +60,7 @@ return new class extends Migration
                 $table->string('gate_source')->default('stub');
                 $table->timestamp('expires_at');
                 $table->timestamps();
+                $table->unique(['customer_id', 'awb']);
                 $table->index(['brand', 'customer_id']);
             });
         }

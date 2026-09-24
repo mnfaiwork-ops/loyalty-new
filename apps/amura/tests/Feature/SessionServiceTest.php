@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Gacha\SessionService;
+use LoyaltyNew\Core\Models\Customer;
+use LoyaltyNew\Core\Models\GameSession;
 use LoyaltyNew\Core\Models\PrizeCatalog;
 use Tests\TestCase;
 
@@ -67,5 +69,60 @@ final class SessionServiceTest extends TestCase
         $this->assertSame(1, $a->prizes()->where('tier', 'hadiah_besar')->count());
         $this->assertSame(0, $b->prizes()->where('tier', 'hadiah_besar')->count());
         $this->assertSame(1, (int) DB::table('quota_caps')->where('prize_name', 'Emas 1 gram')->value('used_units'));
+    }
+
+    public function test_unique_brand_phone_ditolak(): void
+    {
+        DB::table('customers')->insert([
+            'brand' => 'amura',
+            'phone' => '08123456789',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        DB::table('customers')->insert([
+            'brand' => 'amura',
+            'phone' => '08123456789',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_open_dua_kali_awb_hp_sama_hasil_satu_baris(): void
+    {
+        $service = app(SessionService::class);
+        $service->open('JX123', '08123456789');
+        $service->open('JX123', '08123456789');
+
+        $this->assertDatabaseCount('game_sessions', 1);
+        $this->assertDatabaseCount('customers', 1);
+    }
+
+    public function test_open_mengembalikan_sesi_yang_sudah_ada_tanpa_duplikat(): void
+    {
+        $service = app(SessionService::class);
+        $first = $service->open('JX123', '08123456789');
+
+        $customer = Customer::firstOrCreate(['phone' => '08123456789', 'brand' => 'amura']);
+        $this->assertSame($customer->id, $first->customer_id);
+
+        $second = $service->open('JX123', '08123456789');
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertDatabaseCount('game_sessions', 1);
+        $this->assertSame(1, GameSession::where('customer_id', $customer->id)->where('awb', 'JX123')->count());
+    }
+
+    public function test_open_fallback_unik_saat_sesi_kedaluwarsa(): void
+    {
+        $first = app(SessionService::class)->open('JX123', '08123456789');
+        $first->update(['expires_at' => now()->subDay()]);
+
+        $second = app(SessionService::class)->open('JX123', '08123456789');
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertDatabaseCount('game_sessions', 1);
     }
 }
