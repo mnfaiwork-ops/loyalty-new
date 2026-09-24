@@ -118,6 +118,25 @@ final class GameAdminTest extends TestCase
         $this->assertDatabaseCount('quota_caps', 0);
     }
 
+    public function test_hadiah_besar_selalu_capped(): void
+    {
+        $this->actingAs($this->admin())
+            ->post('/admin/game/catalog', [
+                'name' => 'Philips Air Fryer',
+                'tier' => 'hadiah_besar',
+                'cap_units' => 2,
+            ])->assertRedirect();
+
+        $prize = PrizeCatalog::where('name', 'Philips Air Fryer')->firstOrFail();
+        $this->assertTrue($prize->is_capped);
+
+        $this->assertDatabaseHas('quota_caps', [
+            'brand' => 'reglow',
+            'prize_name' => 'Philips Air Fryer',
+            'cap_units' => 2,
+        ]);
+    }
+
     public function test_tier_config_default_kalau_belum_diatur(): void
     {
         $this->assertSame(['poin' => 65, 'voucher' => 32, 'merch' => 3], TierConfig::current());

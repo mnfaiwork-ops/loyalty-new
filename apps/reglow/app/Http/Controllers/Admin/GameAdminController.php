@@ -49,13 +49,18 @@ final class GameAdminController extends Controller
             'face_value' => ['nullable', 'integer', 'min:0'],
             'quota_total' => ['nullable', 'integer', 'min:0'],
             'is_capped' => ['boolean'],
-            'cap_units' => ['nullable', 'required_if:is_capped,1', 'integer', 'min:1'],
+            'cap_units' => ['nullable', 'required_if:is_capped,1', 'required_if:tier,hadiah_besar', 'integer', 'min:1'],
             'program_start' => ['nullable', 'date'],
             'program_end' => ['nullable', 'date', 'after_or_equal:program_start'],
         ]);
 
         $brand = config('app.brand');
-        $isCapped = $request->boolean('is_capped');
+
+        if ($data['tier'] === 'hadiah_besar') {
+            $data['is_capped'] = true;
+        }
+
+        $isCapped = (bool) ($data['is_capped'] ?? false);
 
         $catalog = PrizeCatalog::create([
             'brand' => $brand,
