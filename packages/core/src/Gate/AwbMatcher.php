@@ -6,10 +6,17 @@ final class AwbMatcher
 {
     public static function matches(string $awb, string $phone, string $orderAwb, string $orderPhone): bool
     {
-        if (strcasecmp(trim($awb), trim($orderAwb)) !== 0) {
+        $awb = trim($awb);
+        $orderAwb = trim($orderAwb);
+        $phone = self::normalizePhone($phone);
+        $orderPhone = self::normalizePhone($orderPhone);
+
+        // Fail closed: a blank AWB or phone on either side is never a match.
+        if ($awb === '' || $orderAwb === '' || $phone === '' || $orderPhone === '') {
             return false;
         }
-        return self::normalizePhone($phone) === self::normalizePhone($orderPhone);
+
+        return strcasecmp($awb, $orderAwb) === 0 && $phone === $orderPhone;
     }
 
     private static function normalizePhone(string $phone): string
