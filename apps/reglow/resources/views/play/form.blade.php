@@ -10,7 +10,7 @@
     <form method="POST" action="{{ route('play.start') }}">
         @csrf
         <label for="awb">Nomor AWB</label>
-        <input type="text" id="awb" name="awb" value="{{ old('awb') }}" placeholder="Contoh: JX123" autocomplete="off">
+        <input type="text" id="awb" name="awb" value="{{ old('awb') }}" placeholder="Contoh: RG123" autocomplete="off">
         @error('awb') <div class="error">{{ $message }}</div> @enderror
 
         <label for="phone">Nomor HP</label>
