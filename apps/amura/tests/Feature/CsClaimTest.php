@@ -43,11 +43,18 @@ final class CsClaimTest extends TestCase
             'expires_at' => now()->addDay(),
         ]);
 
-        return GamePrize::create([
+        $prize = GamePrize::create([
             'game_session_id' => $session->id,
             'slot' => 1,
             'tier' => $tier,
         ]);
+
+        // Hubungkan sesi yang baru dibuat langsung ke objek, agar test yang
+        // sengaja menyiapkan brand lain tidak perlu query lintas brand
+        // (relasi $prize->session sendiri ter-scope BrandScope).
+        $prize->setRelation('session', $session);
+
+        return $prize;
     }
 
     public function test_expiry_14_untuk_hadiah_biasa(): void

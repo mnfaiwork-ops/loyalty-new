@@ -9,7 +9,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class GameSession extends Model
 {
     protected $guarded = [];
+
     protected $casts = ['tier_config' => 'array', 'expires_at' => 'datetime'];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new BrandScope);
+    }
 
     public function customer(): BelongsTo
     {
