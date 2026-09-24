@@ -1,0 +1,6 @@
+# Jangan pernah commit kredensial
+.db-credentials
+*.env
+
+# Artefak desain
+design/.thumbnail

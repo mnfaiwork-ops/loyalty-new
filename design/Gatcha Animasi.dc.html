@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script>window.OM_SCENES = '[{"name":"Masuk","dur":2.4,"desc":"Panggung menyala, lantai miring masuk, 24 kado jatuh satu per satu lalu melayang"},{"name":"Pilih","dur":3.1,"desc":"Jari memilih 3 kado: tekan, lompat, mendarat; nomor dan slot terisi, tombol muncul"},{"name":"Buka","dur":3,"desc":"Tombol ditekan, kado lain hilang, 3 kado ke tengah dan dua pertama terbuka"},{"name":"HadiahUtama","dur":3,"desc":"Kado ketiga bergoyang tegang, kilat emas, layar bergetar, kartu hadiah utama dan konfeti"},{"name":"Poin","dur":3.2,"desc":"Customer mengetuk poin, koin terbang ke saldo dan angka bergulir naik"}]';</script>
+<script>window.OM_PLAYBACK = '{"mode":"loop"}';</script>
+<style>html,body{margin:0;background:#15110F;height:100%}a{color:#F0D08A}a:hover{color:#F5DA9A}</style>
+</helmet>
+<div style="position:fixed;inset:0;background:#15110F">
+<x-import component-from-global-scope="GatchaApp" from="./animations-v3.jsx ./gatcha-anim.jsx" brand="{{ brand }}" hint-size="100%,100%" style="position:absolute;inset:0"></x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;brand&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Amura&quot;,&quot;Reglow&quot;],&quot;default&quot;:&quot;Amura&quot;,&quot;tsType&quot;:&quot;'Amura'|'Reglow'&quot;}}">
+class Component extends DCLogic {
+  renderVals() { return { brand: this.props.brand ?? 'Amura' }; }
+}
+</script>
+</body>
+</html>
