@@ -155,7 +155,7 @@ final class PlayController extends Controller
         ])->values()->all();
     }
 
-    private function tierLabel(string $tier): string
+    public static function tierLabel(string $tier): string
     {
         return match ($tier) {
             'hadiah_besar' => 'Hadiah Utama',

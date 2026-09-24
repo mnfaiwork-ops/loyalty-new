@@ -86,6 +86,9 @@
                 <a href="{{ route('admin.game') }}">Game</a>
             @endif
             <a href="{{ route('admin.claims') }}">Klaim</a>
+            @if (auth()->user()?->role === 'finance' || auth()->user()?->role === 'super_admin')
+                <a href="{{ route('admin.finance') }}">Finance</a>
+            @endif
         </nav>
     </header>
     <main>

@@ -43,9 +43,14 @@
                                     @csrf
                                     <select name="status" aria-label="Status klaim">
                                         @php($needsFinance = $claim->gamePrize?->tier === 'hadiah_besar' || $claim->status === 'perlu_finance')
-                                        @foreach ($needsFinance ? ['diproses', 'hangus'] : ['diproses', 'selesai', 'hangus'] as $status)
-                                            <option value="{{ $status }}" @selected($claim->status === $status)>{{ $status }}</option>
-                                        @endforeach
+                                        @if ($needsFinance)
+                                            <option value="" disabled selected>— menunggu Finance —</option>
+                                            <option value="hangus">hangus</option>
+                                        @else
+                                            @foreach (['diproses', 'selesai', 'hangus'] as $status)
+                                                <option value="{{ $status }}" @selected($claim->status === $status)>{{ $status }}</option>
+                                            @endforeach
+                                        @endif
                                     </select>
                                     <button class="btn" type="submit">Simpan</button>
                                 </form>

@@ -30,7 +30,7 @@ final class CsClaimController extends Controller
             ->firstOrFail();
 
         $needsFinance = $claim->gamePrize?->tier === 'hadiah_besar' || $claim->status === 'perlu_finance';
-        $allowed = $needsFinance ? ['diproses', 'hangus'] : ['diproses', 'selesai', 'hangus'];
+        $allowed = $needsFinance ? ['hangus'] : ['diproses', 'selesai', 'hangus'];
 
         $data = $request->validate(['status' => ['required', 'in:'.implode(',', $allowed)]]);
 

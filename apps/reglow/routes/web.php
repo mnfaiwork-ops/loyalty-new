@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CsClaimController;
+use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GameAdminController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\PlayController;
@@ -33,4 +34,9 @@ Route::middleware(['auth', 'role:game_admin,super_admin'])->prefix('admin')->gro
     Route::get('/game', [GameAdminController::class, 'index'])->name('admin.game');
     Route::post('/game/catalog', [GameAdminController::class, 'storeCatalog'])->name('admin.game.catalog');
     Route::post('/game/tiers', [GameAdminController::class, 'updateTiers'])->name('admin.game.tiers');
+});
+
+Route::middleware(['auth', 'role:finance,super_admin'])->prefix('admin')->group(function () {
+    Route::get('/finance', [FinanceController::class, 'index'])->name('admin.finance');
+    Route::post('/finance/{code}/approve', [FinanceController::class, 'approve'])->name('admin.finance.approve');
 });

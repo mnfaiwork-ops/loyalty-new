@@ -144,18 +144,34 @@ final class CsClaimTest extends TestCase
         $this->assertNull($claim->handled_by);
     }
 
-    public function test_cs_bisa_set_diproses_untuk_hadiah_besar(): void
+    public function test_cs_tidak_bisa_set_diproses_untuk_hadiah_besar(): void
     {
         $cs = $this->csUser();
         $prize = $this->prize('hadiah_besar');
         $claim = ClaimService::create($prize->session, $prize);
 
         $this->actingAs($cs)
+            ->from('/admin/claims')
             ->post('/admin/claims/'.$claim->claim_code.'/resolve', ['status' => 'diproses'])
+            ->assertSessionHasErrors('status');
+
+        $claim->refresh();
+        $this->assertSame('perlu_finance', $claim->status);
+        $this->assertNull($claim->handled_by);
+    }
+
+    public function test_cs_bisa_set_hangus_untuk_hadiah_besar(): void
+    {
+        $cs = $this->csUser();
+        $prize = $this->prize('hadiah_besar');
+        $claim = ClaimService::create($prize->session, $prize);
+
+        $this->actingAs($cs)
+            ->post('/admin/claims/'.$claim->claim_code.'/resolve', ['status' => 'hangus'])
             ->assertRedirect();
 
         $claim->refresh();
-        $this->assertSame('diproses', $claim->status);
+        $this->assertSame('hangus', $claim->status);
         $this->assertSame($cs->id, $claim->handled_by);
     }
 
