@@ -1,0 +1,34 @@
+<?php
+
+namespace LoyaltyNew\Core\Tests\Gacha;
+
+use LoyaltyNew\Core\Gacha\DrawEngine;
+use PHPUnit\Framework\TestCase;
+
+final class DrawEngineTest extends TestCase
+{
+    public function test_hasil_selalu_tier_valid(): void
+    {
+        $engine = new DrawEngine(['poin' => 65, 'voucher' => 32, 'merch' => 3]);
+        foreach (range(1, 100) as $seed) {
+            $this->assertContains($engine->pick($seed), ['poin', 'voucher', 'merch']);
+        }
+    }
+
+    public function test_distribusi_mendekati_bobot(): void
+    {
+        $engine = new DrawEngine(['poin' => 65, 'voucher' => 32, 'merch' => 3]);
+        $count = ['poin' => 0, 'voucher' => 0, 'merch' => 0];
+        foreach (range(1, 10000) as $seed) {
+            $count[$engine->pick($seed)]++;
+        }
+        $this->assertGreaterThan($count['voucher'], $count['poin']);
+        $this->assertGreaterThan($count['merch'], $count['voucher']);
+    }
+
+    public function test_seed_sama_hasil_sama(): void
+    {
+        $engine = new DrawEngine(['poin' => 65, 'voucher' => 32, 'merch' => 3]);
+        $this->assertSame($engine->pick(42), $engine->pick(42));
+    }
+}
