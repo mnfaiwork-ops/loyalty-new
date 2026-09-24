@@ -11,7 +11,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(\LoyaltyNew\Core\Gacha\SessionService::class, fn () =>
+            new \LoyaltyNew\Core\Gacha\SessionService(
+                app(\LoyaltyNew\Core\Gate\OrderGate::class), 'reglow'
+            )
+        );
     }
 
     /**

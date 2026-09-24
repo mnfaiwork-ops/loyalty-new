@@ -19,7 +19,7 @@ final class AwbMatcher
         return strcasecmp($awb, $orderAwb) === 0 && $phone === $orderPhone;
     }
 
-    private static function normalizePhone(string $phone): string
+    public static function normalizePhone(string $phone): string
     {
         $digits = preg_replace('/\D+/', '', $phone);
         if (str_starts_with($digits, '62')) {

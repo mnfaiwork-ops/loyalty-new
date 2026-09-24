@@ -42,4 +42,10 @@ final class AwbMatcherTest extends TestCase
     {
         $this->assertFalse(AwbMatcher::matches('JX123', '08123456789', '', '08123456789'));
     }
+
+    public function test_normalize_phone_publik(): void
+    {
+        $this->assertSame('08123456789', AwbMatcher::normalizePhone('+62 812-3456-789'));
+        $this->assertSame('08123456789', AwbMatcher::normalizePhone('08123456789'));
+    }
 }
