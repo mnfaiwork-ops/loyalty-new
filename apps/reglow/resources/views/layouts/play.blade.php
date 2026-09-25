@@ -97,6 +97,9 @@
         .reveal-card:disabled { opacity: .9; }
         .reveal-slot { font-size: 12px; color: var(--muted); font-weight: 600; }
         .reveal-tier { text-align: center; line-height: 1.3; }
+        .result { margin-top: 20px; border-top: 1px solid var(--line); padding-top: 18px; text-align: center; }
+        .claim-code { font-family: 'DM Serif Display', serif; font-size: 30px; letter-spacing: 4px; color: var(--deep); background: var(--gold); border-radius: 12px; padding: 14px 8px; margin: 10px 0 14px; }
+        .result .note { text-align: left; }
     </style>
 </head>
 <body>

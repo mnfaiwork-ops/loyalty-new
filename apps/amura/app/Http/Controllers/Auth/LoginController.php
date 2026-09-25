@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,16 @@ final class LoginController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
+
+        $user = User::where('email', $credentials['email'])->first();
+
+        // Fase 1 memakai satu tabel users untuk kedua brand: tolak user brand lain
+        // dengan error generik agar keberadaan akun di brand lain tidak bocor.
+        if ($user && $user->brand_scope !== config('app.brand')) {
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'Email atau kata sandi salah.']);
+        }
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             return back()

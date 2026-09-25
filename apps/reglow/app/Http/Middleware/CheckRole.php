@@ -14,6 +14,10 @@ final class CheckRole
             abort(403);
         }
 
+        if ($user->brand_scope !== config('app.brand')) {
+            abort(403);
+        }
+
         return $next($request);
     }
 }

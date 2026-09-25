@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use LoyaltyNew\Core\Models\Claim;
 use LoyaltyNew\Core\Models\GameSession;
+use LoyaltyNew\Core\Prizes\ClaimService;
 use Tests\TestCase;
 
 final class PlayFlowTest extends TestCase
@@ -125,6 +127,51 @@ final class PlayFlowTest extends TestCase
         $this->assertSame(1, $session->fresh()->chance_used);
         $this->assertTrue((bool) $session->prizes()->where('slot', 2)->value('taken'));
         $this->assertSame(3, $session->prizes()->where('opened', true)->count());
+    }
+
+    public function test_take_membuat_klaim(): void
+    {
+        $session = $this->start();
+
+        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+
+        $chosenSlot = 2;
+        $response = $this->postJson("/play/{$session->session_token}/take", ['slot' => $chosenSlot])
+            ->assertOk()
+            ->assertJsonStructure(['claim_code', 'claim_expires_at']);
+
+        $prizeId = $session->prizes()->where('slot', $chosenSlot)->value('id');
+        $claims = Claim::where('game_prize_id', $prizeId)->get();
+
+        $this->assertCount(1, $claims);
+
+        $claim = $claims->first();
+        $this->assertNotEmpty($claim->claim_code);
+        $this->assertSame($response->json('claim_code'), $claim->claim_code);
+
+        $expectedStatus = $claim->gamePrize->tier === 'hadiah_besar' ? 'perlu_finance' : 'menunggu';
+        $this->assertSame($expectedStatus, $claim->status);
+
+        $expectedDays = ClaimService::expiryFor($claim->gamePrize->tier);
+        $this->assertEqualsWithDelta($expectedDays, now()->diffInDays($claim->expires_at), 0.1);
+    }
+
+    public function test_take_dua_kali_tidak_membuat_dua_klaim(): void
+    {
+        $session = $this->start();
+
+        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $first = $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
+
+        $prize = $session->prizes()->where('slot', 1)->firstOrFail();
+
+        // Simulasi re-take prize yang sama: kembalikan ke state ronde, lalu take lagi.
+        $prize->update(['taken' => false, 'picked' => true]);
+        $second = $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
+
+        $this->assertSame(1, Claim::where('game_prize_id', $prize->id)->count());
+        $this->assertSame($first->json('claim_code'), $second->json('claim_code'));
     }
 
     public function test_take_kedua_kali_ditolak_setelah_chance_habis(): void

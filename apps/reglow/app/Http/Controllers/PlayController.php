@@ -8,8 +8,10 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Gacha\Grid;
 use LoyaltyNew\Core\Gacha\SessionService;
+use LoyaltyNew\Core\Models\Claim;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
+use LoyaltyNew\Core\Prizes\ClaimService;
 
 final class PlayController extends Controller
 {
@@ -127,10 +129,15 @@ final class PlayController extends Controller
             $others = $round->pluck('id')->reject(fn ($id) => $id === $chosen->id);
             $session->prizes()->whereIn('id', $others)->update(['picked' => false]);
 
+            $claim = Claim::where('game_prize_id', $chosen->id)->first()
+                ?? ClaimService::create($session, $chosen);
+
             return response()->json([
                 'ok' => true,
                 'revealed' => $this->revealed($round),
                 'chosen' => $chosen->slot,
+                'claim_code' => $claim->claim_code,
+                'claim_expires_at' => $claim->expires_at->toDateString(),
             ]);
         });
     }

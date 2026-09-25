@@ -31,6 +31,13 @@
         <div class="reveal-grid" id="revealGrid"></div>
         <p class="note" id="revealNote"></p>
     </div>
+
+    <div id="result" class="result" hidden>
+        <h2 class="headline">Hadiahmu tersimpan!</h2>
+        <p class="sub">Kode klaim:</p>
+        <div class="claim-code" id="claimCode"></div>
+        <p class="note">Klaim sebelum <b id="claimExpiry"></b>. Kirim kode ini ke WhatsApp CS kami, lalu CS akan mencocokkan dan memproses hadiahmu.</p>
+    </div>
 @endsection
 
 @push('scripts')
@@ -105,6 +112,12 @@
         });
         selected = [];
         openBtn.disabled = true;
+
+        if (take.claim_code) {
+            document.getElementById('claimCode').textContent = take.claim_code;
+            document.getElementById('claimExpiry').textContent = take.claim_expires_at;
+            document.getElementById('result').hidden = false;
+        }
     }
 
     openBtn.addEventListener('click', async () => {
