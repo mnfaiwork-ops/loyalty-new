@@ -306,7 +306,7 @@ hadiah utama = kilat emas + getar + konfeti. Detail gerak di `design/gatcha-anim
 | 3 | Bobot per sesi | Sebaran hasil 1000 sesi mendekati T1 65 / T2 32 / T3 3 | ✅ |
 | 4 | Cap hadiah besar | Emas ke-2 dalam 1 program ditolak | ✅ |
 | 5 | AWB+HP harus cocok | AWB valid + HP salah → ditolak | ✅ |
-| 6 | Batas klaim | Hadiah biasa >14 hari → hangus; hadiah utama >30 hari → hangus | ⏳ `expires_at` dihitung benar; job auto-hangus BELUM dibuat |
+| 6 | Batas klaim | Hadiah biasa >14 hari → hangus; hadiah utama >30 hari → hangus | ✅ Terverifikasi — `ClaimService::expireOverdue` + `loyalty:expire-claims` (terjadwal harian, brand-scoped, idempotent) |
 | 7 | Isolasi brand | App Amura tidak bisa baca data Reglow | ✅ |
 | 8 | `tsc`/`php artisan test` | hijau | ✅ |
 
