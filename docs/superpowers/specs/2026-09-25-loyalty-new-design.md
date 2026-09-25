@@ -110,7 +110,13 @@ final class GateResult
 ```
 
 Implementasi fase 1: **`StubOrderGate`** (mis. selalu lolos atau flag admin), supaya alur bisa
-dites utuh end-to-end. Nanti diganti **`MarkomApiOrderGate`** tanpa mengubah alur pemanggil.
+dites utuh end-to-end. Gate nyata: **`MarkomApiOrderGate`** (sudah dibuat) — memakai sumber
+`OrderStatusSource` yang bisa dikonfigurasi:
+- `MarkomHttpOrderStatusSource` — HTTP ke API Markom (produksi).
+- `FairtrackSqliteOrderStatusSource` — baca langsung DB FairTrack Lead, read-only (smoke/transisi).
+
+Pilih lewat env: `MARKOM_GATE=stub|markom` dan `MARKOM_DRIVER=markom_api|fairtrack_sqlite`.
+Kelulusan tetap `status_fulfillment='complete'` + AWB cocok HP (`AwbMatcher`).
 
 > [!important] Koreksi wajib untuk gate nyata (dari data live FairTrack Lead)
 > Gate **tidak boleh** hanya membaca `status_order`. Data live membuktikan dua kolom sering berbeda:
@@ -291,18 +297,18 @@ hadiah utama = kilat emas + getar + konfeti. Detail gerak di `design/gatcha-anim
 
 ---
 
-## 9. Verification (rencana)
+## 9. Verification
 
-| # | Cek | Ekspektasi |
-|---|---|---|
-| 1 | Gate baca `status_fulfillment='complete'` | 133 order `sent`+`complete` lolos; 491 `sent`+`problem` ditolak |
-| 2 | 2 chance dikunci DB | Refresh/token ulang tidak menambah chance |
-| 3 | Bobot per sesi | Sebaran hasil 1000 sesi mendekati T1 65 / T2 32 / T3 3 |
-| 4 | Cap hadiah besar | Emas ke-2 dalam 1 program ditolak |
-| 5 | AWB+HP harus cocok | AWB valid + HP salah → ditolak |
-| 6 | Batas klaim | Hadiah biasa >14 hari → hangus; hadiah utama >30 hari → hangus |
-| 7 | Isolasi brand | App Amura tidak bisa baca data Reglow |
-| 8 | `tsc`/`php artisan test` | hijau |
+| # | Cek | Ekspektasi | Status |
+|---|---|---|---|
+| 1 | Gate baca `status_fulfillment='complete'` | 133 order `sent`+`complete` lolos; 491 `sent`+`problem` ditolak | ✅ Terverifikasi — `MarkomApiOrderGate` + test (unit core, `Http::fake`, integrasi via `SessionService`, + uji data FairTrack asli) |
+| 2 | 2 chance dikunci DB | Refresh/token ulang tidak menambah chance | ✅ |
+| 3 | Bobot per sesi | Sebaran hasil 1000 sesi mendekati T1 65 / T2 32 / T3 3 | ✅ |
+| 4 | Cap hadiah besar | Emas ke-2 dalam 1 program ditolak | ✅ |
+| 5 | AWB+HP harus cocok | AWB valid + HP salah → ditolak | ✅ |
+| 6 | Batas klaim | Hadiah biasa >14 hari → hangus; hadiah utama >30 hari → hangus | ⏳ `expires_at` dihitung benar; job auto-hangus BELUM dibuat |
+| 7 | Isolasi brand | App Amura tidak bisa baca data Reglow | ✅ |
+| 8 | `tsc`/`php artisan test` | hijau | ✅ |
 
 ---
 

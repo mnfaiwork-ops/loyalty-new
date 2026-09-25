@@ -1,0 +1,81 @@
+<?php
+
+namespace LoyaltyNew\Core\Tests\Gate;
+
+use LoyaltyNew\Core\Gate\MarkomApiOrderGate;
+use LoyaltyNew\Core\Gate\OrderStatus;
+use LoyaltyNew\Core\Gate\OrderStatusSource;
+use PHPUnit\Framework\TestCase;
+
+final class MarkomApiOrderGateTest extends TestCase
+{
+    private function gate(?OrderStatus $status): MarkomApiOrderGate
+    {
+        $source = new class($status) implements OrderStatusSource
+        {
+            public function __construct(private ?OrderStatus $status)
+            {
+            }
+
+            public function find(string $awb): ?OrderStatus
+            {
+                return $this->status;
+            }
+        };
+
+        return new MarkomApiOrderGate($source);
+    }
+
+    public function test_order_complete_dan_hp_cocok_lolos(): void
+    {
+        $gate = $this->gate(new OrderStatus('JX1', '628123456789', 'completed', 'complete'));
+
+        // HP dinormalisasi: 62… vs 0… tetap cocok.
+        $result = $gate->isDelivered('JX1', '08123456789');
+
+        $this->assertTrue($result->delivered);
+    }
+
+    public function test_order_tak_ditemukan_ditolak(): void
+    {
+        $result = $this->gate(null)->isDelivered('JX1', '08123456789');
+
+        $this->assertFalse($result->delivered);
+        $this->assertSame('Order tidak ditemukan', $result->reason);
+    }
+
+    public function test_paket_belum_diterima_ditolak(): void
+    {
+        $gate = $this->gate(new OrderStatus('JX1', '628123456789', 'sent', 'problem'));
+        $result = $gate->isDelivered('JX1', '08123456789');
+
+        $this->assertFalse($result->delivered);
+        $this->assertSame('Paket belum diterima', $result->reason);
+    }
+
+    public function test_awb_curian_hp_beda_ditolak(): void
+    {
+        $gate = $this->gate(new OrderStatus('JX1', '628999999999', 'completed', 'complete'));
+        $result = $gate->isDelivered('JX1', '08123456789');
+
+        $this->assertFalse($result->delivered);
+        $this->assertSame('AWB tidak cocok dengan nomor HP', $result->reason);
+    }
+
+    public function test_awb_atau_hp_kosong_ditolak(): void
+    {
+        $gate = $this->gate(new OrderStatus('JX1', '628123456789', 'completed', 'complete'));
+
+        $this->assertSame('AWB kosong', $gate->isDelivered('', '08123456789')->reason);
+        $this->assertSame('Nomor HP kosong', $gate->isDelivered('JX1', '')->reason);
+    }
+
+    public function test_hp_order_kosong_ditolak_fail_closed(): void
+    {
+        // Sumber punya order complete tapi tanpa HP → tidak bisa dicocokkan → tolak.
+        $gate = $this->gate(new OrderStatus('JX1', null, 'completed', 'complete'));
+        $result = $gate->isDelivered('JX1', '08123456789');
+
+        $this->assertFalse($result->delivered);
+    }
+}
