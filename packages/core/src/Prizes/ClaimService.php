@@ -27,15 +27,20 @@ final class ClaimService
      *
      * @return int jumlah claim yang di-hangus
      */
-    public static function expireOverdue(?\DateTimeInterface $now = null, ?string $brand = null): int
+    public static function expireOverdue(?\DateTimeInterface $now = null, ?string $brand = null, bool $dryRun = false): int
     {
         $brand = $brand ?: (string) config('app.brand');
 
-        return Claim::query()
+        $query = Claim::query()
             ->where('expires_at', '<', $now ?? now())
             ->whereIn('status', self::OPEN_STATUSES)
-            ->whereHas('gameSession', fn ($q) => $q->where('brand', $brand))
-            ->update(['status' => 'hangus']);
+            ->whereHas('gameSession', fn ($q) => $q->where('brand', $brand));
+
+        if ($dryRun) {
+            return $query->count();
+        }
+
+        return $query->update(['status' => 'hangus']);
     }
 
     public static function create(GameSession $session, GamePrize $prize): Claim

@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use LoyaltyNew\Core\Gacha\AttemptLimiter;
 use LoyaltyNew\Core\Gacha\Grid;
 use LoyaltyNew\Core\Gacha\SessionService;
 use LoyaltyNew\Core\Models\Claim;
@@ -31,11 +32,26 @@ final class PlayController extends Controller
             'phone' => ['required', 'string', 'max:32'],
         ]);
 
+        $limiter = AttemptLimiter::fromConfig((string) config('app.brand'));
+
+        // Kunci akses: tolak lebih awal kalau sudah 5x salah (spec §7).
+        if (($remaining = $limiter->lockedFor($data['awb'], $data['phone'])) !== null) {
+            $minutes = (int) ceil($remaining / 60);
+
+            return back()->withErrors([
+                'awb' => "Terlalu banyak percobaan. Coba lagi dalam {$minutes} menit.",
+            ])->withInput();
+        }
+
         try {
             $session = $this->sessions->open($data['awb'], $data['phone']);
         } catch (\RuntimeException $e) {
+            $limiter->recordFailure($data['awb'], $data['phone']);
+
             return back()->withErrors(['awb' => $e->getMessage()])->withInput();
         }
+
+        $limiter->clear($data['awb'], $data['phone']);
 
         return redirect()->route('play.board', $session->session_token);
     }

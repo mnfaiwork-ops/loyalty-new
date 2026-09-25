@@ -43,7 +43,7 @@ dijadikan **alasan menerima paket** (bukan alat menawar COD), untuk **menurunkan
 | Klaim hadiah utama (Emas/Philips) | **30 hari** |
 | Klaim hadiah biasa (poin/voucher/merch) | **14 hari** |
 | Ingat HP untuk login berikutnya | 30 hari (UX, bukan batas klaim) |
-| Kunci akses 15 menit (salah 5×) | **DITUNDA** ke fase berikutnya |
+| Kunci akses 15 menit (salah 5×) | **SUDAH DIBUAT** — `AttemptLimiter` (dua sumbu: per AWB+HP & per HP), kunci 15 menit |
 
 ### Brand
 - **Terpisah total.** Pintu masuk sendiri per brand. Tidak ada tombol "Ganti brand", tidak ada banner lintas brand.

@@ -26,6 +26,18 @@ return [
         'timeout' => (int) env('MARKOM_API_TIMEOUT', 5),
     ],
 
+    /*
+     | Cache status order saat main (detik). 0 = tanpa cache.
+     | Webhook Markom (POST /webhooks/markom) mem-bust cache AWB terkait.
+     */
+    'cache_ttl' => (int) env('MARKOM_CACHE_TTL', 60),
+
+    /*
+     | Rahasia tanda tangan webhook Markom (header X-Markom-Signature:
+     | HMAC-SHA256 body). Kosong = webhook ditolak (fail-closed).
+     */
+    'webhook_secret' => env('MARKOM_WEBHOOK_SECRET'),
+
     'fairtrack' => [
         // Path DB FairTrack Lead (SQLite). Kosongkan di produksi.
         'database' => env('FAIRTRACK_DB'),
