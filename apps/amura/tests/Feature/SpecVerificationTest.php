@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Gacha\DrawEngine;
 use LoyaltyNew\Core\Gacha\SessionService;
 use LoyaltyNew\Core\Gate\AwbMatcher;
-use LoyaltyNew\Core\Gate\GateResult;
 use LoyaltyNew\Core\Gate\OrderGate;
 use LoyaltyNew\Core\Gate\StubOrderGate;
 use LoyaltyNew\Core\Models\BrandScope;
@@ -29,27 +28,37 @@ final class SpecVerificationTest extends TestCase
 
     // ── Cek #1: Gate baca status_fulfillment='complete' ─────────────────────
     //
-    // UNVERIFIABLE hari ini. Fase 1 memakai StubOrderGate, yang TIDAK membaca
-    // status_fulfillment: ia hanya menolak AWB/HP kosong. Jaminan
-    // `status_fulfillment='complete'` dimiliki MarkomApiOrderGate (spec §3,
-    // ditunda). Test ini membuktikan KONTRAK + seam-nya ada, dan mencatat
-    // perilaku stub yang sebenarnya — bukan mengklaim cek #1 lolos.
-    public function test_01_gate_kontrak_dan_perilaku_stub(): void
+    // TERVERIFIKASI dengan MarkomApiOrderGate + sumber FairTrack SQLite:
+    // order complete+HP cocok lolos; sent+problem / HP salah / tak ada ditolak.
+    // (Test terpisah: GateIntegrationTest, MarkomGateTest.) Di sini dibuktikan
+    // seam tetap OrderGate dan memakai gate nyata saat MARKOM_GATE=markom.
+    public function test_01_gate_kontrak_dan_gate_nyata(): void
     {
+        // Default (dev): stub, supaya alur jalan tanpa konfigurasi.
+        $this->assertInstanceOf(StubOrderGate::class, app(OrderGate::class));
+
+        // Gate nyata: sumber SQLite sementara.
+        $db = tempnam(sys_get_temp_dir(), 'ft').'.db';
+        $pdo = new \PDO('sqlite:'.$db);
+        $pdo->exec('create table orders (awb text, customer_phone text, status_order text, status_fulfillment text)');
+        $pdo->exec("insert into orders values ('JX-01','628123456789','sent','complete')");
+        $pdo->exec("insert into orders values ('JX-01B','628123456789','sent','problem')");
+
+        config([
+            'markom.gate' => 'markom',
+            'markom.driver' => 'fairtrack_sqlite',
+            'markom.fairtrack.database' => $db,
+        ]);
+        app()->forgetInstance(OrderGate::class);
+
         $gate = app(OrderGate::class);
-
-        // Seam: container me-resolve OrderGate, pemanggil tak pernah tahu impl.
         $this->assertInstanceOf(OrderGate::class, $gate);
-        $this->assertInstanceOf(StubOrderGate::class, $gate);
+        $this->assertTrue($gate->isDelivered('JX-01', '08123456789')->delivered);        // complete → lolos
+        $this->assertFalse($gate->isDelivered('JX-01B', '08123456789')->delivered);      // problem → tolak
+        $this->assertFalse($gate->isDelivered('JX-01', '08999999999')->delivered);       // HP salah → tolak
+        $this->assertFalse($gate->isDelivered('TIDAK-ADA', '08123456789')->delivered);   // tak ada → tolak
 
-        $result = $gate->isDelivered('JX-01', '08123456789');
-        $this->assertInstanceOf(GateResult::class, $result);
-        $this->assertTrue($result->delivered);
-        $this->assertNull($result->reason);
-
-        // Perilaku stub apa adanya: non-kosong lolos, kosong ditolak.
-        $this->assertFalse($gate->isDelivered('', '08123456789')->delivered);
-        $this->assertFalse($gate->isDelivered('JX-01', '')->delivered);
+        @unlink($db);
     }
 
     // ── Cek #2: 2 chance dikunci di DB ──────────────────────────────────────
@@ -147,12 +156,11 @@ final class SpecVerificationTest extends TestCase
         $this->assertSame('08123456789', AwbMatcher::normalizePhone('+62 812-3456-789'));
     }
 
-    // ── Cek #6: Batas klaim 14 / 30 hari ────────────────────────────────────
+    // ── Cek #6: Batas klaim 14 / 30 hari + auto-hangus ──────────────────────
     //
-    // Expiry dihitung saat klaim dibuat. Belum ada job yang mengubah status
-    // menjadi `hangus` otomatis (itu pekerjaan masa depan); yang diverifikasi
-    // di sini adalah expires_at yang benar per tier.
-    public function test_06_batas_klaim(): void
+    // Expiry dihitung saat klaim dibuat, DAN job auto-hangus (loyalty:expire-claims)
+    // menandai klaim lewat batas sebagai 'hangus'. Keduanya diverifikasi di sini.
+    public function test_06_batas_klaim_dan_auto_hangus(): void
     {
         $this->assertSame(14, ClaimService::expiryFor('poin'));
         $this->assertSame(14, ClaimService::expiryFor('voucher'));
@@ -167,6 +175,16 @@ final class SpecVerificationTest extends TestCase
 
         $this->assertEqualsWithDelta(14, now()->diffInDays($biasa->expires_at), 0.1);
         $this->assertEqualsWithDelta(30, now()->diffInDays($utama->expires_at), 0.1);
+
+        // Auto-hangus: yang lewat batas di-hangus, yang belum tidak.
+        $biasa->forceFill(['expires_at' => now()->subDay()])->save();
+        app('db')->table('claims')->where('id', $utama->id)
+            ->update(['expires_at' => now()->addDays(30)]);
+
+        $this->artisan('loyalty:expire-claims')->assertExitCode(0);
+
+        $this->assertSame('hangus', $biasa->fresh()->status);
+        $this->assertSame('perlu_finance', $utama->fresh()->status);
     }
 
     // ── Cek #7: Isolasi brand (Amura tidak bisa baca data Reglow) ───────────
