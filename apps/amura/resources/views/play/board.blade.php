@@ -7,7 +7,7 @@
     <h1 class="headline">Pilih 3 Kotak</h1>
     <p class="sub">Ketuk 3 kotak pilihanmu, lalu buka hadiahnya.</p>
 
-    <div class="chance">Kesempatan: {{ $session->chance_total - $session->chance_used }}/{{ $session->chance_total }}</div>
+    <div class="chance" id="chance">Kesempatan: {{ $session->chance_total - $session->chance_used }}/{{ $session->chance_total }}</div>
 
     <div class="grid" id="grid">
         @foreach ($prizes as $prize)
@@ -26,8 +26,8 @@
     <button type="button" class="btn" id="open" disabled>Buka 3 Kado</button>
 
     <div id="reveal" class="reveal" hidden>
-        <h2 class="headline">Pilih 1 Hadiah</h2>
-        <p class="sub">Ketuk hadiah yang ingin kamu simpan.</p>
+        <h2 class="headline" id="revealTitle">Pilih 1 Hadiah</h2>
+        <p class="sub" id="revealSub">Ketuk hadiah yang ingin kamu simpan.</p>
         <div class="reveal-grid" id="revealGrid"></div>
         <p class="note" id="revealNote"></p>
     </div>
@@ -49,10 +49,14 @@
     const revealBox = document.getElementById('reveal');
     const revealGrid = document.getElementById('revealGrid');
     const revealNote = document.getElementById('revealNote');
-    let selected = [...document.querySelectorAll('.slot.selected')].map(el => Number(el.dataset.slot));
+    const pendingSlots = @json($pendingSlots);
+    const pendingRevealed = @json($pendingRevealed);
+    let selected = [...pendingSlots];
+    // Ronde yang sudah tercatat di server tidak boleh diubah dari browser.
+    let roundLocked = pendingSlots.length === 3;
 
     slots.forEach(el => el.addEventListener('click', () => {
-        if (el.disabled) return;
+        if (el.disabled || roundLocked) return;
         const slot = Number(el.dataset.slot);
         if (selected.includes(slot)) {
             selected = selected.filter(s => s !== slot);
@@ -78,6 +82,8 @@
     }
 
     function showReveal(items) {
+        document.getElementById('revealTitle').textContent = 'Pilih 1 Hadiah';
+        document.getElementById('revealSub').textContent = 'Ketuk hadiah yang ingin kamu simpan.';
         revealGrid.innerHTML = '';
         items.forEach(item => {
             const card = document.createElement('button');
@@ -95,11 +101,22 @@
         const take = await post(`/play/${token}/take`, { slot });
         if (!take.ok) { alert(take.error || 'Gagal'); return; }
 
+        showTaken(take);
+    }
+
+    function showTaken(take) {
         document.querySelectorAll('.reveal-card').forEach(card => {
             card.disabled = true;
             card.classList.toggle('chosen', Number(card.dataset.slot) === take.chosen);
         });
-        revealNote.textContent = 'Hadiahmu tersimpan.';
+        revealNote.textContent = take.auto_taken
+            ? 'Selamat! Hadiah Utama langsung masuk ke keranjangmu.'
+            : 'Hadiahmu tersimpan.';
+        if (take.auto_taken) {
+            document.getElementById('revealTitle').textContent = 'Kamu dapat Hadiah Utama!';
+            document.getElementById('revealSub').textContent = 'Hadiah Utama otomatis disimpan untukmu.';
+        }
+        document.getElementById('chance').textContent = `Kesempatan: ${take.chance_left}/${take.chance_total}`;
 
         slots.forEach(el => {
             const s = Number(el.dataset.slot);
@@ -111,6 +128,7 @@
             }
         });
         selected = [];
+        roundLocked = false;
         openBtn.disabled = true;
 
         if (take.claim_code) {
@@ -122,13 +140,24 @@
 
     openBtn.addEventListener('click', async () => {
         openBtn.disabled = true;
-        const pick = await post(`/play/${token}/pick`, { slots: selected });
-        if (!pick.ok) { alert(pick.error || 'Gagal'); return; }
+        if (!roundLocked) {
+            const pick = await post(`/play/${token}/pick`, { slots: selected });
+            if (!pick.ok) { alert(pick.error || 'Gagal'); openBtn.disabled = false; return; }
+            roundLocked = true;
+        }
 
         const reveal = await post(`/play/${token}/reveal`);
-        if (!reveal.ok) { alert(reveal.error || 'Gagal'); return; }
+        if (!reveal.ok) { alert(reveal.error || 'Gagal'); openBtn.disabled = false; return; }
 
         showReveal(reveal.revealed);
+        if (reveal.auto_taken) showTaken(reveal);
     });
+
+    // Lanjutkan ronde yang tertunda setelah halaman di-refresh.
+    if (pendingRevealed.length) {
+        showReveal(pendingRevealed);
+    } else if (roundLocked) {
+        openBtn.disabled = false;
+    }
 </script>
 @endpush

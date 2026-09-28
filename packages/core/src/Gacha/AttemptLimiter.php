@@ -2,7 +2,9 @@
 
 namespace LoyaltyNew\Core\Gacha;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use LoyaltyNew\Core\Gate\AwbMatcher;
 
 /**
  * Pembatas percobaan masuk game (AWB+HP) — kunci akses 15 menit setelah 5 kali
@@ -14,7 +16,9 @@ use Illuminate\Support\Facades\DB;
  *
  * - HP tidak disimpan mentah (hash).
  * - Brand-scoped: satu brand tidak memengaruhi brand lain.
- * - Counter di-reset saat berhasil masuk.
+ * - Counter di-reset saat berhasil masuk, setelah kunci habis, dan kalau
+ *   kegagalan terakhir sudah lebih lama dari jendela kunci. Tanpa reset ini,
+ *   satu salah ketik sesudah kunci habis langsung mengunci lagi.
  *
  * Default: 5 percobaan gagal → kunci 15 menit. Bisa diubah via config
  * `loyalty.lockout.*` / env.
@@ -68,22 +72,12 @@ final class AttemptLimiter
 
     public function pairKey(string $awb, string $phone): string
     {
-        return hash('sha256', $this->brand.'|pair|'.trim($awb).'|'.$this->normalizePhone($phone));
+        return hash('sha256', $this->brand.'|pair|'.AwbMatcher::normalizeAwb($awb).'|'.AwbMatcher::normalizePhone($phone));
     }
 
     public function phoneKey(string $phone): string
     {
-        return hash('sha256', $this->brand.'|phone|'.$this->normalizePhone($phone));
-    }
-
-    private function normalizePhone(string $phone): string
-    {
-        $digits = preg_replace('/\D+/', '', $phone);
-        if (str_starts_with($digits, '62')) {
-            $digits = '0'.substr($digits, 2);
-        }
-
-        return $digits;
+        return hash('sha256', $this->brand.'|phone|'.AwbMatcher::normalizePhone($phone));
     }
 
     /** Sisa detik kunci untuk satu key, atau 0. */
@@ -94,12 +88,14 @@ final class AttemptLimiter
             return 0;
         }
 
-        return max(0, strtotime((string) $row->locked_until) - time());
+        return max(0, (int) ceil(now()->diffInSeconds(Carbon::parse($row->locked_until), false)));
     }
 
     /** Tambah hitungan gagal satu key; kunci kalau sudah mencapai batas. */
     private function bump(string $key): bool
     {
+        $this->resetIfStale($key);
+
         DB::table('play_attempts')->upsert(
             [[
                 'brand' => $this->brand,
@@ -126,6 +122,25 @@ final class AttemptLimiter
         }
 
         return false;
+    }
+
+    /** Mulai hitungan dari nol kalau kunci sudah habis atau kegagalan terakhir sudah basi. */
+    private function resetIfStale(string $key): void
+    {
+        $row = $this->row($key);
+        if (! $row) {
+            return;
+        }
+
+        $lockExpired = $row->locked_until && Carbon::parse($row->locked_until)->isPast();
+        $staleFail = $row->last_fail_at
+            && Carbon::parse($row->last_fail_at)->lt(now()->subMinutes($this->lockMinutes));
+
+        if ($lockExpired || $staleFail) {
+            DB::table('play_attempts')
+                ->where('brand', $this->brand)->where('key', $key)
+                ->update(['fails' => 0, 'locked_until' => null]);
+        }
     }
 
     private function row(string $key): ?object

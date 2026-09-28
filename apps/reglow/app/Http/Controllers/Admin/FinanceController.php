@@ -40,6 +40,7 @@ final class FinanceController extends Controller
                 $claim = Claim::whereHas('gameSession', fn ($query) => $query->where('brand', $brand))
                     ->where('claim_code', $code)
                     ->where('status', 'perlu_finance')
+                    ->where('expires_at', '>=', now())
                     ->lockForUpdate()
                     ->firstOrFail();
 
@@ -50,7 +51,7 @@ final class FinanceController extends Controller
                 ]);
             });
         } catch (ModelNotFoundException) {
-            return back()->withErrors(['status' => 'Klaim tidak ditemukan atau sudah diproses.']);
+            return back()->withErrors(['status' => 'Klaim tidak ditemukan, sudah diproses, atau sudah lewat batas klaim.']);
         }
 
         return back()->with('ok', 'Hadiah besar disetujui');

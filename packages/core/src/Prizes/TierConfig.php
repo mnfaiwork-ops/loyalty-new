@@ -79,6 +79,7 @@ final class TierConfig
             }
         }
 
-        return true;
+        // Total 0 membuat undian tidak mungkin jalan: anggap tidak valid, pakai default.
+        return array_sum(array_map(fn ($tier) => $value[$tier], ['poin', 'voucher', 'merch'])) > 0;
     }
 }

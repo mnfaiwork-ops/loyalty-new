@@ -2,6 +2,7 @@
 
 namespace LoyaltyNew\Core\Gacha;
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Gate\AwbMatcher;
 use LoyaltyNew\Core\Gate\OrderGate;
@@ -9,7 +10,7 @@ use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
 use LoyaltyNew\Core\Models\PrizeCatalog;
-use LoyaltyNew\Core\Prizes\QuotaGuard;
+use LoyaltyNew\Core\Prizes\BigPrizeQuota;
 use LoyaltyNew\Core\Prizes\TierConfig;
 
 final class SessionService
@@ -20,9 +21,14 @@ final class SessionService
     ) {
     }
 
-    /** Buka (atau pakai ulang) sesi untuk AWB+HP. Melempar kalau gate menolak. */
+    /**
+     * Buka (atau pakai ulang) sesi untuk AWB+HP. Melempar kalau gate menolak,
+     * atau SessionExpiredException kalau masa main paket ini sudah habis.
+     */
     public function open(string $awb, string $phone): GameSession
     {
+        $awb = AwbMatcher::normalizeAwb($awb);
+
         $result = $this->gate->isDelivered($awb, $phone);
         if (! $result->delivered) {
             throw new \RuntimeException($result->reason ?? 'Paket belum diterima');
@@ -33,12 +39,13 @@ final class SessionService
         );
         $customer->update(['last_seen_at' => now()]);
 
+        // Satu paket = satu sesi seumur hidup (unique customer_id+awb). Sesi yang
+        // sudah lewat masa main tidak dipakai ulang dan tidak diganti yang baru.
         $existing = GameSession::where('customer_id', $customer->id)
             ->where('awb', $awb)
-            ->where('expires_at', '>', now())
             ->first();
         if ($existing) {
-            return $existing;
+            return self::ensureActive($existing);
         }
 
         try {
@@ -50,10 +57,24 @@ final class SessionService
                 ->where('awb', $awb)
                 ->first();
             if ($raced) {
-                return $raced;
+                return self::ensureActive($raced);
             }
             throw $e;
         }
+    }
+
+    public static function isExpired(GameSession $session): bool
+    {
+        return $session->expires_at !== null && $session->expires_at->isPast();
+    }
+
+    private static function ensureActive(GameSession $session): GameSession
+    {
+        if (self::isExpired($session)) {
+            throw new SessionExpiredException;
+        }
+
+        return $session;
     }
 
     private function createSession(Customer $customer, string $awb): GameSession
@@ -80,7 +101,7 @@ final class SessionService
                 ]);
             }
 
-            $this->reserveBigPrize($session);
+            $this->placeBigPrize($session);
 
             return $session;
         });
@@ -97,10 +118,49 @@ final class SessionService
     }
 
     /**
-     * Ambil satu hadiah besar dari kuota kalau budget masih ada.
-     * Race-safe: klaim kuota via increment atomik, bukan cek-lalu-tulis.
+     * Buka ronde (3 kado pilihan) di dalam transaksi pemanggil yang sudah
+     * mengunci sesi. Hadiah besar yang baru terbuka memotong kuota di sini;
+     * kalau kuota sudah diambil sesi lain, kado itu diundi ulang ke tier biasa
+     * SEBELUM tampil, jadi pelanggan tidak pernah melihat hadiah besar yang
+     * lalu dibatalkan.
+     *
+     * @param  Collection<int, GamePrize>  $round
+     * @return Collection<int, GamePrize> ronde dengan tier terbaru
      */
-    private function reserveBigPrize(GameSession $session): ?GamePrize
+    public function openRound(GameSession $session, Collection $round): Collection
+    {
+        foreach ($round as $prize) {
+            if ($prize->opened) {
+                continue;
+            }
+
+            if ($prize->tier === 'hadiah_besar' && ! BigPrizeQuota::reserve($this->brand, $prize)) {
+                $prize->tier = $this->drawRegularTier($session);
+                $prize->prize_catalog_id = null;
+            }
+
+            $prize->opened = true;
+            $prize->save();
+        }
+
+        return $round;
+    }
+
+    private function drawRegularTier(GameSession $session): string
+    {
+        $weights = $session->tier_config ?: TierConfig::default();
+        if (array_sum($weights) <= 0) {
+            $weights = TierConfig::default();
+        }
+
+        return (new DrawEngine($weights))->pick(random_int(1, array_sum($weights)));
+    }
+
+    /**
+     * Taruh satu hadiah besar di slot acak kalau katalog masih punya kuota.
+     * Kuota BELUM dipotong di sini (lihat openRound).
+     */
+    private function placeBigPrize(GameSession $session): ?GamePrize
     {
         $catalogs = PrizeCatalog::where('brand', $this->brand)
             ->where('tier', 'hadiah_besar')
@@ -109,34 +169,11 @@ final class SessionService
             ->get();
 
         foreach ($catalogs as $catalog) {
-            $cap = DB::table('quota_caps')
-                ->where('brand', $this->brand)
-                ->where('prize_name', $catalog->name)
-                ->first();
-
-            if (! $cap || ! QuotaGuard::canAward((int) $cap->cap_units, (int) $cap->used_units)) {
+            if (! BigPrizeQuota::available($this->brand, $catalog)) {
                 continue;
             }
 
-            $won = DB::table('quota_caps')
-                ->where('id', $cap->id)
-                ->where('used_units', '<', DB::raw('cap_units'))
-                ->increment('used_units');
-
-            if ($won < 1) {
-                continue;
-            }
-
-            $slot = $session->prizes()
-                ->where('tier', '!=', 'hadiah_besar')
-                ->inRandomOrder()
-                ->first();
-
-            if (! $slot) {
-                DB::table('quota_caps')->where('id', $cap->id)->decrement('used_units');
-                continue;
-            }
-
+            $slot = $session->prizes()->inRandomOrder()->first();
             $slot->update([
                 'tier' => 'hadiah_besar',
                 'prize_catalog_id' => $catalog->id,

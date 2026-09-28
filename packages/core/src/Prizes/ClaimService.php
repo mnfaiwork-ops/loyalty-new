@@ -2,6 +2,7 @@
 
 namespace LoyaltyNew\Core\Prizes;
 
+use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Models\Claim;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
@@ -24,6 +25,7 @@ final class ClaimService
      * - Brand-scoped: claims tak punya kolom brand, jadi difilter via relasi sesi.
      *   Kalau $brand null, pakai config('app.brand').
      * - handled_by dibiarkan null: ini tindakan sistem, bukan CS.
+     * - Hadiah besar yang hangus mengembalikan kuotanya.
      *
      * @return int jumlah claim yang di-hangus
      */
@@ -40,7 +42,28 @@ final class ClaimService
             return $query->count();
         }
 
-        return $query->update(['status' => 'hangus']);
+        return DB::transaction(function () use ($query, $brand) {
+            $claims = $query->with('gamePrize')->lockForUpdate()->get();
+
+            foreach ($claims as $claim) {
+                self::releaseBigPrizeQuota($claim, $brand);
+            }
+
+            return Claim::whereIn('id', $claims->pluck('id'))->update(['status' => 'hangus']);
+        });
+    }
+
+    /**
+     * Klaim hadiah besar yang hangus mengembalikan kuotanya, supaya hadiah itu
+     * bisa muncul lagi untuk pelanggan lain. Panggil sekali per transisi ke hangus.
+     */
+    public static function releaseBigPrizeQuota(Claim $claim, string $brand): void
+    {
+        $prize = $claim->gamePrize;
+
+        if ($prize && $prize->tier === 'hadiah_besar') {
+            BigPrizeQuota::release($brand, $prize);
+        }
     }
 
     public static function create(GameSession $session, GamePrize $prize): Claim

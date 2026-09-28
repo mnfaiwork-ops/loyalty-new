@@ -6,8 +6,8 @@ final class AwbMatcher
 {
     public static function matches(string $awb, string $phone, string $orderAwb, string $orderPhone): bool
     {
-        $awb = trim($awb);
-        $orderAwb = trim($orderAwb);
+        $awb = self::normalizeAwb($awb);
+        $orderAwb = self::normalizeAwb($orderAwb);
         $phone = self::normalizePhone($phone);
         $orderPhone = self::normalizePhone($orderPhone);
 
@@ -16,7 +16,16 @@ final class AwbMatcher
             return false;
         }
 
-        return strcasecmp($awb, $orderAwb) === 0 && $phone === $orderPhone;
+        return $awb === $orderAwb && $phone === $orderPhone;
+    }
+
+    /**
+     * Bentuk baku AWB: tanpa spasi tepi, huruf besar. Dipakai di semua tempat
+     * AWB disimpan atau dicari, supaya "jx123" dan "JX123" dihitung satu paket.
+     */
+    public static function normalizeAwb(string $awb): string
+    {
+        return strtoupper(trim($awb));
     }
 
     public static function normalizePhone(string $phone): string
