@@ -25,12 +25,13 @@ Hasil test setelah perbaikan:
 | Suite | Sebelum | Sesudah |
 |---|---|---|
 | `packages/core` | 38 lulus | 38 lulus |
-| `apps/amura` | 127 lulus | 148 lulus |
-| `apps/reglow` | 118 lulus | 139 lulus |
+| `apps/amura` | 127 lulus | 151 lulus |
+| `apps/reglow` | 118 lulus | 142 lulus |
 
 Test regresi baru ada di `tests/Feature/BugfixRegressionTest.php` (isi sama di kedua app,
-brand diambil dari `config('app.brand')`). Saat dijalankan terhadap kode **lama**, 19 dari 21
-test gagal. Dua sisanya menjaga logika kuota yang baru (reveal dua kali, take tanpa reveal).
+brand diambil dari `config('app.brand')`), 24 test. Versi pertamanya (21 test, sebelum
+keputusan hadiah utama di bawah) dijalankan terhadap kode **lama**: 19 gagal. Dua sisanya
+menjaga logika kuota yang baru.
 
 ---
 
@@ -65,12 +66,22 @@ kuotanya:
   memotong kuota secara atomik. Kalau kuota sudah diambil sesi lain, kado itu diundi ulang
   ke tier biasa **sebelum** isinya dikirim ke browser. Pelanggan tidak pernah melihat hadiah
   besar yang lalu dibatalkan.
-- Hadiah besar yang terbuka tapi tidak dipilih saat `take` dikembalikan kuotanya.
+- **Hadiah utama langsung masuk keranjang** (keputusan 2026-09-28). Kalau ronde yang dibuka
+  berisi hadiah utama, `reveal` langsung mengambilnya: satu kesempatan terpakai, klaim
+  `perlu_finance` terbit, dan dua kado lainnya otomatis tidak terpilih. Balasan `reveal`
+  membawa `auto_taken: true`, dan papan langsung menampilkan kode klaim. `take` tanpa reveal
+  juga selalu mengambil hadiah utama kalau ada di ronde itu. Karena itu kuota tidak pernah
+  tertahan di ronde yang ditinggal.
+- **Emas boleh muncul lagi** (keputusan 2026-09-28). Klaim hadiah utama yang hangus
+  mengembalikan kuotanya, baik lewat auto-hangus terjadwal (`ClaimService::expireOverdue`)
+  maupun saat CS menandai hangus. Transisinya dikunci per baris, jadi kuota tidak kembali dua kali.
 - Reveal dua kali tidak memotong kuota dua kali, karena hanya kado yang belum terbuka yang diproses.
 - Kelas baru `Prizes/BigPrizeQuota` (`available` / `reserve` / `release`).
 
 **File.** `packages/core/src/Prizes/BigPrizeQuota.php` (baru),
-`packages/core/src/Gacha/SessionService.php`, `app/Http/Controllers/PlayController.php`
+`packages/core/src/Gacha/SessionService.php`, `packages/core/src/Prizes/ClaimService.php`,
+`app/Http/Controllers/PlayController.php`, `app/Http/Controllers/Admin/CsClaimController.php`,
+`resources/views/play/board.blade.php`
 
 **Test lama yang diubah.** `SpecVerificationTest::test_04_cap_hadiah_besar` (kedua app) dan
 `SessionServiceTest::test_hadiah_besar_dibatasi_cap` sebelumnya menegaskan kuota terpotong saat
@@ -169,22 +180,25 @@ memakai `now()` (Carbon), bukan `time()`, jadi bisa diuji dengan `travel()`.
 - **`take`** menjalankan semua cek sebelum menulis apa pun. Sebelumnya slot sempat ditandai
   terbuka lalu balasan 422 dikirim tanpa rollback.
 
-## Hal yang perlu diputuskan atau diketahui
+- **Angka kesempatan di papan** sekarang langsung berkurang setelah hadiah diambil. Sebelumnya
+  baru berubah setelah halaman di-reload.
 
-1. **Ronde yang dibuka lalu ditinggal.** Kalau pelanggan membuka hadiah besar lalu tidak
-   pernah memilih, kuota tertahan di sesi itu. Setelah perbaikan #5 pelanggan bisa kembali dan
-   melanjutkan, tapi kalau tidak kembali sampai sesi kedaluwarsa, kuotanya tidak otomatis
-   dikembalikan. Pilihannya: kembalikan lewat job terjadwal saat sesi kedaluwarsa, atau terima
-   apa adanya.
-2. **Klaim hadiah besar yang hangus** tidak mengembalikan kuota. Ini keputusan bisnis: apakah
-   Emas yang tidak diklaim boleh muncul lagi untuk pelanggan lain?
-3. **Data AWB lama.** Sesi yang sudah tersimpan dengan AWB huruf kecil tidak otomatis
+## Keputusan bisnis (2026-09-28)
+
+| Pertanyaan | Keputusan | Implementasi |
+|---|---|---|
+| Kado hadiah utama dibuka lalu ditinggal | Hadiah utama langsung masuk keranjang; kado lain (mis. poin) otomatis tidak terpilih | `reveal` mengambil otomatis (lihat #2) |
+| Klaim hadiah utama hangus | Emas boleh muncul lagi | Kuota dikembalikan saat klaim hangus (lihat #2) |
+
+## Hal yang perlu diketahui
+
+1. **Data AWB lama.** Sesi yang sudah tersimpan dengan AWB huruf kecil tidak otomatis
    dinormalkan. Karena masih fase 1 (belum produksi), belum ada migrasi data. Kalau sudah ada
    data nyata, perlu migrasi `upper(trim(awb))` yang menangani bentrok unique index.
-4. **Lingkungan uji.** Container uji memakai PHP 8.4, sedangkan `loyaltynew/core` mensyaratkan
+2. **Lingkungan uji.** Container uji memakai PHP 8.4, sedangkan `loyaltynew/core` mensyaratkan
    PHP ^8.5. Dependensi dipasang dengan `composer install --ignore-platform-req=php`. Tidak ada
    file composer yang diubah.
-5. **Pint.** Repo belum bersih-Pint sejak sebelum perubahan ini (misalnya `AttemptLimiter`,
+3. **Pint.** Repo belum bersih-Pint sejak sebelum perubahan ini (misalnya `AttemptLimiter`,
    `SessionService`, `AppServiceProvider`). File yang tidak terkait perbaikan tidak diformat ulang.
 
 ## Cara verifikasi ulang

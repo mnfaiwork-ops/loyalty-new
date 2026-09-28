@@ -137,9 +137,23 @@ final class PlayController extends Controller
                 return response()->json(['error' => 'Belum memilih 3 slot'], 422);
             }
 
-            $round = $this->sessions->openRound($session, $round);
+            // Hadiah utama langsung diambil saat terbuka, jadi kesempatan harus
+            // masih ada sebelum kado dibuka (sesi sudah dikunci, cek ini konsisten).
+            if ($session->chance_used >= $session->chance_total) {
+                return response()->json(['error' => 'Kesempatan habis'], 422);
+            }
 
-            return response()->json(['ok' => true, 'revealed' => $this->revealed($round)]);
+            $round = $this->sessions->openRound($session, $round);
+            $bigPrize = $round->firstWhere('tier', 'hadiah_besar');
+
+            if (! $bigPrize) {
+                return response()->json(['ok' => true, 'revealed' => $this->revealed($round)]);
+            }
+
+            // Hadiah utama langsung masuk keranjang; dua kado lain otomatis tidak terpilih.
+            $this->sessions->consumeChance($session);
+
+            return response()->json($this->keep($session, $round, $bigPrize) + ['auto_taken' => true]);
         });
     }
 
@@ -157,9 +171,8 @@ final class PlayController extends Controller
             }
 
             $round = $this->round($session);
-            $chosen = $round->firstWhere('slot', $data['slot']);
 
-            if (! $chosen) {
+            if (! $round->firstWhere('slot', $data['slot'])) {
                 return response()->json(['error' => 'Slot belum dipilih'], 422);
             }
 
@@ -169,25 +182,35 @@ final class PlayController extends Controller
             }
 
             $round = $this->sessions->openRound($session, $round);
-            $chosen = $round->firstWhere('slot', $data['slot']);
 
-            $chosen->update(['taken' => true, 'opened' => true]);
+            // Take tanpa reveal: hadiah utama di ronde ini tetap yang masuk keranjang.
+            $chosen = $round->firstWhere('tier', 'hadiah_besar')
+                ?? $round->firstWhere('slot', $data['slot']);
 
-            $others = $round->reject(fn (GamePrize $prize) => $prize->id === $chosen->id);
-            $session->prizes()->whereIn('id', $others->pluck('id'))->update(['picked' => false]);
-            $this->sessions->releaseUnchosen($others);
-
-            $claim = Claim::where('game_prize_id', $chosen->id)->first()
-                ?? ClaimService::create($session, $chosen);
-
-            return response()->json([
-                'ok' => true,
-                'revealed' => $this->revealed($round),
-                'chosen' => $chosen->slot,
-                'claim_code' => $claim->claim_code,
-                'claim_expires_at' => $claim->expires_at->toDateString(),
-            ]);
+            return response()->json($this->keep($session, $round, $chosen));
         });
+    }
+
+    /** Simpan satu hadiah dari ronde, lepas dua lainnya, dan terbitkan klaim. */
+    private function keep(GameSession $session, Collection $round, GamePrize $chosen): array
+    {
+        $chosen->update(['taken' => true, 'opened' => true]);
+
+        $others = $round->reject(fn (GamePrize $prize) => $prize->id === $chosen->id);
+        $session->prizes()->whereIn('id', $others->pluck('id'))->update(['picked' => false]);
+
+        $claim = Claim::where('game_prize_id', $chosen->id)->first()
+            ?? ClaimService::create($session, $chosen);
+
+        return [
+            'ok' => true,
+            'revealed' => $this->revealed($round),
+            'chosen' => $chosen->slot,
+            'claim_code' => $claim->claim_code,
+            'claim_expires_at' => $claim->expires_at->toDateString(),
+            'chance_left' => max(0, $session->chance_total - $session->fresh()->chance_used),
+            'chance_total' => $session->chance_total,
+        ];
     }
 
     /** Slot ronde aktif: sudah dipilih tapi belum disimpan. */

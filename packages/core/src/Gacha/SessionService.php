@@ -146,16 +146,6 @@ final class SessionService
         return $round;
     }
 
-    /** Hadiah besar yang sudah terbuka tapi tidak diambil: kembalikan kuotanya. */
-    public function releaseUnchosen(Collection $others): void
-    {
-        foreach ($others as $prize) {
-            if ($prize->tier === 'hadiah_besar' && ! $prize->taken) {
-                BigPrizeQuota::release($this->brand, $prize);
-            }
-        }
-    }
-
     private function drawRegularTier(GameSession $session): string
     {
         $weights = $session->tier_config ?: TierConfig::default();

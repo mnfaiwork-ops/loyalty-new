@@ -93,46 +93,117 @@ final class BugfixRegressionTest extends TestCase
         $this->assertSame(0, $this->usedUnits());
     }
 
-    public function test_2_take_tanpa_reveal_tetap_memotong_kuota(): void
+    /** Pilih slot hadiah besar + 2 slot lain. @return array{0:int, 1:array<int,int>} */
+    private function pickBigPrizeRound(GameSession $session): array
     {
-        $this->bigPrizeCatalog();
-        $session = $this->start();
         $big = $session->prizes()->where('tier', 'hadiah_besar')->value('slot');
         $others = $session->prizes()->where('slot', '!=', $big)->orderBy('slot')->limit(2)->pluck('slot')->all();
 
         $this->postJson("/play/{$session->session_token}/pick", ['slots' => [$big, ...$others]])->assertOk();
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => $big])->assertOk();
+
+        return [$big, $others];
+    }
+
+    public function test_2_reveal_hadiah_utama_langsung_masuk_keranjang(): void
+    {
+        $this->bigPrizeCatalog();
+        $session = $this->start();
+        [$big, $others] = $this->pickBigPrizeRound($session);
+
+        $this->postJson("/play/{$session->session_token}/reveal")
+            ->assertOk()
+            ->assertJson(['auto_taken' => true, 'chosen' => $big, 'chance_left' => 1, 'chance_total' => 2]);
+
+        $this->assertSame(1, $this->usedUnits());
+        $this->assertSame(1, $session->fresh()->chance_used);
+        $this->assertSame('perlu_finance', Claim::firstOrFail()->status);
+        $this->assertTrue((bool) $session->prizes()->where('slot', $big)->value('taken'));
+        // Dua kado lain otomatis tidak terpilih: ronde selesai, tidak bisa diambil lagi.
+        $this->assertSame(0, $session->prizes()->whereIn('slot', $others)->where('picked', true)->count());
+        $this->postJson("/play/{$session->session_token}/take", ['slot' => $others[0]])->assertStatus(422);
+        $this->assertSame(1, Claim::count());
+    }
+
+    public function test_2_take_tanpa_reveal_hadiah_utama_tetap_yang_diambil(): void
+    {
+        $this->bigPrizeCatalog();
+        $session = $this->start();
+        [$big, $others] = $this->pickBigPrizeRound($session);
+
+        $this->postJson("/play/{$session->session_token}/take", ['slot' => $others[0]])
+            ->assertOk()
+            ->assertJson(['chosen' => $big]);
 
         $this->assertSame(1, $this->usedUnits());
         $this->assertSame('perlu_finance', Claim::firstOrFail()->status);
-    }
-
-    public function test_2_hadiah_besar_terbuka_tapi_tidak_diambil_kuota_kembali(): void
-    {
-        $this->bigPrizeCatalog();
-        $session = $this->start();
-        $big = $session->prizes()->where('tier', 'hadiah_besar')->value('slot');
-        $others = $session->prizes()->where('slot', '!=', $big)->orderBy('slot')->limit(2)->pluck('slot')->all();
-
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [$big, ...$others]])->assertOk();
-        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
-        $this->assertSame(1, $this->usedUnits());
-
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => $others[0]])->assertOk();
-        $this->assertSame(0, $this->usedUnits());
     }
 
     public function test_2_reveal_dua_kali_tidak_memotong_kuota_dua_kali(): void
     {
         $this->bigPrizeCatalog(cap: 2);
         $session = $this->start();
-        $big = $session->prizes()->where('tier', 'hadiah_besar')->value('slot');
-        $others = $session->prizes()->where('slot', '!=', $big)->orderBy('slot')->limit(2)->pluck('slot')->all();
+        $this->pickBigPrizeRound($session);
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [$big, ...$others]])->assertOk();
         $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
-        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+        $this->postJson("/play/{$session->session_token}/reveal")->assertStatus(422);
 
+        $this->assertSame(1, $this->usedUnits());
+        $this->assertSame(1, Claim::count());
+    }
+
+    public function test_2_klaim_hadiah_utama_hangus_otomatis_kuota_kembali(): void
+    {
+        $this->bigPrizeCatalog(cap: 1);
+        $session = $this->start();
+        $this->pickBigPrizeRound($session);
+        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+        $this->assertSame(1, $this->usedUnits());
+
+        // Kuota habis: sesi baru tidak mendapat hadiah utama.
+        $this->assertSame(0, $this->start('JX-NEXT1', '081200000091')->prizes()->where('tier', 'hadiah_besar')->count());
+
+        Claim::firstOrFail()->update(['expires_at' => now()->subDay()]);
+        $this->assertSame(1, ClaimService::expireOverdue());
+        $this->assertSame(0, $this->usedUnits());
+
+        // Dijalankan lagi tidak mengembalikan kuota dua kali.
+        $this->assertSame(0, ClaimService::expireOverdue());
+        $this->assertSame(0, $this->usedUnits());
+
+        // Emas boleh muncul lagi untuk pelanggan berikutnya.
+        $this->assertSame(1, $this->start('JX-NEXT2', '081200000092')->prizes()->where('tier', 'hadiah_besar')->count());
+    }
+
+    public function test_2_cs_menghanguskan_klaim_hadiah_utama_kuota_kembali(): void
+    {
+        $this->bigPrizeCatalog(cap: 1);
+        $session = $this->start();
+        $this->pickBigPrizeRound($session);
+        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+        $claim = Claim::firstOrFail();
+        $cs = $this->staff('cs');
+
+        $this->actingAs($cs)
+            ->post("/admin/claims/{$claim->claim_code}/resolve", ['status' => 'hangus'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(0, $this->usedUnits());
+
+        // Klik kedua ditolak (sudah final) dan tidak mengurangi kuota lagi.
+        $this->actingAs($cs)
+            ->post("/admin/claims/{$claim->claim_code}/resolve", ['status' => 'hangus'])
+            ->assertSessionHasErrors('status');
+        $this->assertSame(0, $this->usedUnits());
+    }
+
+    public function test_2_klaim_hadiah_biasa_hangus_tidak_menyentuh_kuota(): void
+    {
+        $this->bigPrizeCatalog(cap: 2);
+        DB::table('quota_caps')->update(['used_units' => 1]);
+        $claim = $this->claim('menunggu', expired: true);
+
+        ClaimService::expireOverdue();
+
+        $this->assertSame('hangus', $claim->fresh()->status);
         $this->assertSame(1, $this->usedUnits());
     }
 

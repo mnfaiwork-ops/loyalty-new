@@ -7,7 +7,7 @@
     <h1 class="headline">Pilih 3 Kotak</h1>
     <p class="sub">Ketuk 3 kotak pilihanmu, lalu buka hadiahnya.</p>
 
-    <div class="chance">Kesempatan: {{ $session->chance_total - $session->chance_used }}/{{ $session->chance_total }}</div>
+    <div class="chance" id="chance">Kesempatan: {{ $session->chance_total - $session->chance_used }}/{{ $session->chance_total }}</div>
 
     <div class="grid" id="grid">
         @foreach ($prizes as $prize)
@@ -26,8 +26,8 @@
     <button type="button" class="btn" id="open" disabled>Buka 3 Kado</button>
 
     <div id="reveal" class="reveal" hidden>
-        <h2 class="headline">Pilih 1 Hadiah</h2>
-        <p class="sub">Ketuk hadiah yang ingin kamu simpan.</p>
+        <h2 class="headline" id="revealTitle">Pilih 1 Hadiah</h2>
+        <p class="sub" id="revealSub">Ketuk hadiah yang ingin kamu simpan.</p>
         <div class="reveal-grid" id="revealGrid"></div>
         <p class="note" id="revealNote"></p>
     </div>
@@ -82,6 +82,8 @@
     }
 
     function showReveal(items) {
+        document.getElementById('revealTitle').textContent = 'Pilih 1 Hadiah';
+        document.getElementById('revealSub').textContent = 'Ketuk hadiah yang ingin kamu simpan.';
         revealGrid.innerHTML = '';
         items.forEach(item => {
             const card = document.createElement('button');
@@ -99,11 +101,22 @@
         const take = await post(`/play/${token}/take`, { slot });
         if (!take.ok) { alert(take.error || 'Gagal'); return; }
 
+        showTaken(take);
+    }
+
+    function showTaken(take) {
         document.querySelectorAll('.reveal-card').forEach(card => {
             card.disabled = true;
             card.classList.toggle('chosen', Number(card.dataset.slot) === take.chosen);
         });
-        revealNote.textContent = 'Hadiahmu tersimpan.';
+        revealNote.textContent = take.auto_taken
+            ? 'Selamat! Hadiah Utama langsung masuk ke keranjangmu.'
+            : 'Hadiahmu tersimpan.';
+        if (take.auto_taken) {
+            document.getElementById('revealTitle').textContent = 'Kamu dapat Hadiah Utama!';
+            document.getElementById('revealSub').textContent = 'Hadiah Utama otomatis disimpan untukmu.';
+        }
+        document.getElementById('chance').textContent = `Kesempatan: ${take.chance_left}/${take.chance_total}`;
 
         slots.forEach(el => {
             const s = Number(el.dataset.slot);
@@ -137,6 +150,7 @@
         if (!reveal.ok) { alert(reveal.error || 'Gagal'); openBtn.disabled = false; return; }
 
         showReveal(reveal.revealed);
+        if (reveal.auto_taken) showTaken(reveal);
     });
 
     // Lanjutkan ronde yang tertunda setelah halaman di-refresh.
