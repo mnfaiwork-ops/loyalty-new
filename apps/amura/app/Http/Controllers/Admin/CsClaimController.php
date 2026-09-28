@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use LoyaltyNew\Core\Models\Claim;
+use LoyaltyNew\Core\Prizes\ClaimService;
 
 final class CsClaimController extends Controller
 {
@@ -33,6 +34,16 @@ final class CsClaimController extends Controller
         $allowed = $needsFinance ? ['hangus'] : ['diproses', 'selesai', 'hangus'];
 
         $data = $request->validate(['status' => ['required', 'in:'.implode(',', $allowed)]]);
+
+        // Klaim yang sudah selesai atau hangus bersifat final.
+        if (! in_array($claim->status, ClaimService::OPEN_STATUSES, true)) {
+            return back()->withErrors(['status' => "Klaim {$claim->claim_code} sudah {$claim->status}, tidak bisa diubah."]);
+        }
+
+        // Lewat batas klaim: hanya boleh ditandai hangus (spec §2).
+        if ($claim->expires_at?->isPast() && $data['status'] !== 'hangus') {
+            return back()->withErrors(['status' => "Klaim {$claim->claim_code} sudah lewat batas klaim, hanya bisa ditandai hangus."]);
+        }
 
         $claim->update([
             'status' => $data['status'],

@@ -13,7 +13,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(\LoyaltyNew\Core\Gacha\SessionService::class, fn () =>
             new \LoyaltyNew\Core\Gacha\SessionService(
-                app(\LoyaltyNew\Core\Gate\OrderGate::class), 'amura'
+                app(\LoyaltyNew\Core\Gate\OrderGate::class), (string) config('app.brand')
             )
         );
     }

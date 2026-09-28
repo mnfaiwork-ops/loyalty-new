@@ -132,9 +132,33 @@ final class SpecVerificationTest extends TestCase
         $first = $service->open('JX-04A', '081200000041');
         $second = $service->open('JX-04B', '081200000042');
 
+        // Kuota dipotong saat hadiah besar terbuka, bukan saat sesi dibuat.
         $this->assertSame(1, $first->prizes()->where('tier', 'hadiah_besar')->count());
+        $this->assertSame(1, $second->prizes()->where('tier', 'hadiah_besar')->count());
+        $this->assertSame(0, (int) DB::table('quota_caps')->where('prize_name', 'Emas 1 gram')->value('used_units'));
+
+        $this->assertContains('hadiah_besar', array_column($this->revealBigPrizeRound($first), 'tier'));
+        $this->assertSame(1, (int) DB::table('quota_caps')->where('prize_name', 'Emas 1 gram')->value('used_units'));
+
+        // Emas ke-2: kado diundi ulang ke tier biasa sebelum tampil.
+        $this->assertNotContains('hadiah_besar', array_column($this->revealBigPrizeRound($second), 'tier'));
         $this->assertSame(0, $second->prizes()->where('tier', 'hadiah_besar')->count());
         $this->assertSame(1, (int) DB::table('quota_caps')->where('prize_name', 'Emas 1 gram')->value('used_units'));
+
+        // Kuota habis: sesi baru tidak mendapat hadiah besar sama sekali.
+        $third = $service->open('JX-04C', '081200000043');
+        $this->assertSame(0, $third->prizes()->where('tier', 'hadiah_besar')->count());
+    }
+
+    /** Pilih slot hadiah besar + 2 slot lain lalu buka; kembalikan isi yang terbuka. */
+    private function revealBigPrizeRound(GameSession $session): array
+    {
+        $big = $session->prizes()->where('tier', 'hadiah_besar')->value('slot');
+        $others = $session->prizes()->where('slot', '!=', $big)->orderBy('slot')->limit(2)->pluck('slot')->all();
+
+        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [$big, ...$others]])->assertOk();
+
+        return $this->postJson("/play/{$session->session_token}/reveal")->assertOk()->json('revealed');
     }
 
     // ── Cek #5: AWB+HP harus cocok (anti-fraud) ─────────────────────────────

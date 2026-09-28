@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use LoyaltyNew\Core\Gacha\SessionExpiredException;
 use LoyaltyNew\Core\Gacha\SessionService;
 use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GameSession;
@@ -63,12 +64,36 @@ final class SessionServiceTest extends TestCase
         ]);
 
         $service = app(SessionService::class);
-        $a = $service->open('JX1', '081100000001');
-        $b = $service->open('JX2', '081100000002');
+        $first = $service->open('JX1', '081200000041');
+        $second = $service->open('JX2', '081200000042');
 
-        $this->assertSame(1, $a->prizes()->where('tier', 'hadiah_besar')->count());
-        $this->assertSame(0, $b->prizes()->where('tier', 'hadiah_besar')->count());
+        // Kuota dipotong saat hadiah besar terbuka, bukan saat sesi dibuat.
+        $this->assertSame(1, $first->prizes()->where('tier', 'hadiah_besar')->count());
+        $this->assertSame(1, $second->prizes()->where('tier', 'hadiah_besar')->count());
+        $this->assertSame(0, (int) DB::table('quota_caps')->where('prize_name', 'Emas 1 gram')->value('used_units'));
+
+        $this->assertContains('hadiah_besar', array_column($this->revealBigPrizeRound($first), 'tier'));
         $this->assertSame(1, (int) DB::table('quota_caps')->where('prize_name', 'Emas 1 gram')->value('used_units'));
+
+        // Emas ke-2: kado diundi ulang ke tier biasa sebelum tampil.
+        $this->assertNotContains('hadiah_besar', array_column($this->revealBigPrizeRound($second), 'tier'));
+        $this->assertSame(0, $second->prizes()->where('tier', 'hadiah_besar')->count());
+        $this->assertSame(1, (int) DB::table('quota_caps')->where('prize_name', 'Emas 1 gram')->value('used_units'));
+
+        // Kuota habis: sesi baru tidak mendapat hadiah besar sama sekali.
+        $third = $service->open('JX3', '081200000043');
+        $this->assertSame(0, $third->prizes()->where('tier', 'hadiah_besar')->count());
+    }
+
+    /** Pilih slot hadiah besar + 2 slot lain lalu buka; kembalikan isi yang terbuka. */
+    private function revealBigPrizeRound(GameSession $session): array
+    {
+        $big = $session->prizes()->where('tier', 'hadiah_besar')->value('slot');
+        $others = $session->prizes()->where('slot', '!=', $big)->orderBy('slot')->limit(2)->pluck('slot')->all();
+
+        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [$big, ...$others]])->assertOk();
+
+        return $this->postJson("/play/{$session->session_token}/reveal")->assertOk()->json('revealed');
     }
 
     public function test_unique_brand_phone_ditolak(): void
@@ -115,14 +140,17 @@ final class SessionServiceTest extends TestCase
         $this->assertSame(1, GameSession::where('customer_id', $customer->id)->where('awb', 'JX123')->count());
     }
 
-    public function test_open_fallback_unik_saat_sesi_kedaluwarsa(): void
+    public function test_open_sesi_kedaluwarsa_ditolak_tanpa_sesi_baru(): void
     {
         $first = app(SessionService::class)->open('JX123', '08123456789');
         $first->update(['expires_at' => now()->subDay()]);
 
-        $second = app(SessionService::class)->open('JX123', '08123456789');
+        try {
+            app(SessionService::class)->open('JX123', '08123456789');
+            $this->fail('Sesi kedaluwarsa seharusnya ditolak');
+        } catch (SessionExpiredException) {
+        }
 
-        $this->assertSame($first->id, $second->id);
         $this->assertDatabaseCount('game_sessions', 1);
     }
 }

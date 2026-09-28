@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Gacha\AttemptLimiter;
 use LoyaltyNew\Core\Gacha\Grid;
+use LoyaltyNew\Core\Gacha\SessionExpiredException;
 use LoyaltyNew\Core\Gacha\SessionService;
 use LoyaltyNew\Core\Models\Claim;
 use LoyaltyNew\Core\Models\GamePrize;
@@ -45,6 +46,9 @@ final class PlayController extends Controller
 
         try {
             $session = $this->sessions->open($data['awb'], $data['phone']);
+        } catch (SessionExpiredException $e) {
+            // Input benar, masa main saja yang habis: jangan dihitung percobaan gagal.
+            return back()->withErrors(['awb' => $e->getMessage()])->withInput();
         } catch (\RuntimeException $e) {
             $limiter->recordFailure($data['awb'], $data['phone']);
 
@@ -60,59 +64,83 @@ final class PlayController extends Controller
     {
         $session = $this->session($token);
 
+        if (SessionService::isExpired($session)) {
+            return redirect()->route('play.form')
+                ->withErrors(['awb' => (new SessionExpiredException)->getMessage()]);
+        }
+
+        // Ronde yang belum selesai (mis. halaman di-refresh) ditampilkan lagi,
+        // supaya pelanggan bisa melanjutkan, bukan terjebak di kotak yang terkunci.
+        $round = $this->round($session);
+        $revealed = $round->count() === Grid::PICKS && $round->every(fn (GamePrize $p) => $p->opened)
+            ? $this->revealed($round)
+            : [];
+
         return view('play.board', [
             'session' => $session,
             'prizes' => $session->prizes()->orderBy('slot')->get(),
+            'pendingSlots' => $round->pluck('slot')->values()->all(),
+            'pendingRevealed' => $revealed,
         ]);
     }
 
     public function pick(Request $request, string $token): JsonResponse
     {
-        $session = $this->session($token);
-
-        if ($session->chance_used >= $session->chance_total) {
-            return response()->json(['error' => 'Kesempatan habis'], 422);
-        }
-
         $data = $request->validate([
             'slots' => ['required', 'array', 'size:3'],
             'slots.*' => ['required', 'integer', 'distinct'],
         ]);
 
-        foreach ($data['slots'] as $slot) {
-            $available = $slot >= 1 && $slot <= Grid::SLOTS
-                && $session->prizes()
-                    ->where('slot', $slot)
-                    ->where('opened', false)
-                    ->where('taken', false)
-                    ->exists();
+        // Dikunci per sesi supaya dua pick bersamaan tidak sama-sama lolos cek ronde.
+        return DB::transaction(function () use ($token, $data) {
+            $session = $this->lockedSession($token);
 
-            if (! $available) {
-                return response()->json(['error' => 'Slot tidak valid'], 422);
+            if ($error = $this->playableError($session)) {
+                return $error;
             }
-        }
 
-        if ($this->round($session)->isNotEmpty()) {
-            return response()->json(['error' => 'Sudah memilih slot ronde ini'], 422);
-        }
+            foreach ($data['slots'] as $slot) {
+                $available = $slot >= 1 && $slot <= Grid::SLOTS
+                    && $session->prizes()
+                        ->where('slot', $slot)
+                        ->where('opened', false)
+                        ->where('taken', false)
+                        ->exists();
 
-        $session->prizes()->whereIn('slot', $data['slots'])->update(['picked' => true]);
+                if (! $available) {
+                    return response()->json(['error' => 'Slot tidak valid'], 422);
+                }
+            }
 
-        return response()->json(['ok' => true]);
+            if ($this->round($session)->isNotEmpty()) {
+                return response()->json(['error' => 'Sudah memilih slot ronde ini'], 422);
+            }
+
+            $session->prizes()->whereIn('slot', $data['slots'])->update(['picked' => true]);
+
+            return response()->json(['ok' => true]);
+        });
     }
 
     public function reveal(string $token): JsonResponse
     {
-        $session = $this->session($token);
-        $round = $this->round($session);
+        return DB::transaction(function () use ($token) {
+            $session = $this->lockedSession($token);
 
-        if ($round->count() !== Grid::PICKS) {
-            return response()->json(['error' => 'Belum memilih 3 slot'], 422);
-        }
+            if (SessionService::isExpired($session)) {
+                return $this->expiredResponse();
+            }
 
-        $session->prizes()->whereIn('id', $round->pluck('id'))->update(['opened' => true]);
+            $round = $this->round($session);
 
-        return response()->json(['ok' => true, 'revealed' => $this->revealed($round)]);
+            if ($round->count() !== Grid::PICKS) {
+                return response()->json(['error' => 'Belum memilih 3 slot'], 422);
+            }
+
+            $round = $this->sessions->openRound($session, $round);
+
+            return response()->json(['ok' => true, 'revealed' => $this->revealed($round)]);
+        });
     }
 
     public function take(Request $request, string $token): JsonResponse
@@ -122,10 +150,11 @@ final class PlayController extends Controller
         ]);
 
         return DB::transaction(function () use ($token, $data) {
-            $session = GameSession::where('brand', config('app.brand'))
-                ->where('session_token', $token)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $session = $this->lockedSession($token);
+
+            if (SessionService::isExpired($session)) {
+                return $this->expiredResponse();
+            }
 
             $round = $this->round($session);
             $chosen = $round->firstWhere('slot', $data['slot']);
@@ -134,16 +163,19 @@ final class PlayController extends Controller
                 return response()->json(['error' => 'Slot belum dipilih'], 422);
             }
 
-            $session->prizes()->whereIn('id', $round->pluck('id'))->update(['opened' => true]);
-
+            // Semua cek dulu, baru tulis: response 422 di tengah transaksi tidak me-rollback.
             if (! $this->sessions->consumeChance($session)) {
                 return response()->json(['error' => 'Kesempatan habis'], 422);
             }
 
+            $round = $this->sessions->openRound($session, $round);
+            $chosen = $round->firstWhere('slot', $data['slot']);
+
             $chosen->update(['taken' => true, 'opened' => true]);
 
-            $others = $round->pluck('id')->reject(fn ($id) => $id === $chosen->id);
-            $session->prizes()->whereIn('id', $others)->update(['picked' => false]);
+            $others = $round->reject(fn (GamePrize $prize) => $prize->id === $chosen->id);
+            $session->prizes()->whereIn('id', $others->pluck('id'))->update(['picked' => false]);
+            $this->sessions->releaseUnchosen($others);
 
             $claim = Claim::where('game_prize_id', $chosen->id)->first()
                 ?? ClaimService::create($session, $chosen);
@@ -193,5 +225,32 @@ final class PlayController extends Controller
         return GameSession::where('brand', config('app.brand'))
             ->where('session_token', $token)
             ->firstOrFail();
+    }
+
+    private function lockedSession(string $token): GameSession
+    {
+        return GameSession::where('brand', config('app.brand'))
+            ->where('session_token', $token)
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
+    /** Alasan sesi tidak bisa memulai ronde baru, atau null kalau bisa. */
+    private function playableError(GameSession $session): ?JsonResponse
+    {
+        if (SessionService::isExpired($session)) {
+            return $this->expiredResponse();
+        }
+
+        if ($session->chance_used >= $session->chance_total) {
+            return response()->json(['error' => 'Kesempatan habis'], 422);
+        }
+
+        return null;
+    }
+
+    private function expiredResponse(): JsonResponse
+    {
+        return response()->json(['error' => (new SessionExpiredException)->getMessage()], 422);
     }
 }

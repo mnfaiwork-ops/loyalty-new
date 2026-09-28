@@ -126,17 +126,24 @@ final class SmokeSeeder
         ];
 
         foreach ($caps as [$brand, $prize, $cap]) {
-            DB::table('quota_caps')->updateOrInsert(
-                ['brand' => $brand, 'prize_name' => $prize],
-                [
-                    'cap_units' => $cap,
-                    'used_units' => 0,
-                    'program_start' => now()->toDateString(),
-                    'program_end' => now()->addDays(60)->toDateString(),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-            );
+            // used_units tidak di-reset saat dijalankan ulang: hadiah besar seed
+            // yang sudah dimenangkan tetap tercatat memakai kuota.
+            $exists = DB::table('quota_caps')
+                ->where('brand', $brand)->where('prize_name', $prize)->exists();
+            if ($exists) {
+                continue;
+            }
+
+            DB::table('quota_caps')->insert([
+                'brand' => $brand,
+                'prize_name' => $prize,
+                'cap_units' => $cap,
+                'used_units' => 0,
+                'program_start' => now()->toDateString(),
+                'program_end' => now()->addDays(60)->toDateString(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
     }
 
@@ -239,8 +246,17 @@ final class SmokeSeeder
             ]);
         }
 
+        // Sama seperti alur take nyata: slot yang diambil taken, dua lainnya
+        // tetap terbuka tapi tidak lagi "dipilih", supaya sesi bisa lanjut ronde.
         foreach ($prizes as $slot => $prize) {
-            $prize->update(['taken' => $slot === $takenSlot]);
+            $prize->update([
+                'taken' => $slot === $takenSlot,
+                'picked' => $slot === $takenSlot,
+            ]);
+        }
+
+        if ($bigPrize) {
+            $this->awardSeededBigPrize($brand, $prizes[$takenSlot]);
         }
 
         if (! $claimed) {
@@ -264,5 +280,27 @@ final class SmokeSeeder
                 'updated_at' => now(),
             ],
         );
+    }
+
+    /** Hubungkan hadiah besar seed ke katalog dan potong kuotanya, seperti pemenang nyata. */
+    private function awardSeededBigPrize(string $brand, GamePrize $prize): void
+    {
+        $catalog = PrizeCatalog::withoutGlobalScopes()
+            ->where('brand', $brand)
+            ->where('tier', 'hadiah_besar')
+            ->where('is_capped', true)
+            ->orderBy('id')
+            ->first();
+        if (! $catalog) {
+            return;
+        }
+
+        $prize->update(['prize_catalog_id' => $catalog->id]);
+
+        DB::table('quota_caps')
+            ->where('brand', $brand)
+            ->where('prize_name', $catalog->name)
+            ->where('used_units', '<', DB::raw('cap_units'))
+            ->increment('used_units');
     }
 }

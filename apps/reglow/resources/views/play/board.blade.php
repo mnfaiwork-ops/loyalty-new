@@ -49,10 +49,14 @@
     const revealBox = document.getElementById('reveal');
     const revealGrid = document.getElementById('revealGrid');
     const revealNote = document.getElementById('revealNote');
-    let selected = [...document.querySelectorAll('.slot.selected')].map(el => Number(el.dataset.slot));
+    const pendingSlots = @json($pendingSlots);
+    const pendingRevealed = @json($pendingRevealed);
+    let selected = [...pendingSlots];
+    // Ronde yang sudah tercatat di server tidak boleh diubah dari browser.
+    let roundLocked = pendingSlots.length === 3;
 
     slots.forEach(el => el.addEventListener('click', () => {
-        if (el.disabled) return;
+        if (el.disabled || roundLocked) return;
         const slot = Number(el.dataset.slot);
         if (selected.includes(slot)) {
             selected = selected.filter(s => s !== slot);
@@ -111,6 +115,7 @@
             }
         });
         selected = [];
+        roundLocked = false;
         openBtn.disabled = true;
 
         if (take.claim_code) {
@@ -122,13 +127,23 @@
 
     openBtn.addEventListener('click', async () => {
         openBtn.disabled = true;
-        const pick = await post(`/play/${token}/pick`, { slots: selected });
-        if (!pick.ok) { alert(pick.error || 'Gagal'); return; }
+        if (!roundLocked) {
+            const pick = await post(`/play/${token}/pick`, { slots: selected });
+            if (!pick.ok) { alert(pick.error || 'Gagal'); openBtn.disabled = false; return; }
+            roundLocked = true;
+        }
 
         const reveal = await post(`/play/${token}/reveal`);
-        if (!reveal.ok) { alert(reveal.error || 'Gagal'); return; }
+        if (!reveal.ok) { alert(reveal.error || 'Gagal'); openBtn.disabled = false; return; }
 
         showReveal(reveal.revealed);
     });
+
+    // Lanjutkan ronde yang tertunda setelah halaman di-refresh.
+    if (pendingRevealed.length) {
+        showReveal(pendingRevealed);
+    } else if (roundLocked) {
+        openBtn.disabled = false;
+    }
 </script>
 @endpush

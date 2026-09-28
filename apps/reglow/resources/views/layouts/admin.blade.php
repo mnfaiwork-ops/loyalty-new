@@ -38,6 +38,7 @@
         header nav a:hover { color: #fff; }
         main { max-width: 960px; margin: 0 auto; padding: 22px 16px 48px; }
         h1 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 24px; margin: 0 0 16px; color: var(--deep); }
+        .flash-error { background: #FDECEC; border: 1px solid #F3C6C6; color: #A32B2B; border-radius: 10px; padding: 10px 14px; font-size: 14px; margin-bottom: 16px; }
         .flash { background: #E7F3F1; border: 1px solid var(--line); color: var(--primary); border-radius: 10px; padding: 10px 14px; font-size: 14px; margin-bottom: 16px; }
         form.search { display: flex; gap: 8px; margin-bottom: 18px; }
         input[type=text], select {
@@ -97,6 +98,9 @@
     <main>
         @if (session('ok'))
             <div class="flash">{{ session('ok') }}</div>
+        @endif
+        @if ($errors->any())
+            <div class="flash-error" role="alert">{{ $errors->first() }}</div>
         @endif
         @yield('content')
     </main>
