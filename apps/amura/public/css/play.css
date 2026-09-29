@@ -343,6 +343,51 @@ button { font-family: inherit; }
 @keyframes stampc { 0% { transform: translateX(-50%) rotate(-12deg) scale(1.8); opacity: 0; } 100% { transform: translateX(-50%) rotate(-12deg) scale(1); opacity: 1; } }
 
 /* HP lemah atau "kurangi gerakan": melayang, sinar, dan getar layar dimatikan (kanvas: Tetap ringan). */
+/* ── Area pelanggan: Beranda, Hadiahku, Voucher, Katalog (desain 3c, 3d, 2d, 1f) ── */
+.brandbar-text { flex: 1; min-width: 0; }
+.link-btn { border: 0; background: transparent; color: var(--muted); font: 700 13px/1 inherit; font-family: inherit; min-height: 44px; padding: 0 4px; cursor: pointer; text-decoration: underline; }
+.page { flex: 1; padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 18px; }
+.page h1 { margin: 0; font-size: 22px; font-weight: 800; }
+.page h2 { margin: 0; font-size: 16px; font-weight: 800; }
+.back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--ink); font-weight: 800; text-decoration: none; }
+.notice { border-radius: 12px; padding: 12px 14px; background: var(--t); color: var(--d); font-size: 13px; font-weight: 700; }
+
+.wallet { border-radius: 20px; padding: 18px; color: #fff; background: linear-gradient(160deg, var(--p), var(--d)); box-shadow: 0 10px 24px -12px rgba(15, 65, 60, .6); }
+.wallet-hi { font-size: 12px; opacity: .85; }
+.wallet-label { margin-top: 10px; font-size: 13px; font-weight: 700; opacity: .9; }
+.wallet-balance { font-size: 44px; line-height: 1.05; }
+.wallet-note { margin-top: 4px; font-size: 12px; opacity: .85; }
+
+.due { border-radius: 18px; padding: 14px; background: #FBF1DE; border: 1px solid #EFD9AE; display: flex; flex-direction: column; gap: 12px; }
+.due-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+.pill { font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 999px; background: #fff; color: var(--gold-edge); white-space: nowrap; }
+.due-item { display: flex; gap: 12px; align-items: center; }
+.due-item b { display: block; font-size: 15px; }
+.due-item small { font-size: 12px; color: var(--muted); }
+.btn-wa { display: grid; place-items: center; text-decoration: none; background: #2E7A4E; color: #fff; box-shadow: 0 5px 0 #1C5233; }
+.btn-wa:active { transform: translateY(4px); box-shadow: 0 1px 0 #1C5233; }
+
+.section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.section-head a { color: var(--p); font-size: 13px; font-weight: 800; }
+.claim-list { display: flex; flex-direction: column; gap: 10px; }
+.claim-row { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: #fff; border: 1px solid var(--line); color: var(--ink); text-decoration: none; min-height: 64px; }
+.claim-row-body { flex: 1; min-width: 0; }
+.claim-row-body b { display: block; font-size: 15px; overflow-wrap: anywhere; }
+.claim-row-body small { font-size: 12px; color: var(--muted); }
+.thumb { width: 44px; height: 44px; flex: none; border-radius: 10px; background: repeating-linear-gradient(135deg, var(--t) 0 6px, #fff 6px 12px); border: 1px solid var(--line); }
+.thumb.is-gold { background: repeating-linear-gradient(135deg, #F6EBD3 0 6px, #fff 6px 12px); border-color: #EFD9AE; }
+.status { font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 999px; white-space: nowrap; background: var(--soft); color: var(--muted); }
+.status-belum_redeem { background: #FBF1DE; color: var(--gold-edge); }
+.status-diajukan, .status-perlu_finance, .status-diproses, .status-dikirim { background: #E3EEF9; color: #2B5B8A; }
+.status-selesai { background: #E2F1E7; color: var(--ok); }
+.status-hangus { background: #F3E3E1; color: var(--danger); }
+.empty-card { margin: 0; padding: 16px; border-radius: 16px; background: #fff; border: 1px dashed var(--line); font-size: 14px; line-height: 1.5; color: var(--muted); }
+
+.home-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn-outline { display: grid; place-items: center; text-decoration: none; background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
+.btn-off { display: grid; place-items: center; background: #EFE7DC; color: #8C7D71; cursor: not-allowed; }
+.home-actions .btn-brand { display: grid; place-items: center; text-decoration: none; }
+
 @media (prefers-reduced-motion: reduce) {
     .gift-float, .stage-rays, .rcard.is-open .rcard-rays, .win-rays { animation: none !important; }
     .fx { display: none; }

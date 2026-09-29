@@ -5,12 +5,22 @@ use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GameAdminController;
 use App\Http\Controllers\Admin\SuperAdminController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Customer\CatalogController;
+use App\Http\Controllers\Customer\HomeController;
+use App\Http\Controllers\Customer\RewardController;
 use App\Http\Controllers\PlayController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
+// Area pelanggan: perangkat diingat 30 hari setelah resi + HP cocok.
+Route::middleware('customer')->group(function () {
+    Route::get('/', [HomeController::class, 'index'])->name('home');
+    Route::get('/hadiah', [RewardController::class, 'index'])->name('rewards');
+    Route::get('/hadiah/{code}', [RewardController::class, 'show'])->name('rewards.show');
+    Route::post('/hadiah/{code}/redeem', [RewardController::class, 'redeem'])->name('rewards.redeem');
+    Route::get('/katalog', [CatalogController::class, 'index'])->name('catalog');
+    Route::post('/katalog/{item}/tukar', [CatalogController::class, 'exchange'])->name('catalog.exchange');
 });
+Route::post('/keluar', [HomeController::class, 'logout'])->name('customer.logout');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'show'])->name('login');

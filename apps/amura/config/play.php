@@ -2,6 +2,9 @@
 
 // Warna per brand dari kanvas desain (Revisi 1, GT/TH) untuk halaman /play.
 return [
+    // Perangkat pelanggan diingat sekian hari setelah resi + HP cocok.
+    'remember_days' => 30,
+
     'themes' => [
         'amura' => [
             'name' => 'Amura', 'initial' => 'A', 'awb_example' => 'JX2409187734',

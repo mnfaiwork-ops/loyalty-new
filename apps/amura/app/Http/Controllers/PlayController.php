@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\RememberedCustomer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -11,6 +12,7 @@ use LoyaltyNew\Core\Gacha\Grid;
 use LoyaltyNew\Core\Gacha\SessionExpiredException;
 use LoyaltyNew\Core\Gacha\SessionService;
 use LoyaltyNew\Core\Models\Claim;
+use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
 use LoyaltyNew\Core\Models\PointLot;
@@ -70,7 +72,12 @@ final class PlayController extends Controller
 
         $limiter->clear($data['awb'], $data['phone']);
 
-        return redirect()->route('play.board', $session->session_token);
+        $customer = Customer::findOrFail($session->customer_id);
+        $target = $session->chance_used < $session->chance_total
+            ? redirect()->route('play.board', $session->session_token)
+            : redirect()->route('home');
+
+        return $target->withCookie(RememberedCustomer::cookieFor($customer));
     }
 
     public function board(string $token)
