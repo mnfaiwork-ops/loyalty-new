@@ -387,6 +387,32 @@ button { font-family: inherit; }
 .btn-outline { display: grid; place-items: center; text-decoration: none; background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
 .btn-off { display: grid; place-items: center; background: #EFE7DC; color: #8C7D71; cursor: not-allowed; }
 .home-actions .btn-brand { display: grid; place-items: center; text-decoration: none; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.tabs a { flex: none; min-height: 40px; display: grid; place-items: center; padding: 0 14px; border-radius: 999px; background: #fff; border: 1px solid var(--line); color: var(--muted); font-size: 13px; font-weight: 800; text-decoration: none; }
+.tabs a[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+.voucher { border-radius: 20px; padding: 18px; background: #fff; border: 1.5px dashed var(--p); display: flex; flex-direction: column; gap: 12px; }
+.voucher.is-gold { border-color: #C99A3A; background: #FFFCF5; }
+.voucher-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.voucher .chip { font-size: 11px; font-weight: 800; letter-spacing: .04em; color: var(--p); }
+.voucher.is-gold .chip { color: var(--gold-edge); }
+.voucher-name { font-size: 30px; line-height: 1.1; overflow-wrap: anywhere; }
+.voucher-meta { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.voucher-meta dt { font-size: 11px; color: var(--muted); font-weight: 700; }
+.voucher-meta dd { margin: 2px 0 0; font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
+.voucher-code { letter-spacing: .1em; }
+.redeem-form { display: flex; flex-direction: column; gap: 8px; }
+.redeem-form small { font-size: 12px; color: var(--muted); text-align: center; }
+.fallback { border-radius: 14px; background: #fff; border: 1px solid var(--line); padding: 12px 14px; font-size: 13px; line-height: 1.5; }
+.fallback summary { min-height: 32px; font-weight: 800; cursor: pointer; }
+.fallback ol { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; }
+.wa-text { margin: 6px 0; white-space: pre-wrap; font-family: inherit; font-size: 13px; background: var(--soft); border-radius: 10px; padding: 10px; }
+.copy-btn { min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1.5px solid var(--ink); background: #fff; color: var(--ink); font: 800 13px/1 inherit; font-family: inherit; cursor: pointer; }
+.timeline { list-style: none; margin: 10px 0 0; padding: 0 0 0 18px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
+.timeline li { position: relative; }
+.timeline li::before { content: ""; position: absolute; left: -25px; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--p); }
+.timeline b { display: block; font-size: 14px; }
+.timeline small { font-size: 12px; color: var(--muted); }
 
 @media (prefers-reduced-motion: reduce) {
     .gift-float, .stage-rays, .rcard.is-open .rcard-rays, .win-rays { animation: none !important; }

@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Http\Middleware\RememberedCustomer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use LoyaltyNew\Core\Models\Claim;
 use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GameSession;
 use LoyaltyNew\Core\Points\PointWallet;
+use LoyaltyNew\Core\Prizes\ClaimService;
 use Tests\TestCase;
 
 final class CustomerAreaTest extends TestCase
@@ -82,5 +84,107 @@ final class CustomerAreaTest extends TestCase
         $this->asCustomer($customer)->post('/keluar')
             ->assertRedirect(route('play.form'))
             ->assertCookieExpired(RememberedCustomer::COOKIE);
+    }
+
+    private function claimFor(Customer $customer, string $status = 'belum_redeem', string $name = 'Serum 20 ml'): Claim
+    {
+        $claim = Claim::create([
+            'brand' => config('app.brand'),
+            'customer_id' => $customer->id,
+            'source' => 'katalog',
+            'prize_name' => $name,
+            'claim_code' => strtoupper(bin2hex(random_bytes(4))),
+            'status' => $status,
+            'expires_at' => now()->addDays(14),
+        ]);
+
+        return $claim;
+    }
+
+    public function test_hadiahku_memisahkan_tab(): void
+    {
+        $customer = $this->customer();
+        $this->claimFor($customer, 'belum_redeem', 'Pouch Exclusive');
+        $this->claimFor($customer, 'diproses', 'Gold Serum');
+        $this->claimFor($customer, 'hangus', 'Voucher Lama');
+
+        $this->asCustomer($customer)->get('/hadiah')->assertOk()->assertSee('Pouch Exclusive')->assertDontSee('Gold Serum');
+        $this->asCustomer($customer)->get('/hadiah?tab=proses')->assertOk()->assertSee('Gold Serum')->assertDontSee('Pouch Exclusive');
+        $this->asCustomer($customer)->get('/hadiah?tab=selesai')->assertOk()->assertSee('Voucher Lama');
+    }
+
+    public function test_voucher_menampilkan_nama_dan_nomor_pemenang(): void
+    {
+        $customer = $this->customer();
+        $claim = $this->claimFor($customer);
+
+        $this->asCustomer($customer)->get("/hadiah/{$claim->claim_code}")
+            ->assertOk()
+            ->assertSee('Sari')
+            ->assertSee('081234567890')
+            ->assertSee($claim->claim_code)
+            ->assertSee('Redeem sekarang');
+    }
+
+    public function test_voucher_milik_pelanggan_lain_404(): void
+    {
+        $owner = $this->customer();
+        $claim = $this->claimFor($owner);
+        $other = $this->customer('081200000999', 'Budi');
+
+        $this->asCustomer($other)->get("/hadiah/{$claim->claim_code}")->assertNotFound();
+        $this->asCustomer($other)->post("/hadiah/{$claim->claim_code}/redeem")->assertNotFound();
+    }
+
+    public function test_redeem_mengubah_status_dan_menampilkan_link_wa(): void
+    {
+        config(['loyalty.cs_whatsapp' => '0811 4000 2626']);
+        $customer = $this->customer();
+        $claim = $this->claimFor($customer);
+
+        $this->asCustomer($customer)->post("/hadiah/{$claim->claim_code}/redeem")
+            ->assertRedirect(route('rewards.show', $claim->claim_code));
+        $this->assertSame('diajukan', $claim->fresh()->status);
+
+        $this->asCustomer($customer)->get("/hadiah/{$claim->claim_code}")
+            ->assertOk()
+            ->assertSee('https://wa.me/6281140002626', false)
+            ->assertSee('Redeem diajukan');
+    }
+
+    public function test_redeem_ganda_tidak_error(): void
+    {
+        $customer = $this->customer();
+        $claim = $this->claimFor($customer);
+
+        $this->asCustomer($customer)->post("/hadiah/{$claim->claim_code}/redeem");
+        $this->asCustomer($customer)->post("/hadiah/{$claim->claim_code}/redeem")
+            ->assertRedirect(route('rewards.show', $claim->claim_code));
+
+        // Klaim dibuat langsung (tanpa event awal), jadi hanya ada satu event: diajukan.
+        $this->assertSame(1, $claim->events()->count());
+    }
+
+    public function test_tanpa_nomor_cs_tombol_wa_disembunyikan(): void
+    {
+        config(['loyalty.cs_whatsapp' => null]);
+        $customer = $this->customer();
+        $claim = $this->claimFor($customer, 'diajukan');
+
+        $this->asCustomer($customer)->get("/hadiah/{$claim->claim_code}")
+            ->assertOk()
+            ->assertSee('Nomor CS belum diatur')
+            ->assertDontSee('wa.me', false);
+    }
+
+    public function test_klaim_ditolak_menampilkan_alasan(): void
+    {
+        $customer = $this->customer();
+        $claim = $this->claimFor($customer);
+        $claim->update(['rejected_reason' => 'Nomor pengirim tidak cocok']);
+
+        $this->asCustomer($customer)->get("/hadiah/{$claim->claim_code}")
+            ->assertOk()
+            ->assertSee('Kirim dari nomor pemenang');
     }
 }
