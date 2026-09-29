@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use LoyaltyNew\Core\Models\Claim;
 use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GameSession;
+use LoyaltyNew\Core\Models\RewardCatalog;
 use LoyaltyNew\Core\Points\PointWallet;
 use LoyaltyNew\Core\Prizes\ClaimService;
 use Tests\TestCase;
@@ -186,5 +187,59 @@ final class CustomerAreaTest extends TestCase
         $this->asCustomer($customer)->get("/hadiah/{$claim->claim_code}")
             ->assertOk()
             ->assertSee('Kirim dari nomor pemenang');
+    }
+
+    private function catalogItem(string $name = 'Voucher Free Ongkir', int $cost = 1000, ?int $stock = null)
+    {
+        $catalog = RewardCatalog::firstOrCreate(
+            ['brand' => config('app.brand'), 'period' => now()->format('Y-m')],
+            ['published_at' => now()],
+        );
+
+        return $catalog->items()->create(['name' => $name, 'points_cost' => $cost, 'stock' => $stock]);
+    }
+
+    public function test_katalog_menampilkan_item_dan_kekurangan_poin(): void
+    {
+        $customer = $this->customer();
+        (new PointWallet($customer))->grant(600, 12);
+        $this->catalogItem('Pouch Exclusive', 500);
+        $this->catalogItem('Voucher Free Ongkir', 1000);
+
+        $this->asCustomer($customer)->get('/katalog')
+            ->assertOk()
+            ->assertSee('Pouch Exclusive')
+            ->assertSee('Kurang 400 poin');
+    }
+
+    public function test_katalog_kosong_menampilkan_pesan(): void
+    {
+        $this->asCustomer($this->customer())->get('/katalog')->assertOk()->assertSee('Katalog bulan ini segera hadir');
+    }
+
+    public function test_tukar_berhasil_arah_ke_voucher(): void
+    {
+        $customer = $this->customer();
+        (new PointWallet($customer))->grant(1200, 12);
+        $item = $this->catalogItem();
+
+        $response = $this->asCustomer($customer)->post("/katalog/{$item->id}/tukar");
+
+        $claim = Claim::firstOrFail();
+        $response->assertRedirect(route('rewards.show', $claim->claim_code));
+        $this->assertSame(200, (new PointWallet($customer))->balance());
+    }
+
+    public function test_tukar_poin_kurang_kembali_dengan_pesan(): void
+    {
+        $customer = $this->customer();
+        (new PointWallet($customer))->grant(600, 12);
+        $item = $this->catalogItem();
+
+        $this->asCustomer($customer)->from('/katalog')->post("/katalog/{$item->id}/tukar")
+            ->assertRedirect('/katalog')
+            ->assertSessionHasErrors('catalog');
+
+        $this->assertSame(0, Claim::count());
     }
 }
