@@ -4,10 +4,14 @@ namespace LoyaltyNew\Core\Seeding;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use LoyaltyNew\Core\Gate\AwbMatcher;
+use LoyaltyNew\Core\Models\ClaimEvent;
 use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
 use LoyaltyNew\Core\Models\PrizeCatalog;
+use LoyaltyNew\Core\Points\PointWallet;
+use LoyaltyNew\Core\Prizes\RewardCatalogService;
 use LoyaltyNew\Core\Prizes\TierConfig;
 
 /**
@@ -28,6 +32,20 @@ final class SmokeSeeder
     /** Kredensial dummy — password seragam biar gampang dites. */
     public const PASSWORD = 'smoke12345';
 
+    /** Katalog tukar poin bulan pertama dari workbook final 2026-09-24 (hanya jalur Poin). */
+    public const POINT_CATALOG = [
+        'amura' => [
+            ['Pouch Exclusive', 500], ['Voucher Diskon Ongkir 15rb', 600], ['Exclusive ToteBag', 700],
+            ['Voucher Free Ongkir', 1000], ['Voucher Diskon 25rb', 1000], ['Voucher Diskon 50rb', 2000],
+            ['Darkspot Serum', 2000], ['Gold Serum', 2500], ['Voucher Diskon 100rb', 3500],
+        ],
+        'reglow' => [
+            ['Pouch Exclusive', 500], ['Voucher Diskon Ongkir 15rb', 600], ['Exclusive ToteBag', 700],
+            ['Voucher Free Ongkir', 1000], ['Voucher Diskon 25rb', 1000], ['Voucher Diskon 50rb', 2000],
+            ['Night Cream', 2000], ['Sunscreen Glow', 2500], ['Rice PDRN Serum', 3000], ['Voucher Diskon 100rb', 3500],
+        ],
+    ];
+
     /** AWB + HP dummy yang PASTI lolos gate (StubOrderGate) untuk main game sendiri. */
     public static function playableOrders(): array
     {
@@ -45,6 +63,8 @@ final class SmokeSeeder
         $this->seedCatalogs();
         $this->seedQuotaCaps();
         $this->seedSessionsAndClaims();
+        $this->seedPointCatalogs();
+        $this->seedDemoPoints();
     }
 
     private function brands(): array
@@ -157,18 +177,18 @@ final class SmokeSeeder
         foreach ($this->brands() as $brand) {
             $this->makeFinishedSession(
                 brand: $brand,
-                phone: $brand === 'amura' ? '6281111111111' : '6282222222222',
+                phone: $brand === 'amura' ? '081111111111' : '082222222222',
                 name: $brand === 'amura' ? 'Budi Santoso' : 'Sari Dewi',
                 awb: 'SMOKE-CLAIM-'.strtoupper($brand),
-                takenTier: 'poin',
+                takenTier: 'voucher',
                 claimed: true,
-                claimStatus: 'belum_redeem',
+                claimStatus: 'diajukan',
                 bigPrize: false,
             );
 
             $this->makeFinishedSession(
                 brand: $brand,
-                phone: $brand === 'amura' ? '6281111111112' : '6282222222223',
+                phone: $brand === 'amura' ? '081111111112' : '082222222223',
                 name: $brand === 'amura' ? 'Rina Amura' : 'Tono Reglow',
                 awb: 'SMOKE-BIG-'.strtoupper($brand),
                 takenTier: 'hadiah_besar',
@@ -266,20 +286,40 @@ final class SmokeSeeder
         $prizeTaken = $prizes[$takenSlot];
         $expiryDays = $takenTier === 'hadiah_besar' ? 30 : 14;
 
+        $prizeName = $bigPrize
+            ? (PrizeCatalog::withoutGlobalScopes()->whereKey($prizeTaken->fresh()->prize_catalog_id)->value('name') ?? 'Hadiah Utama')
+            : 'Voucher Gratis Ongkir';
+
         DB::table('claims')->updateOrInsert(
             ['claim_code' => 'SMOKE-'.$brand.'-'.($bigPrize ? 'BIG' : 'STD')],
             [
                 'game_session_id' => $session->id,
                 'game_prize_id' => $prizeTaken->id,
+                'brand' => $brand,
+                'customer_id' => $customer->id,
+                'source' => 'gatcha',
+                'prize_name' => $prizeName,
                 'status' => $claimStatus,
+                'redeem_requested_at' => now(),
                 'handled_by' => null,
                 'finance_by' => null,
-                'claimed_at' => now(),
+                'claimed_at' => null,
                 'expires_at' => now()->addDays($expiryDays),
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
         );
+
+        $claimId = DB::table('claims')->where('claim_code', 'SMOKE-'.$brand.'-'.($bigPrize ? 'BIG' : 'STD'))->value('id');
+        if (! ClaimEvent::where('claim_id', $claimId)->exists()) {
+            ClaimEvent::create(['claim_id' => $claimId, 'from_status' => null, 'to_status' => 'belum_redeem', 'actor' => 'system']);
+            ClaimEvent::create([
+                'claim_id' => $claimId,
+                'from_status' => $bigPrize ? 'diajukan' : 'belum_redeem',
+                'to_status' => $claimStatus,
+                'actor' => $bigPrize ? 'cs' : 'customer',
+            ]);
+        }
     }
 
     /** Hubungkan hadiah besar seed ke katalog dan potong kuotanya, seperti pemenang nyata. */
@@ -302,5 +342,36 @@ final class SmokeSeeder
             ->where('prize_name', $catalog->name)
             ->where('used_units', '<', DB::raw('cap_units'))
             ->increment('used_units');
+    }
+
+    /** Katalog tukar poin bulan berjalan per brand, langsung terbit. Tidak menduplikasi item. */
+    private function seedPointCatalogs(): void
+    {
+        foreach ($this->brands() as $brand) {
+            $catalog = RewardCatalogService::forPeriod($brand, now()->format('Y-m'));
+            foreach (self::POINT_CATALOG[$brand] as $i => [$name, $points]) {
+                $catalog->items()->firstOrCreate(['name' => $name], ['points_cost' => $points, 'sort' => $i + 1, 'active' => true]);
+            }
+            RewardCatalogService::publish($brand, now()->format('Y-m'));
+        }
+    }
+
+    /** Saldo 1.200 poin untuk pelanggan SMOKE-CLAIM supaya tukar poin bisa langsung dicoba. */
+    private function seedDemoPoints(): void
+    {
+        foreach ($this->brands() as $brand) {
+            $session = GameSession::withoutGlobalScopes()->where('brand', $brand)->where('awb', 'SMOKE-CLAIM-'.strtoupper($brand))->first();
+            if (! $session) {
+                continue;
+            }
+
+            $customer = Customer::withoutGlobalScopes()->findOrFail($session->customer_id);
+            // Seeder lama menyimpan HP berformat 62..; masuk lewat form menyimpan 0.., jadi samakan.
+            $customer->update(['phone' => AwbMatcher::normalizePhone($customer->phone)]);
+
+            if (! DB::table('point_lots')->where('customer_id', $customer->id)->exists()) {
+                (new PointWallet($customer))->grant(1200, 12);
+            }
+        }
     }
 }
