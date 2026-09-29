@@ -37,7 +37,7 @@
         </a>
         <div class="stage-brand" aria-hidden="true">{{ $theme['initial'] }}</div>
         <div class="stage-title">Gatcha {{ $theme['name'] }}</div>
-        <button type="button" class="icon-btn" id="sound" aria-pressed="false" aria-label="Suara mati. Ketuk untuk menyalakan">
+        <button type="button" class="icon-btn" id="sound" aria-pressed="false" aria-label="Suara dan musik mati. Ketuk untuk menyalakan">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" stroke="none"/>
                 <path class="snd-on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" hidden/>

@@ -52,13 +52,24 @@
                 this.on = !this.on;
                 try { localStorage.setItem('gatcha-sound', this.on ? '1' : '0'); } catch (e) { /* mode privat */ }
                 this.paint();
-                if (this.on) this.tone(660, .08, 'sine', .15);
+                if (this.on) {
+                    this.tone(660, .08, 'sine', .15);
+                    music.start();
+                } else {
+                    music.stop();
+                }
+            });
+            // Browser baru mengizinkan audio setelah ketukan pertama.
+            if (this.on) document.addEventListener('pointerdown', () => music.start(), { once: true });
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) music.stop();
+                else if (this.on) music.start();
             });
         },
         paint() {
             const btn = $('sound');
             btn.setAttribute('aria-pressed', String(this.on));
-            btn.setAttribute('aria-label', this.on ? 'Suara nyala. Ketuk untuk mematikan' : 'Suara mati. Ketuk untuk menyalakan');
+            btn.setAttribute('aria-label', this.on ? 'Suara dan musik nyala. Ketuk untuk mematikan' : 'Suara dan musik mati. Ketuk untuk menyalakan');
             btn.querySelector('.snd-on').hidden = !this.on;
             btn.querySelector('.snd-off').hidden = this.on;
         },
@@ -109,6 +120,77 @@
         boom() { this.tone(110, .6, 'sine', .45, 0, 40); this.noise(.3, .15); },
         fanfare() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, i === 3 ? .5 : .16, 'triangle', .16, .12 * i)); },
         stamp() { this.tone(140, .08, 'square', .05); },
+    };
+
+    // Musik latar: loop music box C-Am-F-G, 100 bpm, pelan di bawah efek suara.
+    // Disintesis di browser supaya tanpa file (ringan untuk sinyal lemah, tanpa urusan lisensi).
+    const music = {
+        LEVEL: .07,
+        BEAT: .3,
+        CHORDS: [
+            [261.63, 329.63, 392.0, 523.25],
+            [220.0, 261.63, 329.63, 440.0],
+            [174.61, 220.0, 261.63, 349.23],
+            [196.0, 246.94, 293.66, 392.0],
+        ],
+        ARP: [0, 1, 2, 3, 2, 1, 2, 3],
+        bus: null,
+        timer: null,
+        next: 0,
+        step: 0,
+        ducked: false,
+        start() {
+            const ctx = sound.audio();
+            if (!ctx || this.timer) return;
+            this.bus = ctx.createGain();
+            this.bus.gain.setValueAtTime(0.0001, ctx.currentTime);
+            this.bus.gain.exponentialRampToValueAtTime(this.target(), ctx.currentTime + 1.2);
+            this.bus.connect(ctx.destination);
+            this.next = ctx.currentTime + .1;
+            this.timer = setInterval(() => this.schedule(ctx), 100);
+        },
+        stop() {
+            if (!this.timer) return;
+            clearInterval(this.timer);
+            this.timer = null;
+            const bus = this.bus;
+            const ctx = sound.ctx;
+            if (bus && ctx) {
+                bus.gain.setTargetAtTime(0.0001, ctx.currentTime, .15);
+                setTimeout(() => bus.disconnect(), 800);
+            }
+            this.bus = null;
+        },
+        target() { return this.ducked ? this.LEVEL * .25 : this.LEVEL; },
+        // Diredam saat kado dibuka supaya efek suara dan ketegangannya terdengar.
+        duck(on) {
+            this.ducked = on;
+            if (this.bus && sound.ctx) this.bus.gain.setTargetAtTime(this.target(), sound.ctx.currentTime, .25);
+        },
+        schedule(ctx) {
+            while (this.next < ctx.currentTime + .3) {
+                const bar = Math.floor(this.step / 8) % this.CHORDS.length;
+                const beat = this.step % 8;
+                const chord = this.CHORDS[bar];
+                this.voice(ctx, chord[this.ARP[beat]] * 2, this.next, .9, 'triangle', .5);
+                if (beat === 0 || beat === 4) this.voice(ctx, chord[0] / 2, this.next, 1.4, 'sine', .9);
+                if (beat === 7 && bar % 2 === 1) this.voice(ctx, chord[3] * 4, this.next, .5, 'sine', .18);
+                this.next += this.BEAT;
+                this.step++;
+            }
+        },
+        voice(ctx, freq, t, dur, type, gain) {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, t);
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(gain, t + .015);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            osc.connect(g).connect(this.bus);
+            osc.start(t);
+            osc.stop(t + dur + .05);
+        },
     };
     const buzz = pattern => { try { navigator.vibrate && navigator.vibrate(pattern); } catch (e) { /* tidak didukung */ } };
     const anim = (el, frames, opts) => (reduced || !el.animate) ? { finished: Promise.resolve() } : el.animate(frames, opts);
@@ -401,6 +483,7 @@
         sound.click();
         buzz(20);
 
+        music.duck(true);
         const slots = [...state.selected];
         const request = (async () => {
             if (!state.locked) {
@@ -447,6 +530,7 @@
         } catch (err) {
             clearInterval(ticker);
             state.busy = false;
+            music.duck(false);
             onRoundError(err, slots);
             return;
         }
@@ -490,6 +574,7 @@
         }
 
         state.busy = false;
+        music.duck(false);
         $('revealTitle').textContent = 'Ambil 1 hadiah';
         $('takeBtn').textContent = 'Ketuk 1 hadiah';
         $('reveal').querySelectorAll('.rcard').forEach(card => { card.disabled = false; });
@@ -569,6 +654,7 @@
         state.locked = false;
         state.chosen = null;
         state.busy = false;
+        music.duck(false);
         showResult();
     }
 
