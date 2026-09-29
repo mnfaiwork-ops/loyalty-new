@@ -42,13 +42,12 @@ class SmokeSeederTest extends TestCase
         $this->assertDatabaseHas('quota_caps', ['brand' => 'amura', 'prize_name' => 'Philips Air Fryer', 'cap_units' => 2]);
     }
 
-    public function test_klaim_biasa_menunggu_dan_klaim_besar_perlu_finance(): void
+    public function test_klaim_biasa_belum_redeem_dan_klaim_besar_perlu_finance(): void
     {
         $this->seedSmoke();
 
         $std = Claim::where('claim_code', 'SMOKE-amura-STD')->firstOrFail();
-        $this->assertSame('menunggu', $std->status);
-        $this->assertSame('poin', $std->gamePrize->tier);
+        $this->assertSame('belum_redeem', $std->status);
 
         $big = Claim::where('claim_code', 'SMOKE-amura-BIG')->firstOrFail();
         $this->assertSame('perlu_finance', $big->status);

@@ -162,7 +162,7 @@ final class SmokeSeeder
                 awb: 'SMOKE-CLAIM-'.strtoupper($brand),
                 takenTier: 'poin',
                 claimed: true,
-                claimStatus: 'menunggu',
+                claimStatus: 'belum_redeem',
                 bigPrize: false,
             );
 

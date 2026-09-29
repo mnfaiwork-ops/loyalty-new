@@ -106,14 +106,14 @@ final class FinanceTest extends TestCase
 
     public function test_approve_claim_biasa_ditolak(): void
     {
-        $claim = $this->claim('amura', 'voucher', 'menunggu');
+        $claim = $this->claim('amura', 'voucher', 'belum_redeem');
 
         $this->actingAs($this->user('finance'))
             ->from('/admin/finance')
             ->post('/admin/finance/'.$claim->claim_code.'/approve')
             ->assertSessionHasErrors('status');
 
-        $this->assertSame('menunggu', $claim->refresh()->status);
+        $this->assertSame('belum_redeem', $claim->refresh()->status);
     }
 
     public function test_approve_claim_tidak_ada_pesan_indonesia(): void

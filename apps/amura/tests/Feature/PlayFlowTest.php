@@ -150,8 +150,7 @@ final class PlayFlowTest extends TestCase
         $this->assertNotEmpty($claim->claim_code);
         $this->assertSame($response->json('claim_code'), $claim->claim_code);
 
-        $expectedStatus = $claim->gamePrize->tier === 'hadiah_besar' ? 'perlu_finance' : 'menunggu';
-        $this->assertSame($expectedStatus, $claim->status);
+        $this->assertSame('belum_redeem', $claim->status);
 
         $expectedDays = ClaimService::expiryFor($claim->gamePrize->tier);
         $this->assertEqualsWithDelta($expectedDays, now()->diffInDays($claim->expires_at), 0.1);

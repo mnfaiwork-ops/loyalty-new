@@ -116,7 +116,7 @@ final class BugfixRegressionTest extends TestCase
 
         $this->assertSame(1, $this->usedUnits());
         $this->assertSame(1, $session->fresh()->chance_used);
-        $this->assertSame('perlu_finance', Claim::firstOrFail()->status);
+        $this->assertSame('belum_redeem', Claim::firstOrFail()->status);
         $this->assertTrue((bool) $session->prizes()->where('slot', $big)->value('taken'));
         // Dua kado lain otomatis tidak terpilih: ronde selesai, tidak bisa diambil lagi.
         $this->assertSame(0, $session->prizes()->whereIn('slot', $others)->where('picked', true)->count());
@@ -135,7 +135,7 @@ final class BugfixRegressionTest extends TestCase
             ->assertJson(['chosen' => $big]);
 
         $this->assertSame(1, $this->usedUnits());
-        $this->assertSame('perlu_finance', Claim::firstOrFail()->status);
+        $this->assertSame('belum_redeem', Claim::firstOrFail()->status);
     }
 
     public function test_2_reveal_dua_kali_tidak_memotong_kuota_dua_kali(): void
@@ -199,7 +199,7 @@ final class BugfixRegressionTest extends TestCase
     {
         $this->bigPrizeCatalog(cap: 2);
         DB::table('quota_caps')->update(['used_units' => 1]);
-        $claim = $this->claim('menunggu', expired: true);
+        $claim = $this->claim('belum_redeem', expired: true);
 
         ClaimService::expireOverdue();
 
@@ -283,13 +283,13 @@ final class BugfixRegressionTest extends TestCase
 
     public function test_4_klaim_lewat_batas_hanya_bisa_dihanguskan(): void
     {
-        $claim = $this->claim('menunggu', expired: true);
+        $claim = $this->claim('belum_redeem', expired: true);
         $cs = $this->staff('cs');
 
         $this->actingAs($cs)
             ->post("/admin/claims/{$claim->claim_code}/resolve", ['status' => 'selesai'])
             ->assertSessionHasErrors('status');
-        $this->assertSame('menunggu', $claim->fresh()->status);
+        $this->assertSame('belum_redeem', $claim->fresh()->status);
 
         $this->actingAs($cs)
             ->post("/admin/claims/{$claim->claim_code}/resolve", ['status' => 'hangus'])

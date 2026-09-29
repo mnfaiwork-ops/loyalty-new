@@ -127,12 +127,13 @@ final class CsClaimTest extends TestCase
             ->assertDontSee($reglowClaim->claim_code);
     }
 
-    public function test_hadiah_besar_butuh_finance(): void
+    public function test_klaim_baru_selalu_belum_redeem_termasuk_hadiah_besar(): void
     {
         $prize = $this->prize('hadiah_besar');
         $claim = ClaimService::create($prize->session, $prize);
 
-        $this->assertSame('perlu_finance', $claim->status);
+        $this->assertSame('belum_redeem', $claim->status);
+        $this->assertSame('Hadiah Utama', $claim->prize_name);
     }
 
     public function test_cs_tidak_bisa_set_selesai_untuk_hadiah_besar(): void
@@ -147,7 +148,7 @@ final class CsClaimTest extends TestCase
             ->assertSessionHasErrors('status');
 
         $claim->refresh();
-        $this->assertSame('perlu_finance', $claim->status);
+        $this->assertSame('belum_redeem', $claim->status);
         $this->assertNull($claim->handled_by);
     }
 
@@ -163,7 +164,7 @@ final class CsClaimTest extends TestCase
             ->assertSessionHasErrors('status');
 
         $claim->refresh();
-        $this->assertSame('perlu_finance', $claim->status);
+        $this->assertSame('belum_redeem', $claim->status);
         $this->assertNull($claim->handled_by);
     }
 
