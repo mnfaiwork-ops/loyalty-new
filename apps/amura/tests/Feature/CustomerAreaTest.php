@@ -242,4 +242,29 @@ final class CustomerAreaTest extends TestCase
 
         $this->assertSame(0, Claim::count());
     }
+
+    public function test_masuk_saat_masa_main_habis_tetap_ke_beranda(): void
+    {
+        $this->post('/play/start', ['awb' => 'JX-LAMA', 'phone' => '081234567890']);
+        GameSession::firstOrFail()->update(['expires_at' => now()->subDay()]);
+
+        $this->post('/play/start', ['awb' => 'JX-LAMA', 'phone' => '081234567890'])
+            ->assertRedirect(route('home'))
+            ->assertCookie(RememberedCustomer::COOKIE)
+            ->assertSessionHas('ok');
+
+        $this->assertSame(0, \Illuminate\Support\Facades\DB::table('play_attempts')->count());
+    }
+
+    public function test_voucher_lewat_batas_menampilkan_keterangan_hangus(): void
+    {
+        $customer = $this->customer();
+        $claim = $this->claimFor($customer);
+        $claim->update(['expires_at' => now()->subHour()]);
+
+        $this->asCustomer($customer)->get("/hadiah/{$claim->claim_code}")
+            ->assertOk()
+            ->assertSee('Batas redeem sudah lewat')
+            ->assertDontSee('Redeem sekarang');
+    }
 }

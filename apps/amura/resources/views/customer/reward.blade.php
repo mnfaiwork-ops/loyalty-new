@@ -31,7 +31,9 @@
             @if ($claim->rejected_reason)
                 <div class="alert" role="alert"><b>Klaim sebelumnya ditolak.</b> {{ $claim->rejected_reason }}. Kirim dari nomor pemenang.</div>
             @endif
-            @if ($claim->daysLeft() > 0)
+            @if ($claim->daysLeft() === 0)
+                <div class="alert" role="alert">Batas redeem sudah lewat. Hadiah ini hangus.</div>
+            @else
                 <form method="POST" action="{{ route('rewards.redeem', $claim->claim_code) }}" class="redeem-form">
                     @csrf
                     <button type="submit" class="btn btn-brand">Redeem sekarang</button>

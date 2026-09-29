@@ -72,7 +72,7 @@ final class SessionService
     private static function ensureActive(GameSession $session): GameSession
     {
         if (self::isExpired($session)) {
-            throw new SessionExpiredException;
+            throw new SessionExpiredException((int) $session->customer_id);
         }
 
         return $session;

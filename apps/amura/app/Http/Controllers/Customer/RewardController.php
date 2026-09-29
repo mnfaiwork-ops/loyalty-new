@@ -57,6 +57,11 @@ final class RewardController extends Controller
         try {
             ClaimFlow::request($claim, $request->attributes->get('customer'));
         } catch (ClaimTransitionException $e) {
+            // Dua tekanan bersamaan: yang kalah balapan menemukan klaim sudah diajukan.
+            if ($claim->fresh()->status === 'diajukan') {
+                return redirect()->route('rewards.show', $code);
+            }
+
             return redirect()->route('rewards.show', $code)->withErrors(['redeem' => $e->getMessage()]);
         }
 

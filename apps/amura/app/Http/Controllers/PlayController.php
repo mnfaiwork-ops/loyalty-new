@@ -63,7 +63,18 @@ final class PlayController extends Controller
             $session = $this->sessions->open($data['awb'], $data['phone']);
         } catch (SessionExpiredException $e) {
             // Input benar, masa main saja yang habis: jangan dihitung percobaan gagal.
-            return back()->withErrors(['awb' => $e->getMessage()])->withInput();
+            // Resi + HP sudah cocok, jadi pelanggan tetap masuk ke Beranda untuk
+            // melihat poin dan me-redeem hadiah yang batasnya belum lewat (spec §7).
+            $customer = $e->customerId ? Customer::find($e->customerId) : null;
+            if (! $customer) {
+                return back()->withErrors(['awb' => $e->getMessage()])->withInput();
+            }
+
+            $limiter->clear($data['awb'], $data['phone']);
+
+            return redirect()->route('home')
+                ->with('ok', 'Masa main untuk paket ini sudah berakhir. Poin dan hadiahmu tetap bisa dilihat di sini.')
+                ->withCookie(RememberedCustomer::cookieFor($customer));
         } catch (\RuntimeException $e) {
             $limiter->recordFailure($data['awb'], $data['phone']);
 

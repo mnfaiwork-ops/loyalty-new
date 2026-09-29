@@ -236,8 +236,10 @@ final class BugfixRegressionTest extends TestCase
         $session = $this->start();
         $session->update(['expires_at' => now()->subDay()]);
 
-        $this->post('/play/start', ['awb' => 'JX123', 'phone' => '08123456789'])
-            ->assertSessionHasErrors('awb');
+        // Tidak ada sesi baru dan tidak masuk papan. Reglow mengarahkan ke Beranda
+        // (poin dan Hadiahku tetap bisa dilihat), Amura kembali ke form dengan pesan.
+        $response = $this->post('/play/start', ['awb' => 'JX123', 'phone' => '08123456789'])->assertRedirect();
+        $this->assertStringNotContainsString('/play/', (string) $response->headers->get('Location'));
 
         $this->assertSame(1, GameSession::count());
         $this->assertSame(0, DB::table('play_attempts')->count());
