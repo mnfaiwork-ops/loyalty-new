@@ -1,45 +1,28 @@
 @extends('layouts.admin')
 
-@section('title', 'Persetujuan Finance')
+@section('title', 'Finance')
 
 @section('content')
-    <h1>Persetujuan Hadiah Besar</h1>
+    <h1>Persetujuan hadiah utama</h1>
+    <p class="lead">Nomor pemenang sudah dicocokkan CS. Setujui untuk meneruskan ke Pengiriman.</p>
 
-    <h2>Perlu Persetujuan</h2>
     <div class="card">
         @if ($pending->isEmpty())
-            <p class="empty">Tidak ada klaim menunggu persetujuan.</p>
+            <p class="empty">Tidak ada hadiah utama yang menunggu persetujuan.</p>
         @else
             <table>
-                <thead>
-                    <tr>
-                        <th>Kode</th>
-                        <th>Hadiah</th>
-                        <th>Brand</th>
-                        <th>Info</th>
-                        <th>Kedaluwarsa</th>
-                        <th>Tindakan</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Kode</th><th>Pemenang</th><th>Hadiah</th><th>Batas</th><th></th></tr></thead>
                 <tbody>
                     @foreach ($pending as $claim)
                         <tr>
                             <td><code>{{ $claim->claim_code }}</code></td>
+                            <td>{{ $claim->customer?->name ?: 'Nama belum tersedia' }}<div class="muted">{{ $claim->customer?->phone }}</div></td>
+                            <td>{{ $claim->prize_name }}</td>
+                            <td class="muted">{{ $claim->expires_at->format('d/m/Y') }}</td>
                             <td>
-                                <span class="badge {{ $claim->gamePrize?->tier }}">{{ \App\Http\Controllers\PlayController::tierLabel($claim->gamePrize?->tier ?? 'poin') }}</span>
-                            </td>
-                            <td class="muted">{{ $claim->gameSession?->brand ?? '—' }}</td>
-                            <td>
-                                <div class="muted">Diminta {{ $claim->created_at?->format('d/m/Y H:i') ?? '—' }}</div>
-                                @if ($claim->handled_by)
-                                    <div class="muted">Ditangani ID {{ $claim->handled_by }}</div>
-                                @endif
-                            </td>
-                            <td class="muted">{{ $claim->expires_at?->format('d/m/Y') ?? '—' }}</td>
-                            <td>
-                                <form class="resolve" method="post" action="{{ route('admin.finance.approve', $claim->claim_code) }}">
+                                <form method="POST" action="{{ route('admin.finance.approve', $claim->claim_code) }}">
                                     @csrf
-                                    <button class="btn" type="submit">Setujui</button>
+                                    <button class="btn ok" type="submit">Setujui</button>
                                 </form>
                             </td>
                         </tr>
@@ -50,29 +33,20 @@
     </div>
     <div class="pager">{{ $pending->links() }}</div>
 
-    <h2>Rekap Selesai</h2>
+    <h2>Sudah disetujui</h2>
     <div class="card">
         @if ($done->isEmpty())
-            <p class="empty">Belum ada hadiah besar yang diselesaikan.</p>
+            <p class="empty">Belum ada persetujuan.</p>
         @else
             <table>
-                <thead>
-                    <tr>
-                        <th>Kode</th>
-                        <th>Hadiah</th>
-                        <th>Disetujui Oleh</th>
-                        <th>Selesai</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Kode</th><th>Pemenang</th><th>Hadiah</th><th>Status</th></tr></thead>
                 <tbody>
                     @foreach ($done as $claim)
                         <tr>
                             <td><code>{{ $claim->claim_code }}</code></td>
-                            <td>
-                                <span class="badge {{ $claim->gamePrize?->tier }}">{{ \App\Http\Controllers\PlayController::tierLabel($claim->gamePrize?->tier ?? 'hadiah_besar') }}</span>
-                            </td>
-                            <td class="muted">{{ $claim->finance_by ? 'ID '.$claim->finance_by : '—' }}</td>
-                            <td class="muted">{{ $claim->claimed_at?->format('d/m/Y H:i') ?? '—' }}</td>
+                            <td>{{ $claim->customer?->name ?: '-' }}</td>
+                            <td>{{ $claim->prize_name }}</td>
+                            <td><span class="status {{ $claim->status }}">{{ \LoyaltyNew\Core\Prizes\ClaimFlow::label($claim->status) }}</span></td>
                         </tr>
                     @endforeach
                 </tbody>

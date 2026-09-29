@@ -48,6 +48,8 @@ class ExpireClaimsTest extends TestCase
         return Claim::create([
             'game_session_id' => $session->id,
             'game_prize_id' => $prize->id,
+            'brand' => $brand,
+            'customer_id' => $customer->id,
             'claim_code' => strtoupper(bin2hex(random_bytes(4))),
             'status' => $status,
             'expires_at' => $expiresAt,
@@ -62,7 +64,7 @@ class ExpireClaimsTest extends TestCase
 
     public function test_klaim_kedaluwarsa_di_hanguskan(): void
     {
-        $claim = $this->makeClaim('reglow', 'menunggu', now()->subDay()->toDateTimeString());
+        $claim = $this->makeClaim('reglow', 'belum_redeem', now()->subDay()->toDateTimeString());
 
         $this->artisan('loyalty:expire-claims')->assertExitCode(0);
 
@@ -71,22 +73,22 @@ class ExpireClaimsTest extends TestCase
 
     public function test_klaim_belum_kedaluwarsa_tidak_disentuh(): void
     {
-        $claim = $this->makeClaim('reglow', 'menunggu', now()->addDay()->toDateTimeString());
+        $claim = $this->makeClaim('reglow', 'belum_redeem', now()->addDay()->toDateTimeString());
 
         $this->artisan('loyalty:expire-claims');
 
-        $this->assertSame('menunggu', $claim->fresh()->status);
+        $this->assertSame('belum_redeem', $claim->fresh()->status);
     }
 
     public function test_brand_lain_tidak_ikut_di_hanguskan(): void
     {
-        $reglow = $this->makeClaim('reglow', 'menunggu', now()->subDay()->toDateTimeString());
-        $amura = $this->makeClaim('amura', 'menunggu', now()->subDay()->toDateTimeString());
+        $reglow = $this->makeClaim('reglow', 'belum_redeem', now()->subDay()->toDateTimeString());
+        $amura = $this->makeClaim('amura', 'belum_redeem', now()->subDay()->toDateTimeString());
 
         $this->artisan('loyalty:expire-claims');
 
         $this->assertSame('hangus', $reglow->fresh()->status);
-        $this->assertSame('menunggu', $amura->fresh()->status, 'klaim brand lain tidak boleh tersentuh');
+        $this->assertSame('belum_redeem', $amura->fresh()->status, 'klaim brand lain tidak boleh tersentuh');
     }
 
     public function test_status_selesai_tidak_diubah(): void
@@ -108,7 +110,7 @@ class ExpireClaimsTest extends TestCase
         $this->assertSame('hangus', $claim->fresh()->status);
     }
 
-    public function test_klaim_perlu_finance_dan_diproses_juga_di_hanguskan(): void
+    public function test_perlu_finance_hangus_tapi_diproses_tidak(): void
     {
         $a = $this->makeClaim('reglow', 'perlu_finance', now()->subDay()->toDateTimeString());
         $b = $this->makeClaim('reglow', 'diproses', now()->subDay()->toDateTimeString());
@@ -116,13 +118,18 @@ class ExpireClaimsTest extends TestCase
         $this->artisan('loyalty:expire-claims');
 
         $this->assertSame('hangus', $a->fresh()->status);
-        $this->assertSame('hangus', $b->fresh()->status);
+        $this->assertSame('diproses', $b->fresh()->status);
+    }
+
+    public function test_expire_points_command_jalan(): void
+    {
+        $this->artisan('loyalty:expire-points')->assertExitCode(0);
     }
 
     public function test_expire_overdue_mengembalikan_jumlah(): void
     {
-        $this->makeClaim('reglow', 'menunggu', now()->subDay()->toDateTimeString());
-        $this->makeClaim('reglow', 'menunggu', now()->subDay()->toDateTimeString());
+        $this->makeClaim('reglow', 'belum_redeem', now()->subDay()->toDateTimeString());
+        $this->makeClaim('reglow', 'belum_redeem', now()->subDay()->toDateTimeString());
 
         $this->assertSame(2, ClaimService::expireOverdue());
     }
