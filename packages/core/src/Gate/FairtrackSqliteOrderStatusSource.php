@@ -29,10 +29,8 @@ final class FairtrackSqliteOrderStatusSource implements OrderStatusSource
         try {
             $pdo = $this->connect();
 
-            $stmt = $pdo->prepare(
-                'select awb, customer_phone, status_order, status_fulfillment '
-                .'from '.$this->ordersTable.' where awb = :awb limit 1'
-            );
+            // select * supaya DB lama tanpa kolom customer_name tetap terbaca.
+            $stmt = $pdo->prepare('select * from '.$this->ordersTable.' where awb = :awb limit 1');
             $stmt->execute([':awb' => $awb]);
             $row = $stmt->fetch(\PDO::FETCH_ASSOC);
         } catch (\Throwable) {
@@ -50,6 +48,7 @@ final class FairtrackSqliteOrderStatusSource implements OrderStatusSource
             phone: $row['customer_phone'] ?? null,
             statusOrder: $row['status_order'] ?? null,
             statusFulfillment: $row['status_fulfillment'] ?? null,
+            customerName: $row['customer_name'] ?? null,
         );
     }
 

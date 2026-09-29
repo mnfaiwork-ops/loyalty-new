@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use LoyaltyNew\Core\Models\Claim;
 use LoyaltyNew\Core\Models\GameSession;
+use LoyaltyNew\Core\Models\PointLot;
+use LoyaltyNew\Core\Models\PrizeCatalog;
 use LoyaltyNew\Core\Prizes\ClaimService;
 use Tests\TestCase;
 
@@ -18,6 +20,11 @@ final class PlayFlowTest extends TestCase
             ->assertRedirect();
 
         return GameSession::firstOrFail();
+    }
+
+    private function forceTiers(GameSession $session, array $slots, string $tier): void
+    {
+        $session->prizes()->whereIn('slot', $slots)->update(['tier' => $tier, 'prize_catalog_id' => null]);
     }
 
     public function test_mulai_game_membuat_sesi(): void
@@ -132,6 +139,7 @@ final class PlayFlowTest extends TestCase
     public function test_take_membuat_klaim(): void
     {
         $session = $this->start();
+        $this->forceTiers($session, [1, 2, 3], 'voucher');
 
         $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
         $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
@@ -159,6 +167,7 @@ final class PlayFlowTest extends TestCase
     public function test_take_dua_kali_tidak_membuat_dua_klaim(): void
     {
         $session = $this->start();
+        $this->forceTiers($session, [1, 2, 3], 'voucher');
 
         $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
         $first = $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
@@ -204,5 +213,50 @@ final class PlayFlowTest extends TestCase
     public function test_form_menampilkan_halaman(): void
     {
         $this->get('/play')->assertOk();
+    }
+
+    public function test_take_kado_poin_masuk_saldo_tanpa_klaim(): void
+    {
+        $session = $this->start();
+        $this->forceTiers($session, [1, 2, 3], 'poin');
+
+        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->postJson("/play/{$session->session_token}/take", ['slot' => 2])
+            ->assertOk()
+            ->assertJsonPath('points', 200)
+            ->assertJsonPath('balance', 200)
+            ->assertJsonPath('claim_code', null);
+
+        $this->assertSame(0, Claim::count());
+        $this->assertSame(1, PointLot::count());
+    }
+
+    public function test_reveal_voucher_diberi_nama_item_katalog(): void
+    {
+        PrizeCatalog::create(['brand' => config('app.brand'), 'name' => 'Voucher Gratis Ongkir', 'tier' => 'voucher', 'active' => true]);
+        PrizeCatalog::create(['brand' => config('app.brand'), 'name' => 'Item Nonaktif', 'tier' => 'voucher', 'active' => false]);
+        $session = $this->start();
+        $this->forceTiers($session, [1, 2, 3], 'voucher');
+
+        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $response = $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+
+        $this->assertSame(['Voucher Gratis Ongkir'], array_values(array_unique(array_column($response->json('revealed'), 'name'))));
+
+        $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])
+            ->assertOk()
+            ->assertJsonPath('prize_name', 'Voucher Gratis Ongkir');
+        $this->assertSame('Voucher Gratis Ongkir', Claim::firstOrFail()->prize_name);
+    }
+
+    public function test_reveal_kado_poin_menyertakan_nilai_poin(): void
+    {
+        $session = $this->start();
+        $this->forceTiers($session, [1, 2, 3], 'poin');
+
+        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->postJson("/play/{$session->session_token}/reveal")
+            ->assertOk()
+            ->assertJsonPath('revealed.0.points', 200);
     }
 }

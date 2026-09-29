@@ -65,6 +65,7 @@ final class MarkomHttpOrderStatusSource implements OrderStatusSource
             phone: $data['customer_phone'] ?? null,
             statusOrder: $data['status_order'] ?? null,
             statusFulfillment: $data['status_fulfillment'] ?? null,
+            customerName: $data['customer_name'] ?? null,
         );
     }
 }

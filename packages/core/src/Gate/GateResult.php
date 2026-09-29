@@ -7,12 +7,13 @@ final class GateResult
     public function __construct(
         public readonly bool $delivered,
         public readonly ?string $reason = null,
+        public readonly ?string $customerName = null,
     ) {
     }
 
-    public static function delivered(): self
+    public static function delivered(?string $customerName = null): self
     {
-        return new self(true, null);
+        return new self(true, null, $customerName);
     }
 
     public static function rejected(string $reason): self

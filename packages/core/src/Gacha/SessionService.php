@@ -37,7 +37,8 @@ final class SessionService
         $customer = Customer::firstOrCreate(
             ['phone' => AwbMatcher::normalizePhone($phone), 'brand' => $this->brand],
         );
-        $customer->update(['last_seen_at' => now()]);
+        // Nama dari data order (spec poin-redeem §2 #8). Gate stub tidak memberi nama.
+        $customer->update(array_filter(['last_seen_at' => now(), 'name' => $result->customerName]));
 
         // Satu paket = satu sesi seumur hidup (unique customer_id+awb). Sesi yang
         // sudah lewat masa main tidak dipakai ulang dan tidak diganti yang baru.
@@ -137,6 +138,15 @@ final class SessionService
             if ($prize->tier === 'hadiah_besar' && ! BigPrizeQuota::reserve($this->brand, $prize)) {
                 $prize->tier = $this->drawRegularTier($session);
                 $prize->prize_catalog_id = null;
+            }
+
+            // Voucher/Merch mendapat item spesifik supaya CS tahu apa yang dikirim.
+            if (in_array($prize->tier, ['voucher', 'merch'], true) && ! $prize->prize_catalog_id) {
+                $prize->prize_catalog_id = PrizeCatalog::where('brand', $this->brand)
+                    ->where('tier', $prize->tier)
+                    ->where('active', true)
+                    ->inRandomOrder()
+                    ->value('id');
             }
 
             $prize->opened = true;
