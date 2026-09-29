@@ -13,6 +13,7 @@ use LoyaltyNew\Core\Gacha\SessionService;
 use LoyaltyNew\Core\Models\Claim;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
+use LoyaltyNew\Core\Models\PrizeCatalog;
 use LoyaltyNew\Core\Prizes\ClaimService;
 
 final class PlayController extends Controller
@@ -31,7 +32,17 @@ final class PlayController extends Controller
         $data = $request->validate([
             'awb' => ['required', 'string', 'max:64'],
             'phone' => ['required', 'string', 'max:32'],
+        ], [
+            'awb.required' => 'Nomor resi wajib diisi.',
+            'phone.required' => 'Nomor HP wajib diisi.',
+            'max' => 'Isian terlalu panjang. Cek lagi angkanya.',
         ]);
+
+        // Form menampilkan "+62" di depan kolom HP, jadi "812..." berarti "0812...".
+        $digits = preg_replace('/\D+/', '', $data['phone']);
+        if ($digits !== '' && ! str_starts_with($digits, '0') && ! str_starts_with($digits, '62')) {
+            $data['phone'] = '0'.$digits;
+        }
 
         $limiter = AttemptLimiter::fromConfig((string) config('app.brand'));
 
@@ -81,6 +92,7 @@ final class PlayController extends Controller
             'prizes' => $session->prizes()->orderBy('slot')->get(),
             'pendingSlots' => $round->pluck('slot')->values()->all(),
             'pendingRevealed' => $revealed,
+            'taken' => $this->taken($session),
         ]);
     }
 
@@ -223,14 +235,43 @@ final class PlayController extends Controller
             ->get();
     }
 
-    /** @return array<int, array{slot:int, tier:string, label:string}> */
+    /** @return array<int, array{slot:int, tier:string, label:string, name:?string}> */
     private function revealed(Collection $round): array
     {
         return $round->map(fn (GamePrize $prize) => [
             'slot' => $prize->slot,
             'tier' => $prize->tier,
             'label' => $this->tierLabel($prize->tier),
+            'name' => $this->prizeName($prize),
         ])->values()->all();
+    }
+
+    /** Hadiah yang sudah diambil di sesi ini, untuk ringkasan di papan. */
+    private function taken(GameSession $session): array
+    {
+        return $session->prizes()->where('taken', true)->orderBy('updated_at')->get()
+            ->map(function (GamePrize $prize) {
+                $claim = Claim::where('game_prize_id', $prize->id)->first();
+
+                return [
+                    'slot' => $prize->slot,
+                    'tier' => $prize->tier,
+                    'label' => $this->tierLabel($prize->tier),
+                    'name' => $this->prizeName($prize),
+                    'claim_code' => $claim?->claim_code,
+                    'claim_expires_at' => $claim?->expires_at?->toDateString(),
+                ];
+            })->values()->all();
+    }
+
+    /** Nama katalog, hanya untuk hadiah utama (tier lain belum punya item spesifik). */
+    private function prizeName(GamePrize $prize): ?string
+    {
+        if ($prize->tier !== 'hadiah_besar' || ! $prize->prize_catalog_id) {
+            return null;
+        }
+
+        return PrizeCatalog::whereKey($prize->prize_catalog_id)->value('name');
     }
 
     public static function tierLabel(string $tier): string

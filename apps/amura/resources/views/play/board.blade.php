@@ -1,163 +1,116 @@
 @extends('layouts.play')
 
-@section('title', 'Amura — Papan Hadiah')
+@section('title', 'Gatcha '.$theme['name'])
+@section('theme-color', $theme['st2'])
+@section('body-class', 'is-stage')
+
+@php
+    $used = $prizes->filter(fn ($p) => $p->taken || ($p->opened && ! $p->picked))->pluck('slot')->all();
+    $gift = '<span class="gift-shadow"></span><span class="gift-body"><span class="gift-float">'
+        .'<span class="gift-box"></span><span class="gift-ribbon"></span><span class="gift-inner"></span>'
+        .'<span class="gift-lid"><span class="gift-lid-top"></span><span class="gift-lid-front"></span><span class="gift-lid-ribbon"></span>'
+        .'<span class="gift-bow l"></span><span class="gift-bow r"></span><span class="gift-knot"></span></span>'
+        .'</span></span>';
+    $payload = [
+        'token' => $session->session_token,
+        'csrf' => csrf_token(),
+        'brand' => $theme['name'],
+        'chanceTotal' => $session->chance_total,
+        'chanceUsed' => $session->chance_used,
+        'pendingSlots' => $pendingSlots,
+        'pendingRevealed' => $pendingRevealed,
+        'taken' => $taken,
+        'formUrl' => route('play.form'),
+    ];
+@endphp
 
 @section('content')
-    <div class="brand">Amura</div>
-    <h1 class="headline">Pilih 3 Kotak</h1>
-    <p class="sub">Ketuk 3 kotak pilihanmu, lalu buka hadiahnya.</p>
+<section class="stage" id="stage" aria-live="polite">
+    <div class="stage-rays" aria-hidden="true"></div>
+    <div class="stage-spot" aria-hidden="true"></div>
+    <div class="stage-floor" aria-hidden="true"></div>
+    <div class="stage-dim" id="dim" aria-hidden="true"></div>
 
-    <div class="chance" id="chance">Kesempatan: {{ $session->chance_total - $session->chance_used }}/{{ $session->chance_total }}</div>
+    <header class="stage-head">
+        <a class="icon-btn" href="{{ route('play.form') }}" aria-label="Keluar dari Gatcha">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+        </a>
+        <div class="stage-brand" aria-hidden="true">{{ $theme['initial'] }}</div>
+        <div class="stage-title">Gatcha {{ $theme['name'] }}</div>
+        <button type="button" class="icon-btn" id="sound" aria-pressed="false" aria-label="Suara dan musik mati. Ketuk untuk menyalakan">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" stroke="none"/>
+                <path class="snd-on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" hidden/>
+                <path class="snd-off" d="M17 9l5 6M22 9l-5 6"/>
+            </svg>
+        </button>
+        <div class="chance-pill" aria-label="Sisa kesempatan">
+            @for ($i = 0; $i < $session->chance_total; $i++)
+                <span class="coin" data-coin="{{ $i }}"></span>
+            @endfor
+            <b id="chanceText"></b>
+        </div>
+    </header>
 
-    <div class="grid" id="grid">
-        @foreach ($prizes as $prize)
-            @php
-                $state = $prize->opened ? 'opened' : ($prize->picked ? 'selected' : '');
-            @endphp
-            <button
-                type="button"
-                class="slot {{ $state }} {{ $prize->taken ? 'chosen' : '' }}"
-                data-slot="{{ $prize->slot }}"
-                @disabled($prize->opened || $prize->taken)
-            >{{ $prize->slot }}</button>
-        @endforeach
+    {{-- Pilih 3 dari 24 (2b) --}}
+    <div id="pickView" hidden>
+        <div class="stage-intro">
+            <h1>Pilih 3 kado</h1>
+            <p>Semua kado berisi hadiah. Isinya diacak server saat dibuka.</p>
+        </div>
+    </div>
+    <div class="board" id="board" hidden>
+        <div class="board-grid" id="grid">
+            @foreach ($prizes as $prize)
+                @php $isUsed = in_array($prize->slot, $used, true); @endphp
+                <button type="button" class="cell {{ $isUsed ? 'is-used' : '' }}" data-slot="{{ $prize->slot }}"
+                        aria-label="Kado {{ str_pad($prize->slot, 2, '0', STR_PAD_LEFT) }}{{ $isUsed ? ', sudah dibuka' : '' }}"
+                        aria-pressed="false" @disabled($isUsed)>
+                    <span class="gift {{ $isUsed ? 'is-open' : '' }}" style="--float-delay: {{ number_format(-fmod($prize->slot * 0.37, 3), 2) }}s">{!! $gift !!}</span>
+                    <span class="num">{{ str_pad($prize->slot, 2, '0', STR_PAD_LEFT) }}</span>
+                </button>
+            @endforeach
+        </div>
+    </div>
+    <div class="tray" id="pickTray" hidden>
+        <div class="tray-row">
+            <span class="label" id="pickLabel">Pilih 3 lagi</span>
+            <span class="tray-slot" data-tray="0"></span>
+            <span class="tray-slot" data-tray="1"></span>
+            <span class="tray-slot" data-tray="2"></span>
+        </div>
+        <button type="button" class="btn btn-gold" id="openBtn" disabled>Buka 3 kado</button>
     </div>
 
-    <button type="button" class="btn" id="open" disabled>Buka 3 Kado</button>
-
-    <div id="reveal" class="reveal" hidden>
-        <h2 class="headline" id="revealTitle">Pilih 1 Hadiah</h2>
-        <p class="sub" id="revealSub">Ketuk hadiah yang ingin kamu simpan.</p>
-        <div class="reveal-grid" id="revealGrid"></div>
-        <p class="note" id="revealNote"></p>
+    {{-- Buka 3 kado, ambil 1 (2c) --}}
+    <div id="revealView" hidden>
+        <div class="stage-intro">
+            <h1 id="revealTitle">Membuka kado…</h1>
+            <p>Kamu hanya bisa mengambil 1. Dua lainnya hangus.</p>
+        </div>
+    </div>
+    <div class="reveal" id="reveal" hidden></div>
+    <div class="tray" id="revealTray" hidden>
+        <div class="tray-note">Pilihan tidak bisa diubah setelah diambil.</div>
+        <button type="button" class="btn btn-gold" id="takeBtn" disabled>Tunggu kado terbuka</button>
     </div>
 
-    <div id="result" class="result" hidden>
-        <h2 class="headline">Hadiahmu tersimpan!</h2>
-        <p class="sub">Kode klaim:</p>
-        <div class="claim-code" id="claimCode"></div>
-        <p class="note">Klaim sebelum <b id="claimExpiry"></b>. Kirim kode ini ke WhatsApp CS kami, lalu CS akan mencocokkan dan memproses hadiahmu.</p>
+    {{-- Hasil ronde --}}
+    <div class="result" id="resultView" hidden></div>
+    <div class="tray" id="resultTray" hidden>
+        <button type="button" class="btn btn-gold" id="nextBtn">Lanjut</button>
+        <a class="btn-ghost" href="{{ route('play.form') }}" id="laterLink">Nanti saja, kesempatan tersimpan</a>
     </div>
+
+    <div class="fx" id="fx" aria-hidden="true"></div>
+    <div class="stage-flash" id="flash" aria-hidden="true"></div>
+</section>
+
+<template id="giftTpl">{!! $gift !!}</template>
+
+<script type="application/json" id="gatchaData">@json($payload)</script>
 @endsection
 
 @push('scripts')
-<script>
-    const token = @json($session->session_token);
-    const grid = document.getElementById('grid');
-    const slots = document.querySelectorAll('.slot');
-    const openBtn = document.getElementById('open');
-    const revealBox = document.getElementById('reveal');
-    const revealGrid = document.getElementById('revealGrid');
-    const revealNote = document.getElementById('revealNote');
-    const pendingSlots = @json($pendingSlots);
-    const pendingRevealed = @json($pendingRevealed);
-    let selected = [...pendingSlots];
-    // Ronde yang sudah tercatat di server tidak boleh diubah dari browser.
-    let roundLocked = pendingSlots.length === 3;
-
-    slots.forEach(el => el.addEventListener('click', () => {
-        if (el.disabled || roundLocked) return;
-        const slot = Number(el.dataset.slot);
-        if (selected.includes(slot)) {
-            selected = selected.filter(s => s !== slot);
-            el.classList.remove('selected');
-        } else if (selected.length < 3) {
-            selected.push(slot);
-            el.classList.add('selected');
-        }
-        openBtn.disabled = selected.length !== 3;
-    }));
-
-    async function post(url, body) {
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': @json(csrf_token()),
-            },
-            body: JSON.stringify(body),
-        });
-        return res.json();
-    }
-
-    function showReveal(items) {
-        document.getElementById('revealTitle').textContent = 'Pilih 1 Hadiah';
-        document.getElementById('revealSub').textContent = 'Ketuk hadiah yang ingin kamu simpan.';
-        revealGrid.innerHTML = '';
-        items.forEach(item => {
-            const card = document.createElement('button');
-            card.type = 'button';
-            card.className = 'reveal-card';
-            card.dataset.slot = item.slot;
-            card.innerHTML = `<span class="reveal-slot">${item.slot}</span><span class="reveal-tier">${item.label}</span>`;
-            card.addEventListener('click', () => keep(item.slot));
-            revealGrid.appendChild(card);
-        });
-        revealBox.hidden = false;
-    }
-
-    async function keep(slot) {
-        const take = await post(`/play/${token}/take`, { slot });
-        if (!take.ok) { alert(take.error || 'Gagal'); return; }
-
-        showTaken(take);
-    }
-
-    function showTaken(take) {
-        document.querySelectorAll('.reveal-card').forEach(card => {
-            card.disabled = true;
-            card.classList.toggle('chosen', Number(card.dataset.slot) === take.chosen);
-        });
-        revealNote.textContent = take.auto_taken
-            ? 'Selamat! Hadiah Utama langsung masuk ke keranjangmu.'
-            : 'Hadiahmu tersimpan.';
-        if (take.auto_taken) {
-            document.getElementById('revealTitle').textContent = 'Kamu dapat Hadiah Utama!';
-            document.getElementById('revealSub').textContent = 'Hadiah Utama otomatis disimpan untukmu.';
-        }
-        document.getElementById('chance').textContent = `Kesempatan: ${take.chance_left}/${take.chance_total}`;
-
-        slots.forEach(el => {
-            const s = Number(el.dataset.slot);
-            if (take.revealed.some(r => r.slot === s)) {
-                el.classList.remove('selected');
-                el.classList.add('opened');
-                if (s === take.chosen) el.classList.add('chosen');
-                el.disabled = true;
-            }
-        });
-        selected = [];
-        roundLocked = false;
-        openBtn.disabled = true;
-
-        if (take.claim_code) {
-            document.getElementById('claimCode').textContent = take.claim_code;
-            document.getElementById('claimExpiry').textContent = take.claim_expires_at;
-            document.getElementById('result').hidden = false;
-        }
-    }
-
-    openBtn.addEventListener('click', async () => {
-        openBtn.disabled = true;
-        if (!roundLocked) {
-            const pick = await post(`/play/${token}/pick`, { slots: selected });
-            if (!pick.ok) { alert(pick.error || 'Gagal'); openBtn.disabled = false; return; }
-            roundLocked = true;
-        }
-
-        const reveal = await post(`/play/${token}/reveal`);
-        if (!reveal.ok) { alert(reveal.error || 'Gagal'); openBtn.disabled = false; return; }
-
-        showReveal(reveal.revealed);
-        if (reveal.auto_taken) showTaken(reveal);
-    });
-
-    // Lanjutkan ronde yang tertunda setelah halaman di-refresh.
-    if (pendingRevealed.length) {
-        showReveal(pendingRevealed);
-    } else if (roundLocked) {
-        openBtn.disabled = false;
-    }
-</script>
+<script src="{{ asset('js/gatcha.js') }}?v={{ filemtime(public_path('js/gatcha.js')) }}"></script>
 @endpush
