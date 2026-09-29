@@ -34,7 +34,7 @@
         hadiah_besar: { cls: 'tier-gold', chip: 'HADIAH UTAMA', token: 'Utama', v: 'Hadiah Utama' },
     };
     const tierOf = item => TIER[item.tier] || { cls: 'tier-ivory', chip: item.label.toUpperCase(), token: item.label, v: item.label };
-    const prizeName = item => item.name || tierOf(item).v;
+    const prizeName = item => (item.tier === 'poin' && item.points ? `+${item.points} poin` : item.name || tierOf(item).v);
     const formatDate = iso => {
         if (!iso) return '';
         const d = new Date(iso + 'T00:00:00');
@@ -381,7 +381,9 @@
     function setCardPrize(card, item) {
         const t = tierOf(item);
         card.classList.add(t.cls);
-        card.querySelector('.token').textContent = item.tier === 'hadiah_besar' && item.name ? item.name : t.token;
+        card.querySelector('.token').textContent = item.tier === 'poin' && item.points
+            ? `+${item.points}`
+            : (item.tier === 'hadiah_besar' && item.name ? item.name : t.token);
         card.querySelector('.chip').textContent = t.chip;
         card.querySelector('.v').textContent = prizeName(item);
     }
@@ -646,9 +648,11 @@
             burned: res.revealed.filter(i => i.slot !== res.chosen),
             code: res.claim_code,
             expires: res.claim_expires_at,
+            points: res.points,
+            balance: res.balance,
             chance: data.chanceTotal - res.chance_left,
         };
-        state.taken.push({ ...chosen, claim_code: res.claim_code, claim_expires_at: res.claim_expires_at });
+        state.taken.push({ ...chosen, claim_code: res.claim_code, claim_expires_at: res.claim_expires_at, points: res.points ?? chosen.points });
         res.revealed.forEach(i => markUsed(i.slot));
         state.selected = [];
         state.locked = false;
@@ -670,12 +674,12 @@
     }
 
     // ── Hasil dan ringkasan ──────────────────────────────────────────────
-    function claimNote(item, code, expires) {
+    function claimNote(item, expires) {
         const until = formatDate(expires);
         if (item.tier === 'hadiah_besar') {
-            return `Hadiah utama diperiksa Finance dulu, lalu dikirim CS. Kirim kode ini ke WhatsApp CS ${data.brand} sebelum ${until}.`;
+            return `Hadiah utama masuk Hadiahku. Redeem sebelum ${until}, lalu CS dan Finance memprosesnya.`;
         }
-        return `Kirim kode ini ke WhatsApp CS ${data.brand} sebelum ${until}. CS mencocokkan kodenya lalu memproses hadiahmu.`;
+        return `Masuk Hadiahku. Redeem sebelum ${until} lewat WhatsApp CS ${data.brand}.`;
     }
 
     function el(tag, cls, text) {
@@ -697,14 +701,32 @@
         win.appendChild(el('span', 'win-rays'));
         const card = el('div', 'win-card');
         card.appendChild(el('span', 'chip', t.chip));
-        card.appendChild(el('div', 'name', prizeName(chosen)));
-        if (code) {
-            card.appendChild(el('div', 'note', 'Kode klaim'));
-            card.appendChild(el('div', 'code', code));
+        card.appendChild(el('div', 'name', prizeName({ ...chosen, points: state.result.points ?? chosen.points })));
+        if (chosen.tier === 'poin') {
+            const saldo = el('div', 'saldo');
+            saldo.append('Saldo poinmu ');
+            const num = el('b', null, String(Math.max(0, (state.result.balance ?? 0) - (state.result.points ?? 0))));
+            saldo.append(num, ' poin');
+            card.appendChild(saldo);
+            card.appendChild(el('div', 'note', 'Poin langsung masuk saldo dan bisa ditukar di Katalog.'));
+            win.appendChild(card);
+            view.appendChild(win);
+            countUp(num, state.result.balance ?? 0);
+            coinBurst(card, saldo);
+        } else {
+            if (code) {
+                card.appendChild(el('div', 'note', 'Kode klaim'));
+                card.appendChild(el('div', 'code', code));
+            }
+            card.appendChild(el('div', 'note', claimNote(chosen, expires)));
+            if (code) {
+                const link = el('a', 'voucher-link', 'Lihat voucher');
+                link.href = data.rewardUrl + encodeURIComponent(code);
+                card.appendChild(link);
+            }
+            win.appendChild(card);
+            view.appendChild(win);
         }
-        card.appendChild(el('div', 'note', claimNote(chosen, code, expires)));
-        win.appendChild(card);
-        view.appendChild(win);
 
         if (burned.length) {
             view.appendChild(el('div', 'section-label', 'KADO YANG HANGUS'));
@@ -727,6 +749,43 @@
         view.scrollTop = 0;
         if (t.cls === 'tier-gold' && !reduced) confetti();
         $('nextBtn').focus({ preventScroll: true });
+    }
+
+    // Angka saldo bergulir 0,9 s (spesifikasi Poin).
+    function countUp(node, target) {
+        const start = Number(node.textContent) || 0;
+        if (reduced) { node.textContent = target.toLocaleString('id-ID'); return; }
+        const t0 = performance.now();
+        const step = now => {
+            const p = Math.min(1, (now - t0) / 900);
+            const eased = 1 - Math.pow(1 - p, 3);
+            node.textContent = Math.round(start + (target - start) * eased).toLocaleString('id-ID');
+            if (p < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    }
+
+    // 8 koin terbang melengkung dari kartu ke angka saldo, jeda 90 ms (spesifikasi Poin).
+    function coinBurst(fromEl, toEl) {
+        if (reduced) return;
+        const fx = $('fx');
+        const s = stage.getBoundingClientRect();
+        const a = fromEl.getBoundingClientRect();
+        const b = toEl.getBoundingClientRect();
+        for (let i = 0; i < 8; i++) {
+            const coin = el('span', 'fly-coin');
+            coin.style.left = `${a.left - s.left + a.width / 2}px`;
+            coin.style.top = `${a.top - s.top + a.height * .35}px`;
+            fx.appendChild(coin);
+            const dx = b.left - a.left - a.width / 2 + b.width / 2;
+            const dy = b.top - a.top - a.height * .35 + b.height / 2;
+            coin.animate([
+                { transform: 'translate(-50%, -50%) scale(.6)', opacity: 0 },
+                { transform: `translate(calc(-50% + ${dx * .4}px), calc(-50% + ${dy * .4 - 60}px)) scale(1)`, opacity: 1, offset: .45 },
+                { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.5)`, opacity: 0 },
+            ], { duration: 550, delay: 250 + i * 90, easing: 'cubic-bezier(.3, .7, .4, 1)', fill: 'backwards' })
+                .finished.then(() => { coin.remove(); buzz(8); if (i === 0) sound.tone(1320, .08, 'triangle', .08); });
+        }
     }
 
     function showDone() {
@@ -753,29 +812,34 @@
             body.style.cssText = 'flex:1;min-width:0';
             body.appendChild(el('div', 'chip', t.chip));
             body.appendChild(el('div', 'v', prizeName(item)));
-            if (item.claim_code) {
+            if (item.tier === 'poin') {
+                body.appendChild(el('div', 'sub', 'Masuk saldo poin'));
+            } else if (item.claim_code) {
                 const sub = el('div', 'sub', 'Kode ');
                 sub.appendChild(el('b', null, item.claim_code));
-                sub.appendChild(document.createTextNode(` · klaim sebelum ${formatDate(item.claim_expires_at)}`));
+                sub.appendChild(document.createTextNode(` · redeem sebelum ${formatDate(item.claim_expires_at)}`));
                 body.appendChild(sub);
             }
             row.appendChild(body);
             list.appendChild(row);
         });
         view.appendChild(list);
-        if (state.taken.length) {
-            view.appendChild(el('div', 'empty-note', `Kirim kode klaim ke WhatsApp CS ${data.brand}. CS mencocokkan kode dengan nomor HP-mu, lalu memproses hadiahnya.`));
+        if (state.taken.some(i => i.tier !== 'poin')) {
+            view.appendChild(el('div', 'empty-note', 'Hadiah nyata ada di Hadiahku. Tekan Redeem di sana, lalu kirim pesan ke WhatsApp CS dari nomor pemenang.'));
         }
 
-        $('nextBtn').hidden = true;
+        $('nextBtn').hidden = false;
+        $('nextBtn').textContent = 'Lihat Hadiahku';
+        $('nextBtn').onclick = () => { location.href = data.rewardsUrl; };
         $('laterLink').hidden = false;
-        $('laterLink').textContent = 'Kembali ke halaman awal';
+        $('laterLink').textContent = 'Ke Beranda';
         show('result');
     }
 
     $('openBtn').addEventListener('click', openRound);
     $('takeBtn').addEventListener('click', take);
     $('nextBtn').addEventListener('click', () => {
+        if ($('nextBtn').onclick) return;
         if (chanceLeft() > 0) enterPick(false);
         else showDone();
     });

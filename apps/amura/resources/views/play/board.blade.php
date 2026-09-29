@@ -21,6 +21,9 @@
         'pendingRevealed' => $pendingRevealed,
         'taken' => $taken,
         'formUrl' => route('play.form'),
+        'homeUrl' => route('home'),
+        'rewardsUrl' => route('rewards'),
+        'rewardUrl' => url('/hadiah').'/',
     ];
 @endphp
 
@@ -32,7 +35,7 @@
     <div class="stage-dim" id="dim" aria-hidden="true"></div>
 
     <header class="stage-head">
-        <a class="icon-btn" href="{{ route('play.form') }}" aria-label="Keluar dari Gatcha">
+        <a class="icon-btn" href="{{ route('home') }}" aria-label="Kembali ke Beranda">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
         </a>
         <div class="stage-brand" aria-hidden="true">{{ $theme['initial'] }}</div>
@@ -99,7 +102,7 @@
     <div class="result" id="resultView" hidden></div>
     <div class="tray" id="resultTray" hidden>
         <button type="button" class="btn btn-gold" id="nextBtn">Lanjut</button>
-        <a class="btn-ghost" href="{{ route('play.form') }}" id="laterLink">Nanti saja, kesempatan tersimpan</a>
+        <a class="btn-ghost" href="{{ route('home') }}" id="laterLink">Nanti saja, kesempatan tersimpan</a>
     </div>
 
     <div class="fx" id="fx" aria-hidden="true"></div>

@@ -326,6 +326,11 @@ button { font-family: inherit; }
 }
 .toast button { margin-left: auto; flex: none; border: 0; background: transparent; color: #7A2419; font-weight: 800; font-size: 13px; cursor: pointer; min-height: 32px; }
 
+.win-card .saldo { margin-top: 8px; font-size: 14px; color: var(--muted); }
+.win-card .saldo b { font-size: 22px; color: var(--p); }
+.voucher-link { display: grid; place-items: center; min-height: 44px; margin-top: 12px; border-radius: 12px; background: var(--p); color: #fff; font-weight: 800; text-decoration: none; }
+.fly-coin { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: var(--gold); box-shadow: inset 0 -2px 0 var(--gold-edge), 0 0 8px rgba(245, 218, 154, .7); }
+
 /* ── Efek hadiah utama: percikan + konfeti ────────────────────────────── */
 .fx { position: absolute; inset: 0; z-index: 35; pointer-events: none; overflow: hidden; }
 .spark { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #FFE7A8; box-shadow: 0 0 8px #F5DA9A; }
