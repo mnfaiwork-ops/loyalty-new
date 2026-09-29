@@ -1,0 +1,349 @@
+/* Halaman /play. Sumber: design/Loyalty Amura Reglow.dc.html (2a, 2b, 2c, 2e) dan design/gatcha-anim.jsx.
+   Warna brand (--p, --b0..--b2, --st1, --st2) diisi layout dari config/play.php. */
+
+:root {
+    --ivory: #FBF7F1;
+    --ink: #2B221D;
+    --muted: #6F6259;
+    --line: #E7DDD0;
+    --soft: #F3ECE2;
+    --cream: #FBF3E6;
+    --sand: #D9C9B6;
+    --gold: linear-gradient(180deg, #F5DA9A, #C99A3A);
+    --gold-edge: #8A6318;
+    --gold-light: #F0D08A;
+    --danger: #B4372C;
+    --ok: #2E7A4E;
+    --ease-back: cubic-bezier(.34, 1.56, .64, 1);
+    --ease-out: cubic-bezier(.22, 1, .36, 1);
+    --ease-io: cubic-bezier(.65, 0, .35, 1);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; }
+body {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: var(--ink);
+    background: #E9E1D6;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+}
+body.is-stage { background: var(--st2); }
+button { font-family: inherit; }
+.serif { font-family: 'DM Serif Display', serif; font-weight: 400; }
+
+/* Satu kolom 390 px seperti kanvas; di layar lebar jadi "HP" di tengah. */
+.app {
+    position: relative;
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    background: var(--ivory);
+    overflow: hidden;
+}
+@media (min-width: 600px) {
+    body { padding: 24px 0; }
+    .app { min-height: min(900px, calc(100dvh - 48px)); border-radius: 36px; box-shadow: 0 24px 48px -24px rgba(43, 34, 29, .45); }
+}
+
+:focus-visible { outline: 3px solid var(--p); outline-offset: 2px; }
+.stage :focus-visible { outline-color: var(--gold-light); }
+
+/* ── Layar terang: form resi + HP (2a, 2e) ─────────────────────────────── */
+.brandbar { flex: none; display: flex; align-items: center; gap: 10px; padding: 16px 16px 12px; border-top: 3px solid var(--p); }
+.brand-tile {
+    width: 38px; height: 38px; border-radius: 11px; background: var(--p); color: #fff;
+    display: grid; place-items: center; font-family: 'DM Serif Display', serif; font-size: 22px;
+}
+.brand-name { font-size: 16px; font-weight: 800; line-height: 1.1; }
+.brand-sub { font-size: 12px; color: var(--muted); }
+
+.entry { flex: 1; display: flex; flex-direction: column; }
+.entry-body { flex: 1; padding: 8px 16px 0; display: flex; flex-direction: column; gap: 18px; }
+.entry h1 { margin: 0; font-size: 26px; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
+.entry .lead { margin: 6px 0 0; font-size: 15px; line-height: 1.5; color: var(--muted); }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field label { font-size: 13px; font-weight: 800; }
+.field .hint { font-size: 12px; color: var(--muted); }
+.input {
+    width: 100%; height: 56px; border-radius: 14px; border: 1.5px solid var(--line); background: #fff;
+    padding: 0 14px; font: 700 16px/1 inherit; font-family: inherit; color: var(--ink); letter-spacing: .02em;
+}
+.input::placeholder { color: #A89A8E; font-weight: 600; }
+.input:focus { outline: none; border-color: var(--ink); }
+.input.is-error { border-color: var(--danger); }
+.phone { display: flex; height: 56px; border-radius: 14px; border: 1.5px solid var(--line); background: #fff; overflow: hidden; }
+.phone:focus-within { border-color: var(--ink); }
+.phone.is-error { border-color: var(--danger); }
+.phone span { padding: 0 12px; display: grid; place-items: center; font-size: 16px; font-weight: 700; background: var(--soft); border-right: 1px solid var(--line); }
+.phone input { flex: 1; min-width: 0; border: 0; padding: 0 14px; font: 700 16px/1 inherit; font-family: inherit; color: var(--ink); background: transparent; }
+.phone input:focus { outline: none; }
+.alert {
+    border-radius: 12px; padding: 12px 14px; background: #FBE9E6; color: #7A2419;
+    font-size: 13px; line-height: 1.5;
+}
+.alert b { color: var(--danger); }
+.entry-foot { flex: none; padding: 16px 16px 22px; padding-bottom: max(22px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; }
+.entry-foot small { font-size: 12px; color: var(--muted); text-align: center; }
+
+.btn {
+    height: 56px; border: 0; border-radius: 16px; font-size: 17px; font-weight: 800; cursor: pointer;
+    transition: transform .1s, box-shadow .1s, background .2s, color .2s;
+}
+.btn-brand { background: var(--p); color: #fff; box-shadow: 0 5px 0 var(--d); }
+.btn-brand:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--d); }
+.btn-brand[disabled] { background: #EFE7DC; color: #A89A8E; box-shadow: none; cursor: not-allowed; }
+.btn-brand.is-loading { pointer-events: none; opacity: .8; }
+
+/* Tombol emas tebal: satu-satunya aksen emas di layar, dipakai untuk aksi main. */
+.btn-gold {
+    height: 58px; font-size: 18px; background: var(--gold); color: #2B1608;
+    box-shadow: 0 6px 0 var(--gold-edge), 0 14px 24px rgba(0, 0, 0, .45);
+}
+.btn-gold:active:not([disabled]) { transform: translateY(5px); box-shadow: 0 1px 0 var(--gold-edge), 0 6px 12px rgba(0, 0, 0, .4); }
+.btn-gold[disabled] { background: rgba(255, 255, 255, .1); color: rgba(251, 243, 230, .55); box-shadow: 0 6px 0 rgba(0, 0, 0, .35); cursor: not-allowed; }
+.btn-ghost { height: 44px; border: 0; background: transparent; color: var(--sand); font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none; display: grid; place-items: center; }
+
+/* ── Panggung Gatcha (2b, 2c) ─────────────────────────────────────────── */
+.stage {
+    position: relative; flex: 1; display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh;
+    color: var(--cream); overflow: hidden; isolation: isolate;
+    background: radial-gradient(130% 80% at 50% 6%, var(--st1) 0%, var(--st2) 72%);
+}
+@media (min-width: 600px) { .stage { min-height: 0; } }
+
+/* Lantai perspektif: menandai "sekarang main" (kanvas: Masuk panggung). */
+.stage-floor {
+    position: absolute; left: -40%; right: -40%; bottom: 0; height: 58%; z-index: -1; pointer-events: none;
+    background:
+        repeating-linear-gradient(90deg, rgba(240, 208, 138, .10) 0 1px, transparent 1px 44px),
+        repeating-linear-gradient(0deg, rgba(240, 208, 138, .10) 0 1px, transparent 1px 44px);
+    transform: perspective(260px) rotateX(58deg); transform-origin: 50% 100%;
+    -webkit-mask-image: linear-gradient(to top, #000 40%, transparent);
+    mask-image: linear-gradient(to top, #000 40%, transparent);
+}
+.stage-spot { position: absolute; left: -20%; right: -20%; top: -18%; height: 60%; z-index: -1; pointer-events: none; background: radial-gradient(closest-side, rgba(255, 220, 160, .18), transparent); }
+/* Sinar latar berputar 20°/detik (spesifikasi Masuk). */
+.stage-rays {
+    position: absolute; left: 50%; top: 22%; width: 760px; height: 760px; margin: -380px 0 0 -380px; z-index: -1; pointer-events: none;
+    border-radius: 50%; opacity: .5;
+    background: repeating-conic-gradient(rgba(255, 226, 170, .07) 0deg 7deg, transparent 7deg 22deg);
+    -webkit-mask-image: radial-gradient(closest-side, #000 10%, transparent 100%);
+    mask-image: radial-gradient(closest-side, #000 10%, transparent 100%);
+    animation: spin 18s linear infinite;
+}
+.stage-dim { position: absolute; inset: 0; z-index: 5; background: #000; opacity: 0; pointer-events: none; transition: opacity .8s var(--ease-out); }
+.stage-flash { position: absolute; inset: 0; z-index: 30; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 45%, #FFF6DA, rgba(245, 218, 154, .85) 40%, rgba(201, 154, 58, .3)); }
+
+.stage-head { position: relative; z-index: 6; flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px 4px; padding-top: max(10px, env(safe-area-inset-top)); }
+.icon-btn {
+    width: 44px; height: 44px; flex: none; border: 0; border-radius: 12px; background: transparent; color: var(--cream);
+    display: grid; place-items: center; cursor: pointer; text-decoration: none;
+}
+.icon-btn svg { width: 22px; height: 22px; }
+.icon-btn:hover { background: rgba(255, 255, 255, .06); }
+.stage-brand { width: 30px; height: 30px; border-radius: 9px; background: var(--p); border: 1.5px solid #E8C170; color: #fff; display: grid; place-items: center; font-family: 'DM Serif Display', serif; font-size: 17px; }
+.stage-title { flex: 1; min-width: 0; font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chance-pill { display: flex; align-items: center; gap: 5px; height: 36px; padding: 0 10px 0 6px; border-radius: 999px; background: rgba(0, 0, 0, .35); border: 1px solid rgba(240, 208, 138, .3); }
+.coin { width: 22px; height: 22px; border-radius: 50%; background: var(--gold); box-shadow: inset 0 -2px 0 var(--gold-edge); transition: background .3s, box-shadow .3s, transform .3s; }
+.coin.is-used { background: rgba(255, 255, 255, .14); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .3); transform: scale(.86); }
+.chance-pill b { font-size: 13px; font-weight: 800; margin-left: 3px; }
+
+.stage-intro { position: relative; z-index: 6; flex: none; padding: 8px 16px 4px; }
+.stage-intro h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
+.stage-intro p { margin: 3px 0 0; font-size: 13px; color: var(--sand); }
+
+/* Grid 4×6 dimiringkan ke belakang seperti meja (kanvas: Kado 3D yang hidup). */
+.board { position: relative; z-index: 4; flex: 1; min-height: 0; padding: 12px 14px 8px; }
+.board-grid {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px 8px;
+    transform: perspective(900px) rotateX(12deg); transform-origin: 50% 100%;
+}
+.cell {
+    position: relative; aspect-ratio: 1 / .9; border: 0; padding: 0; background: transparent; cursor: pointer; color: inherit;
+    border-radius: 14px; transition: opacity .3s;
+}
+.cell[disabled] { cursor: default; }
+.cell .num { position: absolute; left: 3px; bottom: 0; font-size: 10px; font-weight: 800; color: var(--sand); }
+.cell .badge {
+    position: absolute; top: -4px; right: 0; z-index: 3; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--gold); color: #2B1608; font-size: 12px; font-weight: 800; display: grid; place-items: center;
+    box-shadow: 0 2px 0 var(--gold-edge); animation: pop .3s var(--ease-back);
+}
+.cell .floor-glow {
+    position: absolute; left: 0; right: 0; bottom: -2%; height: 26%; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(240, 208, 138, .9), transparent); animation: burst .3s ease-out;
+}
+.board.is-full .cell:not(.is-picked):not(.is-used) { opacity: .35; }
+/* Kado terpilih tetap sedikit terangkat setelah lompat (spesifikasi Pilih: mendarat tetap naik). */
+.cell .gift-body { transition: transform .28s var(--ease-back); }
+.cell.is-picked .gift-body { transform: translateY(-8px) scale(1.1); }
+.rcard.is-dimmed { opacity: .3; transition: opacity .8s var(--ease-out); }
+.cell.is-used { opacity: .4; }
+.cell.is-used .num { text-decoration: line-through; }
+/* Kado bekas ronde lalu: tutup sudah dibuang, kotak kosong tetap di tempatnya. */
+.cell.is-used .gift-lid { display: none; }
+
+/* ── Kado 3D dari CSS (badan, tutup, pita emas, bayangan) ─────────────── */
+.gift { position: absolute; inset: 0; }
+.gift-shadow { position: absolute; left: 12%; right: 12%; bottom: 4%; height: 12%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, .6), transparent); transition: transform .3s; }
+.gift-body { position: absolute; inset: 0; transform-origin: 50% 90%; }
+.gift-float { position: absolute; inset: 0; animation: float 3s ease-in-out infinite; animation-delay: var(--float-delay, 0s); }
+.gift-box { position: absolute; left: 14%; right: 14%; top: 42%; bottom: 12%; border-radius: 3px 3px 8px 8px; background: linear-gradient(90deg, var(--b2) 0%, var(--b1) 30%, var(--b1) 60%, var(--b2) 100%); box-shadow: inset 0 -8px 12px rgba(0, 0, 0, .3); }
+.gift-ribbon { position: absolute; left: 44%; width: 12%; top: 42%; bottom: 12%; background: linear-gradient(90deg, #9C7020, #F0D08A, #9C7020); }
+.gift-lid { position: absolute; inset: 0; transform-origin: 20% 40%; }
+.gift-lid-top { position: absolute; left: 10%; right: 10%; top: 26%; height: 8%; border-radius: 4px 4px 0 0; background: var(--b0); transform: perspective(80px) rotateX(40deg); transform-origin: bottom; }
+.gift-lid-front { position: absolute; left: 10%; right: 10%; top: 33%; height: 12%; border-radius: 3px; background: linear-gradient(180deg, var(--b1), var(--b2)); box-shadow: 0 4px 5px rgba(0, 0, 0, .35); }
+.gift-lid-ribbon { position: absolute; left: 43%; width: 14%; top: 27%; height: 18%; background: linear-gradient(90deg, #9C7020, #F5DA9A, #9C7020); }
+.gift-bow { position: absolute; top: 9%; width: 25%; height: 21%; border: 3.5px solid #E8C170; }
+.gift-bow.l { left: 25%; border-radius: 60% 40% 30% 70%; transform: rotate(-22deg); }
+.gift-bow.r { right: 25%; border-radius: 40% 60% 70% 30%; transform: rotate(22deg); }
+.gift-knot { position: absolute; left: 44%; top: 21%; width: 12%; height: 10%; border-radius: 3px; background: var(--gold-light); }
+.gift.is-open .gift-lid { transform: translateY(-48%) rotate(-18deg); }
+.gift.is-open .gift-float { animation: none; }
+.gift-inner { position: absolute; left: 16%; right: 16%; top: 40%; height: 8%; border-radius: 2px; background: rgba(0, 0, 0, .45); opacity: 0; }
+.gift.is-open .gift-inner { opacity: 1; }
+
+/* ── Tray pilihan + tombol emas ───────────────────────────────────────── */
+.tray {
+    position: relative; z-index: 6; flex: none; background: rgba(0, 0, 0, .4); border-top: 1px solid rgba(240, 208, 138, .2);
+    padding: 12px 16px 22px; padding-bottom: max(22px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px;
+}
+.tray-row { display: flex; align-items: center; gap: 8px; }
+.tray-row .label { flex: 1; font-size: 14px; font-weight: 800; }
+.tray-slot {
+    width: 40px; height: 40px; border-radius: 10px; border: 1.5px dashed rgba(240, 208, 138, .45);
+    display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #2B1608; transition: background .2s;
+}
+.tray-slot.is-filled { background: var(--gold); border: 1.5px solid var(--gold-light); animation: pop .3s var(--ease-back); }
+.tray-note { font-size: 12px; color: var(--sand); text-align: center; }
+
+/* ── Buka 3 kado (2c) ─────────────────────────────────────────────────── */
+.reveal { position: relative; z-index: 6; flex: 1; min-height: 0; padding: 60px 12px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-content: start; }
+.rcard {
+    position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 4px 14px;
+    border-radius: 18px; border: 2px solid rgba(255, 255, 255, .12); background: rgba(255, 255, 255, .04);
+    color: inherit; cursor: pointer; transition: border-color .2s, background .2s, transform .2s;
+}
+.rcard[disabled] { cursor: default; }
+.rcard.is-chosen { border-color: var(--gold-light); background: rgba(240, 208, 138, .16); transform: translateY(-4px); }
+.rcard.is-burned { opacity: .45; }
+.rcard-stage { position: relative; width: 100%; aspect-ratio: 1 / 1.1; }
+.rcard .gift-box { top: 44%; }
+.rcard .gift-ribbon { top: 44%; }
+.rcard-rays {
+    position: absolute; inset: -18%; border-radius: 50%; opacity: 0;
+    background: repeating-conic-gradient(var(--ray, rgba(255, 238, 205, .6)) 0deg 7deg, transparent 7deg 22deg);
+    -webkit-mask-image: radial-gradient(closest-side, #000 15%, transparent 100%);
+    mask-image: radial-gradient(closest-side, #000 15%, transparent 100%);
+}
+.rcard.is-open .rcard-rays { opacity: 1; animation: burst .5s ease-out both, spin 9s linear infinite; }
+.rcard-glow { position: absolute; left: 6%; right: 6%; top: 30%; height: 26%; border-radius: 50%; background: radial-gradient(closest-side, var(--ray, rgba(255, 238, 205, .6)), transparent); opacity: 0; }
+.rcard.is-open .rcard-glow { opacity: 1; animation: burst .4s ease-out both; }
+.token {
+    position: absolute; left: 0; right: 0; top: 4%; z-index: 4; margin: auto; width: fit-content; max-width: 100%; min-width: 52px;
+    padding: 7px 9px; border-radius: 12px; font-size: 14px; font-weight: 800; text-align: center; line-height: 1.15;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, .45); opacity: 0; transform: translateY(16px) scale(.96);
+}
+.rcard.is-open .token { animation: rise .5s .25s var(--ease-out) both; }
+.rcard-label { text-align: center; min-height: 34px; }
+.rcard-label .chip, .rcard-label .v { display: block; }
+.rcard-label .chip { font-size: 10px; font-weight: 800; letter-spacing: .04em; }
+.rcard-label .v { font-size: 14px; font-weight: 800; margin-top: 3px; line-height: 1.25; }
+.rcard .check {
+    position: absolute; top: -10px; right: -6px; width: 28px; height: 28px; border-radius: 50%; background: var(--gold);
+    color: #2B1608; display: grid; place-items: center; font-size: 14px; font-weight: 800; box-shadow: 0 2px 0 var(--gold-edge);
+    animation: pop .25s var(--ease-back);
+}
+.rcard .stamp {
+    position: absolute; left: 50%; top: 38%; z-index: 5; border: 2px solid #E0665C; color: #E0665C; font-size: 11px; font-weight: 800;
+    letter-spacing: .1em; padding: 2px 6px; border-radius: 4px; background: rgba(6, 24, 22, .6);
+    animation: stamp .3s ease-out both; transform: translateX(-50%) rotate(-12deg);
+}
+
+/* Warna = tingkat hadiah (kanvas): gading = poin, brand = hadiah nyata, emas = hadiah utama. */
+.tier-ivory { --ray: rgba(255, 238, 205, .6); }
+.tier-ivory .token { background: var(--cream); color: var(--ink); }
+.tier-ivory .chip { color: var(--cream); }
+.tier-brand { --ray: var(--glow-item); }
+.tier-brand .token { background: #fff; color: var(--d); }
+.tier-brand .chip { color: var(--b0); }
+.tier-gold { --ray: rgba(240, 208, 138, .9); }
+.tier-gold .token { background: var(--gold); color: #2B1608; }
+.tier-gold .chip { color: var(--gold-light); }
+
+/* ── Hasil ronde + ringkasan ──────────────────────────────────────────── */
+.result { position: relative; z-index: 6; flex: 1; min-height: 0; padding: 10px 16px 0; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.eyebrow { text-align: center; font-size: 12px; font-weight: 800; letter-spacing: .1em; color: var(--gold-light); }
+.win { position: relative; min-height: 300px; display: grid; place-items: center; }
+.win-rays {
+    position: absolute; width: 420px; height: 420px; left: 50%; top: 50%; margin: -210px 0 0 -210px; border-radius: 50%;
+    background: repeating-conic-gradient(var(--ray) 0deg 6deg, transparent 6deg 20deg);
+    -webkit-mask-image: radial-gradient(closest-side, #000 10%, transparent 90%);
+    mask-image: radial-gradient(closest-side, #000 10%, transparent 90%);
+    animation: burst .6s ease-out both, spin 14s linear infinite;
+}
+.win-card {
+    position: relative; width: min(270px, 100%); background: var(--cream); color: var(--ink); border-radius: 22px; padding: 22px 18px; text-align: center;
+    box-shadow: 0 10px 0 rgba(0, 0, 0, .25), 0 30px 50px rgba(0, 0, 0, .5); animation: winrise .6s var(--ease-back) both;
+}
+.win-card .chip { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.tier-ivory .win-card .chip { background: var(--t); color: var(--p); }
+.tier-brand .win-card .chip { background: var(--t); color: var(--d); }
+.tier-gold .win-card .chip { background: #F6EBD3; color: var(--gold-edge); }
+.win-card .name { font-family: 'DM Serif Display', serif; font-size: 34px; line-height: 1.1; margin: 12px 0 10px; overflow-wrap: anywhere; }
+.win-card .note { font-size: 13px; line-height: 1.5; color: var(--muted); }
+.code { margin: 12px 0 4px; padding: 10px 8px; border-radius: 12px; background: var(--soft); font-size: 20px; font-weight: 800; letter-spacing: .12em; color: var(--ink); }
+.section-label { font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--sand); }
+.burned { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.burned-card { position: relative; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); border-radius: 14px; padding: 12px 14px; overflow: hidden; }
+.burned-card .meta { font-size: 11px; font-weight: 700; color: #A8998A; }
+.burned-card .v { font-size: 15px; font-weight: 800; color: #A8998A; text-decoration: line-through; margin-top: 4px; }
+.burned-card .stamp { position: absolute; right: 8px; top: 14px; border: 2px solid #E0665C; color: #E0665C; font-size: 11px; font-weight: 800; letter-spacing: .1em; padding: 2px 6px; border-radius: 4px; transform: rotate(-12deg); animation: stamp .3s ease-out .5s both; }
+
+.won-list { display: flex; flex-direction: column; gap: 12px; }
+.won-item { background: var(--cream); color: var(--ink); border-radius: 18px; padding: 16px; display: flex; gap: 14px; align-items: center; box-shadow: 0 6px 0 rgba(0, 0, 0, .25); animation: rise .4s var(--ease-out) both; }
+.won-item .idx { width: 52px; height: 52px; flex: none; border-radius: 12px; display: grid; place-items: center; font-family: 'DM Serif Display', serif; font-size: 22px; background: var(--t); color: var(--p); }
+.won-item.tier-gold .idx { background: #F6EBD3; color: var(--gold-edge); }
+.won-item .chip { font-size: 11px; font-weight: 800; color: var(--p); }
+.won-item.tier-gold .chip { color: var(--gold-edge); }
+.won-item .v { font-size: 17px; font-weight: 800; margin-top: 2px; overflow-wrap: anywhere; }
+.won-item .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.won-item .sub b { color: var(--ink); letter-spacing: .06em; }
+
+.empty-note { padding: 16px; border-radius: 16px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); font-size: 14px; line-height: 1.5; color: var(--sand); }
+
+/* Pesan error di panggung (koneksi putus, sesi habis). */
+.toast {
+    position: absolute; left: 16px; right: 16px; bottom: 150px; z-index: 40; padding: 12px 14px; border-radius: 14px;
+    background: #FBE9E6; color: #7A2419; font-size: 13px; line-height: 1.45; box-shadow: 0 10px 24px rgba(0, 0, 0, .4);
+    display: flex; gap: 10px; align-items: flex-start; animation: rise .3s var(--ease-out);
+}
+.toast button { margin-left: auto; flex: none; border: 0; background: transparent; color: #7A2419; font-weight: 800; font-size: 13px; cursor: pointer; min-height: 32px; }
+
+/* ── Efek hadiah utama: percikan + konfeti ────────────────────────────── */
+.fx { position: absolute; inset: 0; z-index: 35; pointer-events: none; overflow: hidden; }
+.spark { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #FFE7A8; box-shadow: 0 0 8px #F5DA9A; }
+.confetti { position: absolute; top: -20px; width: 8px; height: 14px; border-radius: 2px; }
+
+/* ── Keyframes ────────────────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes pop { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes burst { 0% { transform: scale(.2); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes rise { 0% { transform: translateY(16px) scale(.96); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes winrise { 0% { transform: translateY(40px) scale(.7); opacity: 0; } 100% { transform: perspective(700px) rotateX(6deg); opacity: 1; } }
+@keyframes stamp { 0% { transform: rotate(-12deg) scale(1.8); opacity: 0; } 100% { transform: rotate(-12deg) scale(1); opacity: 1; } }
+.rcard .stamp { animation-name: stampc; }
+@keyframes stampc { 0% { transform: translateX(-50%) rotate(-12deg) scale(1.8); opacity: 0; } 100% { transform: translateX(-50%) rotate(-12deg) scale(1); opacity: 1; } }
+
+/* HP lemah atau "kurangi gerakan": melayang, sinar, dan getar layar dimatikan (kanvas: Tetap ringan). */
+@media (prefers-reduced-motion: reduce) {
+    .gift-float, .stage-rays, .rcard.is-open .rcard-rays, .win-rays { animation: none !important; }
+    .fx { display: none; }
+}

@@ -23,6 +23,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        \Illuminate\Support\Facades\View::composer(['play.*', 'layouts.play'], function ($view) {
+            $themes = config('play.themes');
+            $view->with('theme', $themes[config('app.brand')] ?? $themes['amura']);
+        });
     }
 }
