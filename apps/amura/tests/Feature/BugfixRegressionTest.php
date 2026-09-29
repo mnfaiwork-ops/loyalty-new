@@ -174,25 +174,23 @@ final class BugfixRegressionTest extends TestCase
         $this->assertSame(1, $this->start('JX-NEXT2', '081200000092')->prizes()->where('tier', 'hadiah_besar')->count());
     }
 
-    public function test_2_cs_menghanguskan_klaim_hadiah_utama_kuota_kembali(): void
+    public function test_2_klaim_hadiah_utama_hangus_lewat_flow_kuota_kembali_sekali(): void
     {
         $this->bigPrizeCatalog(cap: 1);
         $session = $this->start();
         $this->pickBigPrizeRound($session);
         $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
         $claim = Claim::firstOrFail();
-        $cs = $this->staff('cs');
 
-        $this->actingAs($cs)
-            ->post("/admin/claims/{$claim->claim_code}/resolve", ['status' => 'hangus'])
-            ->assertSessionHasNoErrors();
+        \LoyaltyNew\Core\Prizes\ClaimFlow::expire($claim);
         $this->assertSame(0, $this->usedUnits());
 
-        // Klik kedua ditolak (sudah final) dan tidak mengurangi kuota lagi.
-        $this->actingAs($cs)
-            ->post("/admin/claims/{$claim->claim_code}/resolve", ['status' => 'hangus'])
-            ->assertSessionHasErrors('status');
-        $this->assertSame(0, $this->usedUnits());
+        $this->expectException(\LoyaltyNew\Core\Prizes\ClaimTransitionException::class);
+        try {
+            \LoyaltyNew\Core\Prizes\ClaimFlow::expire($claim);
+        } finally {
+            $this->assertSame(0, $this->usedUnits());
+        }
     }
 
     public function test_2_klaim_hadiah_biasa_hangus_tidak_menyentuh_kuota(): void
@@ -264,7 +262,7 @@ final class BugfixRegressionTest extends TestCase
         $claim = $this->claim('hangus', expired: true);
 
         $this->actingAs($this->staff('cs'))
-            ->post("/admin/claims/{$claim->claim_code}/resolve", ['status' => 'selesai'])
+            ->post("/admin/claims/{$claim->claim_code}/confirm", ['sender_phone' => '08123456789'])
             ->assertSessionHasErrors('status');
 
         $this->assertSame('hangus', $claim->fresh()->status);
@@ -275,26 +273,32 @@ final class BugfixRegressionTest extends TestCase
         $claim = $this->claim('selesai');
 
         $this->actingAs($this->staff('cs'))
-            ->post("/admin/claims/{$claim->claim_code}/resolve", ['status' => 'hangus'])
+            ->post("/admin/claims/{$claim->claim_code}/reject", ['sender_phone' => '089999999999'])
             ->assertSessionHasErrors('status');
 
         $this->assertSame('selesai', $claim->fresh()->status);
     }
 
-    public function test_4_klaim_lewat_batas_hanya_bisa_dihanguskan(): void
+    public function test_4_klaim_diajukan_lewat_batas_tidak_bisa_dikonfirmasi(): void
     {
-        $claim = $this->claim('belum_redeem', expired: true);
-        $cs = $this->staff('cs');
+        $claim = $this->claim('diajukan', expired: true);
 
-        $this->actingAs($cs)
-            ->post("/admin/claims/{$claim->claim_code}/resolve", ['status' => 'selesai'])
+        $this->actingAs($this->staff('cs'))
+            ->post("/admin/claims/{$claim->claim_code}/confirm", ['sender_phone' => '08123456789'])
             ->assertSessionHasErrors('status');
-        $this->assertSame('belum_redeem', $claim->fresh()->status);
 
-        $this->actingAs($cs)
-            ->post("/admin/claims/{$claim->claim_code}/resolve", ['status' => 'hangus'])
-            ->assertSessionHasNoErrors();
-        $this->assertSame('hangus', $claim->fresh()->status);
+        $this->assertSame('diajukan', $claim->fresh()->status);
+    }
+
+    public function test_4_pesan_error_tampil_di_panel_admin(): void
+    {
+        $claim = $this->claim('hangus', expired: true);
+
+        $this->actingAs($this->staff('cs'))
+            ->from("/admin/claims/{$claim->claim_code}")
+            ->followingRedirects()
+            ->post("/admin/claims/{$claim->claim_code}/confirm", ['sender_phone' => '08123456789'])
+            ->assertSee('tidak bisa diubah');
     }
 
     public function test_4_finance_tidak_bisa_setujui_klaim_lewat_batas(): void
@@ -306,18 +310,6 @@ final class BugfixRegressionTest extends TestCase
             ->assertSessionHasErrors('status');
 
         $this->assertSame('perlu_finance', $claim->fresh()->status);
-    }
-
-    public function test_4_pesan_error_tampil_di_panel_admin(): void
-    {
-        $claim = $this->claim('hangus', expired: true);
-        $cs = $this->staff('cs');
-
-        $this->actingAs($cs)
-            ->from('/admin/claims')
-            ->followingRedirects()
-            ->post("/admin/claims/{$claim->claim_code}/resolve", ['status' => 'selesai'])
-            ->assertSee('tidak bisa diubah');
     }
 
     // ── Bug 5: refresh di tengah ronde membuat papan macet ──────────────────
