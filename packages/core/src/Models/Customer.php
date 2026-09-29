@@ -20,4 +20,12 @@ class Customer extends Model
     {
         return $this->hasMany(GameSession::class);
     }
+
+    /** Nomor HP disamarkan: 4 digit awal + •••• + 4 digit akhir. */
+    public function maskedPhone(): string
+    {
+        $phone = (string) $this->phone;
+
+        return strlen($phone) <= 8 ? $phone : substr($phone, 0, 4).'••••'.substr($phone, -4);
+    }
 }

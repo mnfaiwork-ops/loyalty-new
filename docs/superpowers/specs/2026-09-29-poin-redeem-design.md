@@ -74,7 +74,7 @@ menang Gatcha (voucher/merch/hadiah utama)  /  tukar poin di katalog
 | `perlu_finance` | `diproses` | Finance | `expires_at` belum lewat |
 | `diproses` | `dikirim` | CS | resi hadiah diisi |
 | `dikirim` | `selesai` | CS | ditandai diterima |
-| `belum_redeem`, `diajukan` | `hangus` | sistem / CS | `expires_at` lewat |
+| `belum_redeem`, `diajukan`, `perlu_finance` | `hangus` | sistem | `expires_at` lewat (Finance tidak bisa menyetujui klaim lewat batas, jadi `perlu_finance` juga harus bisa hangus) |
 
 - Status `selesai` dan `hangus` final. Klaim yang sudah `diproses` ke atas tidak bisa hangus.
 - `expires_at` **tidak** diperpanjang saat klaim ditolak dan kembali ke `belum_redeem`.
@@ -208,7 +208,7 @@ Semua tabel memiliki kolom `brand` (atau lewat relasi ke tabel ber-brand) dan di
 
 **`claim_events`** (baru): `claim_id`, `from_status`, `to_status`, `actor` (`customer`/`cs`/`finance`/`system`), `user_id` nullable, `note`, `created_at`.
 
-**`point_lots`** (baru): `brand`, `customer_id`, `game_prize_id` (unique), `points`, `remaining`, `expires_at`, timestamps.
+**`point_lots`** (baru): `brand`, `customer_id`, `game_prize_id` (unique, boleh kosong untuk saldo demo dari seeder), `points`, `remaining`, `expires_at`, timestamps.
 
 **`point_movements`** (baru): `brand`, `customer_id`, `point_lot_id`, `claim_id` nullable, `type` (`earn`/`spend`/`refund`/`expire`), `points` (bertanda), `created_at`.
 
@@ -252,7 +252,7 @@ Kalau `CS_WHATSAPP` kosong, tombol WA disembunyikan dan voucher menampilkan "Nom
 
 ## 12. Testing
 
-- **Unit (`packages/core`):** `PointWallet` untuk FIFO per `expires_at`, minimal tukar, saldo tidak negatif, refund ke lot asal, refund ke lot kedaluwarsa, hangus 12 bulan, dan kredit ganda ditolak. Pengundian item voucher/merch: hanya item aktif, tier sama, dan brand sama.
+- **Feature (Amura, butuh DB):** `PointWallet` untuk FIFO per `expires_at`, minimal tukar, saldo tidak negatif, refund ke lot asal, refund ke lot kedaluwarsa, hangus 12 bulan, dan kredit ganda ditolak. Pengundian item voucher/merch: hanya item aktif, tier sama, dan brand sama.
 - **Feature (Amura):** setiap baris tabel transisi di §3, termasuk tolak lalu kembali tanpa perpanjangan batas, redeem ganda, tukar ganda, stok habis, isolasi brand, cookie brand lain, dan klaim milik pelanggan lain. Juga katalog aktif saat bulan baru belum terbit, serta job expire (klaim katalog mengembalikan poin dan stok).
 - **Regresi:** 151 test yang ada tetap lulus. Test yang menegaskan kado poin membuat klaim diubah ke aturan baru.
 - **Uji jalan Playwright 390×844:** masuk, Gatcha (poin masuk saldo), Beranda, Katalog → tukar, Hadiahku → voucher → Redeem → link WA, CS tolak lalu konfirmasi, Finance setujui, pengiriman, dan selesai. Ditambah keyboard, 360 px, dan console tanpa error.
