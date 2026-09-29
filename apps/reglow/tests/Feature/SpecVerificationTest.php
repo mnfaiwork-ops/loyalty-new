@@ -208,7 +208,7 @@ final class SpecVerificationTest extends TestCase
         $this->artisan('loyalty:expire-claims')->assertExitCode(0);
 
         $this->assertSame('hangus', $biasa->fresh()->status);
-        $this->assertSame('perlu_finance', $utama->fresh()->status);
+        $this->assertSame('belum_redeem', $utama->fresh()->status);
     }
 
     // ── Cek #7: Isolasi brand (Reglow tidak bisa baca data Amura) ───────────

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\RememberedCustomer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -11,10 +12,13 @@ use LoyaltyNew\Core\Gacha\Grid;
 use LoyaltyNew\Core\Gacha\SessionExpiredException;
 use LoyaltyNew\Core\Gacha\SessionService;
 use LoyaltyNew\Core\Models\Claim;
+use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
-use LoyaltyNew\Core\Models\PrizeCatalog;
+use LoyaltyNew\Core\Models\PointLot;
+use LoyaltyNew\Core\Points\LoyaltySettings;
 use LoyaltyNew\Core\Prizes\ClaimService;
+use LoyaltyNew\Core\Prizes\PrizeAwarder;
 
 final class PlayController extends Controller
 {
@@ -59,7 +63,18 @@ final class PlayController extends Controller
             $session = $this->sessions->open($data['awb'], $data['phone']);
         } catch (SessionExpiredException $e) {
             // Input benar, masa main saja yang habis: jangan dihitung percobaan gagal.
-            return back()->withErrors(['awb' => $e->getMessage()])->withInput();
+            // Resi + HP sudah cocok, jadi pelanggan tetap masuk ke Beranda untuk
+            // melihat poin dan me-redeem hadiah yang batasnya belum lewat (spec §7).
+            $customer = $e->customerId ? Customer::find($e->customerId) : null;
+            if (! $customer) {
+                return back()->withErrors(['awb' => $e->getMessage()])->withInput();
+            }
+
+            $limiter->clear($data['awb'], $data['phone']);
+
+            return redirect()->route('home')
+                ->with('ok', 'Masa main untuk paket ini sudah berakhir. Poin dan hadiahmu tetap bisa dilihat di sini.')
+                ->withCookie(RememberedCustomer::cookieFor($customer));
         } catch (\RuntimeException $e) {
             $limiter->recordFailure($data['awb'], $data['phone']);
 
@@ -68,7 +83,12 @@ final class PlayController extends Controller
 
         $limiter->clear($data['awb'], $data['phone']);
 
-        return redirect()->route('play.board', $session->session_token);
+        $customer = Customer::findOrFail($session->customer_id);
+        $target = $session->chance_used < $session->chance_total
+            ? redirect()->route('play.board', $session->session_token)
+            : redirect()->route('home');
+
+        return $target->withCookie(RememberedCustomer::cookieFor($customer));
     }
 
     public function board(string $token)
@@ -203,7 +223,7 @@ final class PlayController extends Controller
         });
     }
 
-    /** Simpan satu hadiah dari ronde, lepas dua lainnya, dan terbitkan klaim. */
+    /** Simpan satu hadiah dari ronde, lepas dua lainnya, lalu beri poin atau terbitkan klaim. */
     private function keep(GameSession $session, Collection $round, GamePrize $chosen): array
     {
         $chosen->update(['taken' => true, 'opened' => true]);
@@ -211,15 +231,18 @@ final class PlayController extends Controller
         $others = $round->reject(fn (GamePrize $prize) => $prize->id === $chosen->id);
         $session->prizes()->whereIn('id', $others->pluck('id'))->update(['picked' => false]);
 
-        $claim = Claim::where('game_prize_id', $chosen->id)->first()
-            ?? ClaimService::create($session, $chosen);
+        $award = PrizeAwarder::award($session, $chosen);
+        $claim = $award['type'] === 'claim' ? $award['claim'] : null;
 
         return [
             'ok' => true,
             'revealed' => $this->revealed($round),
             'chosen' => $chosen->slot,
-            'claim_code' => $claim->claim_code,
-            'claim_expires_at' => $claim->expires_at->toDateString(),
+            'prize_name' => $claim?->prize_name,
+            'points' => $award['type'] === 'points' ? $award['points'] : null,
+            'balance' => $award['type'] === 'points' ? $award['balance'] : null,
+            'claim_code' => $claim?->claim_code,
+            'claim_expires_at' => $claim?->expires_at->toDateString(),
             'chance_left' => max(0, $session->chance_total - $session->fresh()->chance_used),
             'chance_total' => $session->chance_total,
         ];
@@ -235,14 +258,17 @@ final class PlayController extends Controller
             ->get();
     }
 
-    /** @return array<int, array{slot:int, tier:string, label:string, name:?string}> */
+    /** @return array<int, array{slot:int, tier:string, label:string, name:?string, points:?int}> */
     private function revealed(Collection $round): array
     {
+        $perGift = LoyaltySettings::current()['per_gift'];
+
         return $round->map(fn (GamePrize $prize) => [
             'slot' => $prize->slot,
             'tier' => $prize->tier,
             'label' => $this->tierLabel($prize->tier),
-            'name' => $this->prizeName($prize),
+            'name' => $prize->tier === 'poin' ? null : ClaimService::prizeName($prize),
+            'points' => $prize->tier === 'poin' ? $perGift : null,
         ])->values()->all();
     }
 
@@ -257,21 +283,12 @@ final class PlayController extends Controller
                     'slot' => $prize->slot,
                     'tier' => $prize->tier,
                     'label' => $this->tierLabel($prize->tier),
-                    'name' => $this->prizeName($prize),
+                    'name' => $claim?->prize_name,
+                    'points' => $prize->tier === 'poin' ? PointLot::where('game_prize_id', $prize->id)->value('points') : null,
                     'claim_code' => $claim?->claim_code,
                     'claim_expires_at' => $claim?->expires_at?->toDateString(),
                 ];
             })->values()->all();
-    }
-
-    /** Nama katalog, hanya untuk hadiah utama (tier lain belum punya item spesifik). */
-    private function prizeName(GamePrize $prize): ?string
-    {
-        if ($prize->tier !== 'hadiah_besar' || ! $prize->prize_catalog_id) {
-            return null;
-        }
-
-        return PrizeCatalog::whereKey($prize->prize_catalog_id)->value('name');
     }
 
     public static function tierLabel(string $tier): string

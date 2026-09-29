@@ -10,10 +10,11 @@ use LoyaltyNew\Core\Gacha\AttemptLimiter;
 use LoyaltyNew\Core\Gacha\Grid;
 use LoyaltyNew\Core\Gacha\SessionExpiredException;
 use LoyaltyNew\Core\Gacha\SessionService;
-use LoyaltyNew\Core\Models\Claim;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
+use LoyaltyNew\Core\Points\LoyaltySettings;
 use LoyaltyNew\Core\Prizes\ClaimService;
+use LoyaltyNew\Core\Prizes\PrizeAwarder;
 
 final class PlayController extends Controller
 {
@@ -191,7 +192,7 @@ final class PlayController extends Controller
         });
     }
 
-    /** Simpan satu hadiah dari ronde, lepas dua lainnya, dan terbitkan klaim. */
+    /** Simpan satu hadiah dari ronde, lepas dua lainnya, lalu beri poin atau terbitkan klaim. */
     private function keep(GameSession $session, Collection $round, GamePrize $chosen): array
     {
         $chosen->update(['taken' => true, 'opened' => true]);
@@ -199,15 +200,18 @@ final class PlayController extends Controller
         $others = $round->reject(fn (GamePrize $prize) => $prize->id === $chosen->id);
         $session->prizes()->whereIn('id', $others->pluck('id'))->update(['picked' => false]);
 
-        $claim = Claim::where('game_prize_id', $chosen->id)->first()
-            ?? ClaimService::create($session, $chosen);
+        $award = PrizeAwarder::award($session, $chosen);
+        $claim = $award['type'] === 'claim' ? $award['claim'] : null;
 
         return [
             'ok' => true,
             'revealed' => $this->revealed($round),
             'chosen' => $chosen->slot,
-            'claim_code' => $claim->claim_code,
-            'claim_expires_at' => $claim->expires_at->toDateString(),
+            'prize_name' => $claim?->prize_name,
+            'points' => $award['type'] === 'points' ? $award['points'] : null,
+            'balance' => $award['type'] === 'points' ? $award['balance'] : null,
+            'claim_code' => $claim?->claim_code,
+            'claim_expires_at' => $claim?->expires_at->toDateString(),
             'chance_left' => max(0, $session->chance_total - $session->fresh()->chance_used),
             'chance_total' => $session->chance_total,
         ];
@@ -223,13 +227,17 @@ final class PlayController extends Controller
             ->get();
     }
 
-    /** @return array<int, array{slot:int, tier:string, label:string}> */
+    /** @return array<int, array{slot:int, tier:string, label:string, name:?string, points:?int}> */
     private function revealed(Collection $round): array
     {
+        $perGift = LoyaltySettings::current()['per_gift'];
+
         return $round->map(fn (GamePrize $prize) => [
             'slot' => $prize->slot,
             'tier' => $prize->tier,
             'label' => $this->tierLabel($prize->tier),
+            'name' => $prize->tier === 'poin' ? null : ClaimService::prizeName($prize),
+            'points' => $prize->tier === 'poin' ? $perGift : null,
         ])->values()->all();
     }
 

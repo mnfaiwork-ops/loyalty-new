@@ -9,6 +9,8 @@ use LoyaltyNew\Core\Gacha\SessionService;
 use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GameSession;
 use LoyaltyNew\Core\Models\PrizeCatalog;
+use LoyaltyNew\Core\Gate\GateResult;
+use LoyaltyNew\Core\Gate\OrderGate;
 use Tests\TestCase;
 
 final class SessionServiceTest extends TestCase
@@ -152,5 +154,20 @@ final class SessionServiceTest extends TestCase
         }
 
         $this->assertDatabaseCount('game_sessions', 1);
+    }
+
+    public function test_open_menyimpan_nama_pelanggan_dari_gate(): void
+    {
+        $gate = new class implements OrderGate {
+            public function isDelivered(string $awb, string $phone): GateResult
+            {
+                return GateResult::delivered('Sari Wulandari');
+            }
+        };
+
+        $service = new SessionService($gate, (string) config('app.brand'));
+        $session = $service->open('JX-NAMA', '081234560000');
+
+        $this->assertSame('Sari Wulandari', Customer::findOrFail($session->customer_id)->name);
     }
 }

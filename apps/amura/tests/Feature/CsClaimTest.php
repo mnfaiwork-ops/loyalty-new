@@ -8,6 +8,7 @@ use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
 use LoyaltyNew\Core\Models\User;
+use LoyaltyNew\Core\Prizes\ClaimFlow;
 use LoyaltyNew\Core\Prizes\ClaimService;
 use Tests\TestCase;
 
@@ -84,22 +85,6 @@ final class CsClaimTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_resolve_claim(): void
-    {
-        $cs = $this->csUser();
-        $prize = $this->prize('voucher');
-        $claim = ClaimService::create($prize->session, $prize);
-
-        $this->actingAs($cs)
-            ->post('/admin/claims/'.$claim->claim_code.'/resolve', ['status' => 'diproses'])
-            ->assertRedirect();
-
-        $claim->refresh();
-        $this->assertSame('diproses', $claim->status);
-        $this->assertSame($cs->id, $claim->handled_by);
-        $this->assertNotNull($claim->claimed_at);
-    }
-
     public function test_claim_code_unik(): void
     {
         $prize = $this->prize('poin');
@@ -113,89 +98,13 @@ final class CsClaimTest extends TestCase
         $this->assertSame(50, $codes->unique()->count());
     }
 
-    public function test_dashboard_brand_scoped(): void
-    {
-        $amuraPrize = $this->prize('poin', 'amura');
-        ClaimService::create($amuraPrize->session, $amuraPrize);
-
-        $reglowPrize = $this->prize('poin', 'reglow');
-        $reglowClaim = ClaimService::create($reglowPrize->session, $reglowPrize);
-
-        $this->actingAs($this->csUser('amura'))
-            ->get('/admin/claims')
-            ->assertOk()
-            ->assertDontSee($reglowClaim->claim_code);
-    }
-
-    public function test_hadiah_besar_butuh_finance(): void
+    public function test_klaim_baru_selalu_belum_redeem_termasuk_hadiah_besar(): void
     {
         $prize = $this->prize('hadiah_besar');
         $claim = ClaimService::create($prize->session, $prize);
 
-        $this->assertSame('perlu_finance', $claim->status);
-    }
-
-    public function test_cs_tidak_bisa_set_selesai_untuk_hadiah_besar(): void
-    {
-        $cs = $this->csUser();
-        $prize = $this->prize('hadiah_besar');
-        $claim = ClaimService::create($prize->session, $prize);
-
-        $this->actingAs($cs)
-            ->from('/admin/claims')
-            ->post('/admin/claims/'.$claim->claim_code.'/resolve', ['status' => 'selesai'])
-            ->assertSessionHasErrors('status');
-
-        $claim->refresh();
-        $this->assertSame('perlu_finance', $claim->status);
-        $this->assertNull($claim->handled_by);
-    }
-
-    public function test_cs_tidak_bisa_set_diproses_untuk_hadiah_besar(): void
-    {
-        $cs = $this->csUser();
-        $prize = $this->prize('hadiah_besar');
-        $claim = ClaimService::create($prize->session, $prize);
-
-        $this->actingAs($cs)
-            ->from('/admin/claims')
-            ->post('/admin/claims/'.$claim->claim_code.'/resolve', ['status' => 'diproses'])
-            ->assertSessionHasErrors('status');
-
-        $claim->refresh();
-        $this->assertSame('perlu_finance', $claim->status);
-        $this->assertNull($claim->handled_by);
-    }
-
-    public function test_cs_bisa_set_hangus_untuk_hadiah_besar(): void
-    {
-        $cs = $this->csUser();
-        $prize = $this->prize('hadiah_besar');
-        $claim = ClaimService::create($prize->session, $prize);
-
-        $this->actingAs($cs)
-            ->post('/admin/claims/'.$claim->claim_code.'/resolve', ['status' => 'hangus'])
-            ->assertRedirect();
-
-        $claim->refresh();
-        $this->assertSame('hangus', $claim->status);
-        $this->assertSame($cs->id, $claim->handled_by);
-    }
-
-    public function test_cs_bisa_set_selesai_untuk_hadiah_biasa(): void
-    {
-        $cs = $this->csUser();
-        $prize = $this->prize('poin');
-        $claim = ClaimService::create($prize->session, $prize);
-
-        $this->actingAs($cs)
-            ->post('/admin/claims/'.$claim->claim_code.'/resolve', ['status' => 'selesai'])
-            ->assertRedirect();
-
-        $claim->refresh();
-        $this->assertSame('selesai', $claim->status);
-        $this->assertSame($cs->id, $claim->handled_by);
-        $this->assertNotNull($claim->claimed_at);
+        $this->assertSame('belum_redeem', $claim->status);
+        $this->assertSame('Hadiah Utama', $claim->prize_name);
     }
 
     public function test_tamu_diarahkan_ke_login(): void
@@ -222,5 +131,106 @@ final class CsClaimTest extends TestCase
             ->assertSessionHasErrors('email');
 
         $this->assertGuest();
+    }
+
+    private function submitted(string $tier = 'voucher', string $brand = 'amura'): Claim
+    {
+        $prize = $this->prize($tier, $brand);
+        $claim = ClaimService::create($prize->session, $prize);
+        $claim->update(['status' => 'diajukan', 'redeem_requested_at' => now()]);
+
+        return $claim->fresh();
+    }
+
+    private function winnerPhone(Claim $claim): string
+    {
+        return \LoyaltyNew\Core\Models\Customer::withoutGlobalScopes()->whereKey($claim->customer_id)->value('phone');
+    }
+
+    public function test_antrian_hanya_klaim_diajukan_brand_ini(): void
+    {
+        $waiting = $this->submitted();
+        $fresh = ClaimService::create(($p = $this->prize())->session, $p);
+        $reglow = $this->submitted('voucher', 'reglow');
+
+        $this->actingAs($this->csUser())->get('/admin/claims')
+            ->assertOk()
+            ->assertSee($waiting->claim_code)
+            ->assertDontSee($fresh->claim_code)
+            ->assertDontSee($reglow->claim_code);
+    }
+
+    public function test_cari_kode_menemukan_klaim_status_apa_pun(): void
+    {
+        $prize = $this->prize();
+        $claim = ClaimService::create($prize->session, $prize);
+
+        $this->actingAs($this->csUser())->get('/admin/claims?q='.$claim->claim_code)
+            ->assertOk()
+            ->assertSee($claim->claim_code);
+    }
+
+    public function test_detail_menampilkan_nama_dan_nomor_pemenang(): void
+    {
+        $claim = $this->submitted();
+
+        $this->actingAs($this->csUser())->get('/admin/claims/'.$claim->claim_code)
+            ->assertOk()
+            ->assertSee('Pelanggan')
+            ->assertSee($this->winnerPhone($claim));
+    }
+
+    public function test_konfirmasi_nomor_cocok(): void
+    {
+        $cs = $this->csUser();
+        $claim = $this->submitted();
+
+        $this->actingAs($cs)
+            ->post('/admin/claims/'.$claim->claim_code.'/confirm', ['sender_phone' => $this->winnerPhone($claim), 'note' => 'alamat dicek'])
+            ->assertRedirect(route('admin.claims'));
+
+        $this->assertSame('diproses', $claim->fresh()->status);
+        $this->assertSame($cs->id, $claim->fresh()->handled_by);
+    }
+
+    public function test_konfirmasi_nomor_beda_ditolak(): void
+    {
+        $claim = $this->submitted();
+
+        $this->actingAs($this->csUser())
+            ->from('/admin/claims/'.$claim->claim_code)
+            ->post('/admin/claims/'.$claim->claim_code.'/confirm', ['sender_phone' => '089999999999'])
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame('diajukan', $claim->fresh()->status);
+    }
+
+    public function test_tolak_nomor_beda_kembali_ke_belum_redeem(): void
+    {
+        $claim = $this->submitted();
+
+        $this->actingAs($this->csUser())
+            ->post('/admin/claims/'.$claim->claim_code.'/reject', ['sender_phone' => '089999999999'])
+            ->assertRedirect(route('admin.claims'));
+
+        $this->assertSame('belum_redeem', $claim->fresh()->status);
+        $this->assertSame(ClaimFlow::REJECT_REASON, $claim->fresh()->rejected_reason);
+    }
+
+    public function test_hadiah_utama_dikonfirmasi_ke_finance(): void
+    {
+        $claim = $this->submitted('hadiah_besar');
+
+        $this->actingAs($this->csUser())
+            ->post('/admin/claims/'.$claim->claim_code.'/confirm', ['sender_phone' => $this->winnerPhone($claim)]);
+
+        $this->assertSame('perlu_finance', $claim->fresh()->status);
+    }
+
+    public function test_klaim_brand_lain_404(): void
+    {
+        $reglow = $this->submitted('voucher', 'reglow');
+
+        $this->actingAs($this->csUser())->get('/admin/claims/'.$reglow->claim_code)->assertNotFound();
     }
 }

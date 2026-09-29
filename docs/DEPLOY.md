@@ -95,3 +95,11 @@ php artisan schedule:list                     # pastikan terjadwal
 3. B2 (Markom).
 4. B3 (cron scheduler).
 5. Verifikasi: `php artisan loyalty:expire-claims --dry-run` dan 1 order nyata di `/play`.
+
+## Poin, katalog, dan redeem (2026-09-29)
+
+- Isi `CS_WHATSAPP` di `.env` tiap app (nomor resmi CS brand itu, format 08.. atau 62..). Kosong: tombol WhatsApp di voucher disembunyikan.
+- Scheduler wajib jalan (`php artisan schedule:run` tiap menit via cron). Job harian: `loyalty:expire-claims` (01:00) dan `loyalty:expire-points` (01:05).
+- Game Admin menerbitkan katalog poin bulan pertama di `/admin/catalog` sebelum rilis. Kalau katalog bulan baru belum terbit, katalog bulan lalu tetap tampil.
+- Minta tim Markom menambah `customer_name` di respons `GET /orders/{awb}`. Tanpa itu, voucher menampilkan "Nama belum tersedia".
+- Setelah mengubah kode backend bersama di Amura, jalankan `bash scripts/sync-reglow.sh` lalu test ketiga suite.

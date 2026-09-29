@@ -4,70 +4,71 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Models\Claim;
-use LoyaltyNew\Core\Prizes\ClaimService;
+use LoyaltyNew\Core\Prizes\ClaimFlow;
+use LoyaltyNew\Core\Prizes\ClaimTransitionException;
 
+/** Antrian redeem WhatsApp (desain 3i): CS mencocokkan nomor pengirim dengan nomor pemenang. */
 final class CsClaimController extends Controller
 {
     public function index(Request $request)
     {
-        $q = $request->query('q');
+        $q = trim((string) $request->query('q'));
 
-        $claims = Claim::with(['gamePrize', 'gameSession'])
-            ->whereHas('gameSession', fn ($query) => $query->where('brand', config('app.brand')))
-            ->when($q, fn ($query) => $query->where('claim_code', 'like', "%{$q}%"))
-            ->latest()
+        $claims = Claim::with('customer')
+            ->where('brand', config('app.brand'))
+            ->when($q !== '', fn ($query) => $query->where('claim_code', 'ilike', "%{$q}%"))
+            ->when($q === '', fn ($query) => $query->where('status', 'diajukan')->orderBy('redeem_requested_at'))
+            ->when($q !== '', fn ($query) => $query->latest('id'))
             ->paginate(20)
             ->withQueryString();
 
         return view('admin.claims', ['claims' => $claims, 'q' => $q]);
     }
 
-    public function resolve(Request $request, string $code)
+    public function show(string $code)
     {
-        $claim = Claim::with('gamePrize')
-            ->whereHas('gameSession', fn ($query) => $query->where('brand', config('app.brand')))
-            ->where('claim_code', $code)
-            ->firstOrFail();
+        return view('admin.claim', ['claim' => $this->find($code)->load(['customer', 'events', 'gamePrize'])]);
+    }
 
-        $needsFinance = $claim->gamePrize?->tier === 'hadiah_besar' || $claim->status === 'perlu_finance';
-        $allowed = $needsFinance ? ['hangus'] : ['diproses', 'selesai', 'hangus'];
+    public function confirm(Request $request, string $code)
+    {
+        $data = $this->validated($request);
 
-        $data = $request->validate(['status' => ['required', 'in:'.implode(',', $allowed)]]);
-
-        // Dikunci supaya dua klik bersamaan tidak sama-sama lolos cek status
-        // (dan tidak mengembalikan kuota hadiah besar dua kali).
-        $error = DB::transaction(function () use ($claim, $data, $request) {
-            $claim = Claim::with('gamePrize')->whereKey($claim->id)->lockForUpdate()->firstOrFail();
-
-            // Klaim yang sudah selesai atau hangus bersifat final.
-            if (! in_array($claim->status, ClaimService::OPEN_STATUSES, true)) {
-                return "Klaim {$claim->claim_code} sudah {$claim->status}, tidak bisa diubah.";
-            }
-
-            // Lewat batas klaim: hanya boleh ditandai hangus (spec §2).
-            if ($claim->expires_at?->isPast() && $data['status'] !== 'hangus') {
-                return "Klaim {$claim->claim_code} sudah lewat batas klaim, hanya bisa ditandai hangus.";
-            }
-
-            $claim->update([
-                'status' => $data['status'],
-                'handled_by' => $request->user()->id,
-                'claimed_at' => now(),
-            ]);
-
-            if ($data['status'] === 'hangus') {
-                ClaimService::releaseBigPrizeQuota($claim, (string) config('app.brand'));
-            }
-
-            return null;
-        });
-
-        if ($error) {
-            return back()->withErrors(['status' => $error]);
+        try {
+            $claim = ClaimFlow::confirm($this->find($code), $request->user(), $data['sender_phone'], $data['note'] ?? null);
+        } catch (ClaimTransitionException $e) {
+            return back()->withErrors(['status' => $e->getMessage()]);
         }
 
-        return back()->with('ok', 'Klaim diperbarui');
+        $next = $claim->status === 'perlu_finance' ? 'diteruskan ke Finance' : 'masuk Pengiriman';
+
+        return redirect()->route('admin.claims')->with('ok', "Klaim {$claim->claim_code} dikonfirmasi dan {$next}.");
+    }
+
+    public function reject(Request $request, string $code)
+    {
+        $data = $this->validated($request);
+
+        try {
+            $claim = ClaimFlow::reject($this->find($code), $request->user(), $data['sender_phone'], $data['note'] ?? null);
+        } catch (ClaimTransitionException $e) {
+            return back()->withErrors(['status' => $e->getMessage()]);
+        }
+
+        return redirect()->route('admin.claims')->with('ok', "Klaim {$claim->claim_code} ditolak dan kembali ke daftar pelanggan.");
+    }
+
+    private function validated(Request $request): array
+    {
+        return $request->validate([
+            'sender_phone' => ['required', 'string', 'max:32'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ], ['sender_phone.required' => 'Isi nomor pengirim WhatsApp dulu.']);
+    }
+
+    private function find(string $code): Claim
+    {
+        return Claim::where('brand', config('app.brand'))->where('claim_code', $code)->firstOrFail();
     }
 }

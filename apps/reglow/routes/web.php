@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\CsClaimController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GameAdminController;
+use App\Http\Controllers\Admin\RewardCatalogController;
+use App\Http\Controllers\Admin\ShippingController;
 use App\Http\Controllers\Admin\SuperAdminController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\PlayController;
@@ -28,13 +30,24 @@ Route::post('/play/{token}/take', [PlayController::class, 'take'])->name('play.t
 
 Route::middleware(['auth', 'role:cs,super_admin'])->prefix('admin')->group(function () {
     Route::get('/claims', [CsClaimController::class, 'index'])->name('admin.claims');
-    Route::post('/claims/{code}/resolve', [CsClaimController::class, 'resolve'])->name('admin.claims.resolve');
+    Route::get('/claims/{code}', [CsClaimController::class, 'show'])->name('admin.claims.show');
+    Route::post('/claims/{code}/confirm', [CsClaimController::class, 'confirm'])->name('admin.claims.confirm');
+    Route::post('/claims/{code}/reject', [CsClaimController::class, 'reject'])->name('admin.claims.reject');
+    Route::get('/shipping', [ShippingController::class, 'index'])->name('admin.shipping');
+    Route::post('/shipping/{code}/ship', [ShippingController::class, 'ship'])->name('admin.shipping.ship');
+    Route::post('/shipping/{code}/deliver', [ShippingController::class, 'deliver'])->name('admin.shipping.deliver');
 });
 
 Route::middleware(['auth', 'role:game_admin,super_admin'])->prefix('admin')->group(function () {
     Route::get('/game', [GameAdminController::class, 'index'])->name('admin.game');
     Route::post('/game/catalog', [GameAdminController::class, 'storeCatalog'])->name('admin.game.catalog');
     Route::post('/game/tiers', [GameAdminController::class, 'updateTiers'])->name('admin.game.tiers');
+    Route::get('/catalog', [RewardCatalogController::class, 'index'])->name('admin.catalog');
+    Route::post('/catalog/items', [RewardCatalogController::class, 'storeItem'])->name('admin.catalog.items');
+    Route::post('/catalog/items/{item}', [RewardCatalogController::class, 'updateItem'])->name('admin.catalog.items.update');
+    Route::post('/catalog/copy', [RewardCatalogController::class, 'copy'])->name('admin.catalog.copy');
+    Route::post('/catalog/publish', [RewardCatalogController::class, 'publish'])->name('admin.catalog.publish');
+    Route::post('/catalog/settings', [RewardCatalogController::class, 'settings'])->name('admin.catalog.settings');
 });
 
 Route::middleware(['auth', 'role:finance,super_admin'])->prefix('admin')->group(function () {

@@ -1,60 +1,37 @@
 @extends('layouts.admin')
 
-@section('title', 'Daftar Klaim')
+@section('title', 'Klaim WhatsApp')
 
 @section('content')
-    <h1>Klaim Hadiah</h1>
+    <h1>Klaim WhatsApp</h1>
+    <p class="lead">Pelanggan yang sudah menekan Redeem. Cocokkan nomor pengirim WhatsApp dengan nomor pemenang sebelum konfirmasi.</p>
 
     <form class="search" method="get" action="{{ route('admin.claims') }}">
-        <input type="text" name="q" value="{{ $q }}" placeholder="Cari kode klaim…" aria-label="Cari kode klaim">
+        <input type="text" name="q" value="{{ $q }}" placeholder="Tempel kode dari chat WhatsApp" aria-label="Cari kode klaim">
         <button class="btn" type="submit">Cari</button>
+        @if ($q !== '')
+            <a class="btn light" href="{{ route('admin.claims') }}">Antrian</a>
+        @endif
     </form>
 
     <div class="card">
         @if ($claims->isEmpty())
-            <p class="empty">Belum ada klaim.</p>
+            <p class="empty">{{ $q !== '' ? 'Kode tidak ditemukan.' : 'Tidak ada klaim yang menunggu. Antrian kosong.' }}</p>
         @else
             <table>
                 <thead>
-                    <tr>
-                        <th>Kode</th>
-                        <th>Hadiah</th>
-                        <th>Status</th>
-                        <th>Kedaluwarsa</th>
-                        <th>Tindakan</th>
-                    </tr>
+                    <tr><th>Kode</th><th>Pemenang</th><th>Hadiah</th><th>Status</th><th>Diajukan</th><th>Batas</th><th></th></tr>
                 </thead>
                 <tbody>
                     @foreach ($claims as $claim)
                         <tr>
                             <td><code>{{ $claim->claim_code }}</code></td>
-                            <td>
-                                <span class="badge {{ $claim->gamePrize?->tier }}">{{ $claim->gamePrize?->tier ?? '—' }}</span>
-                            </td>
-                            <td>
-                                {{ $claim->status }}
-                                @if ($claim->claimed_at)
-                                    <div class="muted">Diproses {{ $claim->claimed_at->format('d/m/Y H:i') }}</div>
-                                @endif
-                            </td>
-                            <td class="muted">{{ $claim->expires_at?->format('d/m/Y') ?? '—' }}</td>
-                            <td>
-                                <form class="resolve" method="post" action="{{ route('admin.claims.resolve', $claim->claim_code) }}">
-                                    @csrf
-                                    <select name="status" aria-label="Status klaim">
-                                        @php($needsFinance = $claim->gamePrize?->tier === 'hadiah_besar' || $claim->status === 'perlu_finance')
-                                        @if ($needsFinance)
-                                            <option value="" disabled selected>— menunggu Finance —</option>
-                                            <option value="hangus">hangus</option>
-                                        @else
-                                            @foreach (['diproses', 'selesai', 'hangus'] as $status)
-                                                <option value="{{ $status }}" @selected($claim->status === $status)>{{ $status }}</option>
-                                            @endforeach
-                                        @endif
-                                    </select>
-                                    <button class="btn" type="submit">Simpan</button>
-                                </form>
-                            </td>
+                            <td>{{ $claim->customer?->name ?: 'Nama belum tersedia' }}<div class="muted">{{ $claim->customer?->phone }}</div></td>
+                            <td>{{ $claim->prize_name }}<div class="muted">{{ $claim->source === 'katalog' ? 'Tukar poin' : 'Gatcha' }}</div></td>
+                            <td><span class="status {{ $claim->status }}">{{ \LoyaltyNew\Core\Prizes\ClaimFlow::label($claim->status) }}</span></td>
+                            <td class="muted">{{ $claim->redeem_requested_at?->format('d/m H:i') ?? '-' }}</td>
+                            <td class="muted">{{ $claim->expires_at->format('d/m/Y') }}</td>
+                            <td><a class="link" href="{{ route('admin.claims.show', $claim->claim_code) }}">Periksa</a></td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -62,7 +39,5 @@
         @endif
     </div>
 
-    <div class="pager">
-        {{ $claims->links() }}
-    </div>
+    <div class="pager">{{ $claims->links() }}</div>
 @endsection
