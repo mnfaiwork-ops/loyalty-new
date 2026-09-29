@@ -99,7 +99,7 @@ final class FinanceTest extends TestCase
             ->assertRedirect();
 
         $claim->refresh();
-        $this->assertSame('selesai', $claim->status);
+        $this->assertSame('diproses', $claim->status);
         $this->assertSame($finance->id, $claim->finance_by);
         $this->assertNotNull($claim->claimed_at);
     }
@@ -153,7 +153,7 @@ final class FinanceTest extends TestCase
             ->assertSessionHasErrors('status');
 
         $claim->refresh();
-        $this->assertSame('selesai', $claim->status);
+        $this->assertSame('diproses', $claim->status);
         $this->assertSame($finance->id, $claim->finance_by);
     }
 
@@ -171,7 +171,7 @@ final class FinanceTest extends TestCase
             ->post('/admin/finance/'.$claim->claim_code.'/approve')
             ->assertRedirect();
 
-        $this->assertSame('selesai', $claim->refresh()->status);
+        $this->assertSame('diproses', $claim->refresh()->status);
     }
 
     public function test_finance_approve_claim_tidak_approvable_pesan_indonesia(): void
