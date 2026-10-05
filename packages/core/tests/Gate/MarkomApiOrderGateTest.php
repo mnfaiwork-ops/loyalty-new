@@ -17,7 +17,7 @@ final class MarkomApiOrderGateTest extends TestCase
             {
             }
 
-            public function find(string $awb): ?OrderStatus
+            public function find(string $awb, string $phone = ''): ?OrderStatus
             {
                 return $this->status;
             }
@@ -77,5 +77,24 @@ final class MarkomApiOrderGateTest extends TestCase
         $result = $gate->isDelivered('JX1', '08123456789');
 
         $this->assertFalse($result->delivered);
+    }
+
+    public function test_gate_meneruskan_hp_ke_sumber(): void
+    {
+        $source = new class implements OrderStatusSource
+        {
+            public string $phone = '';
+
+            public function find(string $awb, string $phone = ''): ?OrderStatus
+            {
+                $this->phone = $phone;
+
+                return null;
+            }
+        };
+
+        (new MarkomApiOrderGate($source))->isDelivered('JX1', '08123456789');
+
+        $this->assertSame('08123456789', $source->phone);
     }
 }

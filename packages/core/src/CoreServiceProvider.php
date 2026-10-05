@@ -12,6 +12,7 @@ use LoyaltyNew\Core\Gate\MarkomApiOrderGate;
 use LoyaltyNew\Core\Gate\MarkomHttpOrderStatusSource;
 use LoyaltyNew\Core\Gate\OrderGate;
 use LoyaltyNew\Core\Gate\OrderStatusSource;
+use LoyaltyNew\Core\Gate\SoscomOrderStatusSource;
 use LoyaltyNew\Core\Gate\StubOrderGate;
 
 final class CoreServiceProvider extends ServiceProvider
@@ -21,20 +22,27 @@ final class CoreServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/markom.php', 'markom');
         $this->mergeConfigFrom(__DIR__.'/../config/loyalty.php', 'loyalty');
 
-        // Sumber status order: HTTP Markom atau FairTrack SQLite.
+        // Sumber status order: API Soscom, HTTP Markom, atau FairTrack SQLite.
         $this->app->bind(OrderStatusSource::class, function () {
             $driver = (string) config('markom.driver', 'markom_api');
 
-            $source = $driver === 'fairtrack_sqlite'
-                ? new FairtrackSqliteOrderStatusSource(
+            $source = match ($driver) {
+                'fairtrack_sqlite' => new FairtrackSqliteOrderStatusSource(
                     (string) config('markom.fairtrack.database', ''),
                     (string) config('markom.fairtrack.orders_table', 'orders'),
-                )
-                : new MarkomHttpOrderStatusSource(
+                ),
+                'soscom_api' => new SoscomOrderStatusSource(
+                    (string) config('markom.soscom.base_url', ''),
+                    config('markom.soscom.api_key'),
+                    (int) config('markom.soscom.timeout', 5),
+                    (array) config('markom.soscom.fields', []),
+                ),
+                default => new MarkomHttpOrderStatusSource(
                     (string) config('markom.api.base_url', ''),
                     config('markom.api.token'),
                     (int) config('markom.api.timeout', 5),
-                );
+                ),
+            };
 
             $ttl = (int) config('markom.cache_ttl', 60);
             if ($ttl > 0) {

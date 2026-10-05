@@ -1,7 +1,7 @@
 # Deploy Loyalty New — Langkah Ops (B1/B2/B3)
 
 Panduan operasional untuk hal-hal yang TIDAK bisa dilakukan dari kode: pisah DB,
-aktifkan gate Markom, dan jalankan scheduler. Sesuai catatan
+aktifkan gate Soscom, dan jalankan scheduler. Sesuai catatan
 `05 Handoff Prompts/loyalty/2026-09-25-loyalty-new-belum-dikerjakan.md` §B.
 
 ---
@@ -39,28 +39,44 @@ Fase 1 kedua app berbagi `loyalty_new`. **Produksi WAJIB pisah.**
 
 ---
 
-## B2 — Aktifkan gate Markom (butuh endpoint + token dari tim Markom)
+## B2 — Aktifkan gate Soscom (butuh base URL + API key per brand dari tim WMS)
 
-Gate sudah nyata & teruji. Yang kurang cuma endpoint resmi.
+Sumber status order produksi = **Soscom Open API** dari WMS. Dokumen dan koleksi
+Postman: `docs/api/`. Kode: `packages/core/src/Gate/SoscomOrderStatusSource.php`.
 
-Di `.env` produksi tiap app:
+Di `.env` produksi tiap app (key **Amura dan Reglow beda**, diambil di WMS:
+Lainnya → Client → Aksi → API Key):
 ```env
 MARKOM_GATE=markom
-MARKOM_DRIVER=markom_api
-MARKOM_API_URL=https://markom.sinergisuperapp.com/api   # sesuaikan
-MARKOM_API_TOKEN=...                                     # dari tim Markom
-MARKOM_API_TIMEOUT=5
+MARKOM_DRIVER=soscom_api
+SOSCOM_API_URL=https://...        # dari tim WMS (Postman masih localhost:8080)
+SOSCOM_API_KEY=...                # key brand app ini
+SOSCOM_API_TIMEOUT=5
 ```
 
-**Kontrak yang diasumsikan** (kalau beda, ubah mapping di
-`packages/core/src/Gate/MarkomHttpOrderStatusSource.php`):
+Kontrak:
 ```
-GET {MARKOM_API_URL}/orders/{awb}
-Authorization: Bearer {token}
-200 → {"status_order":"...","status_fulfillment":"...","customer_phone":"..."}
-404 → order tidak ada
+GET {SOSCOM_API_URL}/v1/open/social-commerce/orders/detail?phone={hp}&awb={awb}
+X-Api-Key: {key}
+200 → {"code":200,"msg":{...},"data":{"status":"completed","awb":"...","customer":{"name":"..."},"customer_shipping":{"phone":"628..."},"orders":{"status":"..."}}}
+404 → HP + AWB tidak cocok / order tidak ada · 401/403 → key kosong/salah (dicatat di log error)
 ```
-Kelulusan: `status_fulfillment='complete'` + AWB cocok HP.
+
+**Belum dikonfirmasi WMS (per 2026-10-05):** arti `status` vs `orders.status`, dan
+endpoint detail belum punya `status_fulfillment`. Default sekarang: `status` dibaca
+sebagai `status_order`, sehingga gate lolos kalau `status='completed'`. Kalau jawaban
+WMS beda, ganti path field lewat `.env` tanpa ubah kode:
+```env
+SOSCOM_FIELD_STATUS_ORDER=status
+SOSCOM_FIELD_STATUS_FULFILLMENT=status_fulfillment   # mis. orders.status
+SOSCOM_FIELD_PHONE=customer_shipping.phone
+SOSCOM_FIELD_CUSTOMER_NAME=customer.name
+```
+Isi kosong = field tidak dibaca. Kelulusan tetap aturan `OrderStatus::isDelivered()`
+(`status_fulfillment='complete'`, padanan `status_order='completed'`) + AWB cocok HP.
+
+Driver lama `markom_api` (kontrak tebakan `GET /orders/{awb}` + Bearer) masih ada
+di `MarkomHttpOrderStatusSource.php`, tidak dipakai lagi kalau Soscom jalan.
 
 **Uji cepat sebelum produksi:** set `MARKOM_DRIVER=fairtrack_sqlite` +
 `FAIRTRACK_DB=/path/fairtrack-lead.db` untuk membuktikan gate jalan terhadap data
@@ -92,7 +108,7 @@ php artisan schedule:list                     # pastikan terjadwal
 1. B1 (buat + arahkan DB + migrasi/seed).
 2. Set kredensial produksi: `APP_BRAND`, `ADMIN_PASSWORD` (jangan default), `APP_ENV=production`,
    `APP_DEBUG=false`, `APP_KEY` (`php artisan key:generate`).
-3. B2 (Markom).
+3. B2 (Soscom).
 4. B3 (cron scheduler).
 5. Verifikasi: `php artisan loyalty:expire-claims --dry-run` dan 1 order nyata di `/play`.
 
@@ -101,5 +117,5 @@ php artisan schedule:list                     # pastikan terjadwal
 - Isi `CS_WHATSAPP` di `.env` tiap app (nomor resmi CS brand itu, format 08.. atau 62..). Kosong: tombol WhatsApp di voucher disembunyikan.
 - Scheduler wajib jalan (`php artisan schedule:run` tiap menit via cron). Job harian: `loyalty:expire-claims` (01:00) dan `loyalty:expire-points` (01:05).
 - Game Admin menerbitkan katalog poin bulan pertama di `/admin/catalog` sebelum rilis. Kalau katalog bulan baru belum terbit, katalog bulan lalu tetap tampil.
-- Minta tim Markom menambah `customer_name` di respons `GET /orders/{awb}`. Tanpa itu, voucher menampilkan "Nama belum tersedia".
+- Nama pemenang di voucher diambil dari `customer.name` respons Soscom. Kalau kosong, voucher menampilkan "Nama belum tersedia".
 - Setelah mengubah kode backend bersama di Amura, jalankan `bash scripts/sync-reglow.sh` lalu test ketiga suite.

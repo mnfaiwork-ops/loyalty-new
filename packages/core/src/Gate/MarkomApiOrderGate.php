@@ -29,7 +29,7 @@ final class MarkomApiOrderGate implements OrderGate
             return GateResult::rejected('Nomor HP kosong');
         }
 
-        $order = $this->source->find($awb);
+        $order = $this->source->find($awb, $phone);
 
         if ($order === null) {
             return GateResult::rejected('Order tidak ditemukan');

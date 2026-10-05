@@ -40,7 +40,7 @@ final class CustomerNameTest extends TestCase
     public function test_gate_meneruskan_nama_saat_lolos(): void
     {
         $source = new class implements OrderStatusSource {
-            public function find(string $awb): ?OrderStatus
+            public function find(string $awb, string $phone = ''): ?OrderStatus
             {
                 return new OrderStatus('JX1', '628123456789', 'completed', 'complete', 'Sari');
             }

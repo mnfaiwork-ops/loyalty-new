@@ -4,7 +4,8 @@ return [
     /*
      | Sumber status "paket diterima".
      |
-     | - 'markom_api'       : panggil API Markom (produksi).
+     | - 'soscom_api'       : Soscom Open API dari WMS (docs/api/soscom-open-api.md).
+     | - 'markom_api'       : kontrak Markom tebakan lama (sebelum API Soscom ada).
      | - 'fairtrack_sqlite' : baca langsung DB FairTrack Lead (read-only).
      |                        DIPAKAI untuk smoke test / fase transisi.
      |
@@ -24,6 +25,27 @@ return [
         'base_url' => env('MARKOM_API_URL', 'https://markom.sinergisuperapp.com/api'),
         'token' => env('MARKOM_API_TOKEN'),
         'timeout' => (int) env('MARKOM_API_TIMEOUT', 5),
+    ],
+
+    /*
+     | Soscom Open API. Key per brand (WMS: Lainnya → Client → Aksi → API Key),
+     | jadi .env Amura dan Reglow memakai key masing-masing.
+     |
+     | `fields`: path dot-notation di dalam `data` respons detail. Arti `status`
+     | vs `orders.status` belum dikonfirmasi WMS, dan `status_fulfillment` belum
+     | ada di respons detail (null → gate memakai padanan status_order='completed').
+     | Isi kosong = field tidak dibaca.
+     */
+    'soscom' => [
+        'base_url' => env('SOSCOM_API_URL'),
+        'api_key' => env('SOSCOM_API_KEY'),
+        'timeout' => (int) env('SOSCOM_API_TIMEOUT', 5),
+        'fields' => [
+            'status_order' => env('SOSCOM_FIELD_STATUS_ORDER', 'status'),
+            'status_fulfillment' => env('SOSCOM_FIELD_STATUS_FULFILLMENT', 'status_fulfillment'),
+            'phone' => env('SOSCOM_FIELD_PHONE', 'customer_shipping.phone'),
+            'customer_name' => env('SOSCOM_FIELD_CUSTOMER_NAME', 'customer.name'),
+        ],
     ],
 
     /*

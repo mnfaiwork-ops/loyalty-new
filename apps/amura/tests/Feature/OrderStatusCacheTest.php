@@ -21,7 +21,7 @@ class OrderStatusCacheTest extends TestCase
             {
             }
 
-            public function find(string $awb): ?OrderStatus
+            public function find(string $awb, string $phone = ''): ?OrderStatus
             {
                 $this->calls++;
 
