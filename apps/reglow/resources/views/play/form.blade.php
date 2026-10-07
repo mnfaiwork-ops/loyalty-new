@@ -50,7 +50,7 @@
 
         <div class="entry-foot">
             <button type="submit" class="btn btn-brand" id="entrySubmit" disabled>Cek &amp; masuk</button>
-            <small>Tanpa daftar, tanpa kata sandi.</small>
+            <a class="entry-link" href="{{ route('customer.login') }}">Sudah punya PIN? Masuk dengan nomor HP</a>
         </div>
     </form>
 @endsection

@@ -125,4 +125,22 @@ php artisan schedule:list                     # pastikan terjadwal
 - Scheduler wajib jalan (`php artisan schedule:run` tiap menit via cron). Job harian: `loyalty:expire-claims` (01:00) dan `loyalty:expire-points` (01:05).
 - Game Admin menerbitkan katalog poin bulan pertama di `/admin/catalog` sebelum rilis. Kalau katalog bulan baru belum terbit, katalog bulan lalu tetap tampil.
 - Nama pemenang di voucher diambil dari `customer.name` respons Soscom. Kalau kosong, voucher menampilkan "Nama belum tersedia".
-- Setelah mengubah kode backend bersama di Amura, jalankan `bash scripts/sync-reglow.sh` lalu test ketiga suite.
+- Setelah mengubah kode bersama di Amura, jalankan `bash scripts/sync-reglow.sh` lalu test ketiga suite.
+
+## PIN pelanggan, papan per kesempatan, dan halaman CS Pelanggan & PIN (2026-10-07)
+
+- Migration baru (jalankan di kedua app sebelum kode dipasang; idempoten, aman di DB bersama):
+  `2026_10_07_000001_add_customer_pin_and_rounds` (kolom PIN di `customers`, kolom `round` di `game_prizes`)
+  dan `2026_10_07_000002_create_customer_pin_resets` (log setiap reset PIN oleh CS).
+  ```bash
+  (cd apps/amura  && php artisan migrate --force)
+  (cd apps/reglow && php artisan migrate --force)
+  php artisan migrate:status | grep Pending   # harus kosong
+  ```
+- `CS_WHATSAPP` juga dipakai tautan "Lupa PIN? Chat CS". Kosong: tautan diganti teks biasa.
+- `ADMIN_URL_AMURA` dan `ADMIN_URL_REGLOW` (alamat dasar app, tanpa `/admin`), isi sama di kedua app,
+  untuk tab Amura / Reglow di `/admin/customers`. Kosong: tab brand lain tidak muncul.
+- Salah PIN 5 kali per nomor HP mengunci masuk 15 menit (ikut `loyalty.lockout.*`). Reset PIN oleh CS
+  membuka kunci itu.
+- Reglow memakai kode yang sama dengan Amura: setelah mengubah Amura, jalankan
+  `bash scripts/sync-reglow.sh` lalu test ketiga suite.

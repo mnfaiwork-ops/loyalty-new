@@ -26,8 +26,8 @@
         .menu a[aria-current="page"] { background: var(--ink); color: #fff; }
         .menu a span { font-size: 12px; font-weight: 800; }
         .logout { margin-top: auto; }
-        .logout button { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--muted); font: 700 13px/1 inherit; font-family: inherit; cursor: pointer; }
-        main { padding: 26px 28px 48px; max-width: 1180px; width: 100%; }
+        .logout button { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+        main { padding: 26px 28px 48px; max-width: 1180px; width: 100%; min-width: 0; }
         h1 { margin: 0 0 4px; font-size: 26px; font-weight: 800; }
         h2 { margin: 24px 0 10px; font-size: 18px; font-weight: 800; }
         .lead { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
@@ -55,7 +55,7 @@
             font-family: inherit; font-size: 14px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink);
         }
         form.search input { flex: 1; }
-        .btn { display: inline-grid; place-items: center; min-height: 44px; border: none; border-radius: 10px; padding: 0 16px; font: 800 14px/1 inherit; font-family: inherit; color: #fff; background: var(--ink); cursor: pointer; text-decoration: none; }
+        .btn { display: inline-grid; place-items: center; min-height: 44px; border: none; border-radius: 10px; padding: 0 16px; font-family: inherit; font-size: 14px; font-weight: 800; line-height: 1.2; text-align: center; color: #fff; background: var(--ink); cursor: pointer; text-decoration: none; }
         .btn.ok { background: var(--ok); }
         .btn.danger { background: #fff; color: var(--danger); border: 1.5px solid #E7B8B1; }
         .btn.light { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
@@ -64,7 +64,7 @@
         .pager { margin-top: 16px; font-size: 13px; }
         .pager a { color: var(--amura); font-weight: 700; text-decoration: none; margin-right: 10px; }
         @media (max-width: 820px) {
-            .shell { grid-template-columns: 1fr; }
+            .shell { grid-template-columns: minmax(0, 1fr); }
             aside { border-right: 0; border-bottom: 1px solid var(--line); padding: 14px 16px; }
             .menu { flex-direction: row; flex-wrap: wrap; }
             .logout { margin-top: 0; }
@@ -91,6 +91,7 @@
                 @if ($is('cs', 'super_admin'))
                     <a href="{{ route('admin.claims') }}" @if (request()->routeIs('admin.claims*')) aria-current="page" @endif>Klaim WhatsApp <span>{{ $counts['diajukan'] }}</span></a>
                     <a href="{{ route('admin.shipping') }}" @if (request()->routeIs('admin.shipping*')) aria-current="page" @endif>Pengiriman <span>{{ $counts['diproses'] + $counts['dikirim'] }}</span></a>
+                    <a href="{{ route('admin.customers') }}" @if (request()->routeIs('admin.customers*')) aria-current="page" @endif>Pelanggan &amp; PIN</a>
                 @endif
                 @if ($is('finance', 'super_admin'))
                     <a href="{{ route('admin.finance') }}" @if (request()->routeIs('admin.finance*')) aria-current="page" @endif>Finance <span>{{ $counts['perlu_finance'] }}</span></a>

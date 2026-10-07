@@ -236,8 +236,8 @@ final class BugfixRegressionTest extends TestCase
         $session = $this->start();
         $session->update(['expires_at' => now()->subDay()]);
 
-        // Tidak ada sesi baru dan tidak masuk papan. Amura mengarahkan ke Beranda
-        // (poin dan Hadiahku tetap bisa dilihat), Reglow kembali ke form dengan pesan.
+        // Tidak ada sesi baru dan tidak masuk papan. Pelanggan diarahkan lewat
+        // layar PIN ke Beranda (poin dan Hadiahku tetap bisa dilihat).
         $response = $this->post('/play/start', ['awb' => 'JX123', 'phone' => '08123456789'])->assertRedirect();
         $this->assertStringNotContainsString('/play/', (string) $response->headers->get('Location'));
 

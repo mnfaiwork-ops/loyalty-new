@@ -5,6 +5,13 @@ return [
     // Perangkat pelanggan diingat sekian hari setelah resi + HP cocok.
     'remember_days' => 30,
 
+    // Panel admin tiap brand (app terpisah), untuk tab Amura / Reglow di halaman CS.
+    // Kosong = tab brand lain tidak ditampilkan.
+    'admin_urls' => [
+        'amura' => env('ADMIN_URL_AMURA'),
+        'reglow' => env('ADMIN_URL_REGLOW'),
+    ],
+
     'themes' => [
         'amura' => [
             'name' => 'Amura', 'initial' => 'A', 'awb_example' => 'JX2409187734',

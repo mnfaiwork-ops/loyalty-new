@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Middleware\RememberedCustomer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use LoyaltyNew\Core\Customers\CustomerPin;
 use LoyaltyNew\Core\Models\Claim;
 use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GameSession;
@@ -18,28 +19,40 @@ final class CustomerAreaTest extends TestCase
 
     private function customer(string $phone = '081234567890', ?string $name = 'Sari'): Customer
     {
-        return Customer::firstOrCreate(['phone' => $phone, 'brand' => config('app.brand')], ['name' => $name]);
+        $customer = Customer::firstOrCreate(['phone' => $phone, 'brand' => config('app.brand')], ['name' => $name]);
+        if ($customer->fresh()->pin_hash === null) {
+            CustomerPin::set($customer->fresh(), '2580');
+        }
+
+        return $customer->fresh();
     }
 
     private function asCustomer(Customer $customer): self
     {
-        return $this->withCookie(RememberedCustomer::COOKIE, json_encode(['id' => $customer->id, 'brand' => $customer->brand]));
+        return $this->withCookie(RememberedCustomer::COOKIE, RememberedCustomer::payload($customer->fresh()));
     }
 
-    public function test_masuk_memasang_cookie_perangkat(): void
+    public function test_masuk_memasang_cookie_perangkat_setelah_pin_dibuat(): void
     {
         $this->post('/play/start', ['awb' => 'JX-COOKIE', 'phone' => '081234567890'])
-            ->assertRedirect()
+            ->assertRedirect(route('pin.create'))
+            ->assertCookieMissing(RememberedCustomer::COOKIE);
+
+        $session = GameSession::firstOrFail();
+        $this->post('/pin/buat', ['pin' => '2580', 'pin_confirmation' => '2580'])
+            ->assertRedirect(route('play.board', $session->session_token))
             ->assertCookie(RememberedCustomer::COOKIE);
     }
 
     public function test_masuk_saat_kesempatan_habis_diarahkan_ke_beranda(): void
     {
+        $this->customer();
         $this->post('/play/start', ['awb' => 'JX-HABIS', 'phone' => '081234567890']);
         GameSession::firstOrFail()->update(['chance_used' => 2]);
 
         $this->post('/play/start', ['awb' => 'JX-HABIS', 'phone' => '081234567890'])
-            ->assertRedirect(route('home'));
+            ->assertRedirect(route('pin.show'));
+        $this->post('/pin', ['pin' => '2580'])->assertRedirect(route('home'));
     }
 
     public function test_beranda_tanpa_cookie_diarahkan_ke_form_tanpa_pesan_error(): void
@@ -51,19 +64,19 @@ final class CustomerAreaTest extends TestCase
     {
         $this->withCookie(RememberedCustomer::COOKIE, json_encode(['id' => 999999, 'brand' => config('app.brand')]))
             ->get('/')
-            ->assertRedirect(route('play.form'))
-            ->assertSessionHasErrors('awb');
+            ->assertRedirect(route('customer.login'))
+            ->assertSessionHasErrors('phone');
 
-        $this->withCookie(RememberedCustomer::COOKIE, 'bukan-json')->get('/')->assertRedirect(route('play.form'));
+        $this->withCookie(RememberedCustomer::COOKIE, 'bukan-json')->get('/')->assertRedirect(route('customer.login'));
     }
 
     public function test_cookie_brand_lain_ditolak(): void
     {
         $customer = $this->customer();
 
-        $this->withCookie(RememberedCustomer::COOKIE, json_encode(['id' => $customer->id, 'brand' => 'brand-lain']))
+        $this->withCookie(RememberedCustomer::COOKIE, json_encode(['id' => $customer->id, 'brand' => 'brand-lain', 'pin' => $customer->pin_version]))
             ->get('/')
-            ->assertRedirect(route('play.form'));
+            ->assertRedirect(route('customer.login'));
     }
 
     public function test_beranda_menampilkan_nama_saldo_dan_kosong(): void
@@ -245,10 +258,13 @@ final class CustomerAreaTest extends TestCase
 
     public function test_masuk_saat_masa_main_habis_tetap_ke_beranda(): void
     {
+        $this->customer();
         $this->post('/play/start', ['awb' => 'JX-LAMA', 'phone' => '081234567890']);
         GameSession::firstOrFail()->update(['expires_at' => now()->subDay()]);
 
         $this->post('/play/start', ['awb' => 'JX-LAMA', 'phone' => '081234567890'])
+            ->assertRedirect(route('pin.show'));
+        $this->post('/pin', ['pin' => '2580'])
             ->assertRedirect(route('home'))
             ->assertCookie(RememberedCustomer::COOKIE)
             ->assertSessionHas('ok');

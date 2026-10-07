@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CsClaimController;
+use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GameAdminController;
 use App\Http\Controllers\Admin\RewardCatalogController;
@@ -9,7 +10,9 @@ use App\Http\Controllers\Admin\SuperAdminController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Customer\CatalogController;
 use App\Http\Controllers\Customer\HomeController;
+use App\Http\Controllers\Customer\PinController;
 use App\Http\Controllers\Customer\RewardController;
+use App\Http\Controllers\Customer\SignInController;
 use App\Http\Controllers\PlayController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +26,14 @@ Route::middleware('customer')->group(function () {
     Route::post('/katalog/{item}/tukar', [CatalogController::class, 'exchange'])->name('catalog.exchange');
 });
 Route::post('/keluar', [HomeController::class, 'logout'])->name('customer.logout');
+
+// Masuk lagi dengan HP + PIN, dan layar PIN setelah resi + HP cocok.
+Route::get('/masuk', [SignInController::class, 'show'])->name('customer.login');
+Route::post('/masuk', [SignInController::class, 'store'])->middleware('throttle:20,1');
+Route::get('/pin', [PinController::class, 'show'])->name('pin.show');
+Route::post('/pin', [PinController::class, 'verify'])->middleware('throttle:20,1');
+Route::get('/pin/buat', [PinController::class, 'create'])->name('pin.create');
+Route::post('/pin/buat', [PinController::class, 'store']);
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
@@ -46,6 +57,8 @@ Route::middleware(['auth', 'role:cs,super_admin'])->prefix('admin')->group(funct
     Route::get('/shipping', [ShippingController::class, 'index'])->name('admin.shipping');
     Route::post('/shipping/{code}/ship', [ShippingController::class, 'ship'])->name('admin.shipping.ship');
     Route::post('/shipping/{code}/deliver', [ShippingController::class, 'deliver'])->name('admin.shipping.deliver');
+    Route::get('/customers', [CustomerController::class, 'index'])->name('admin.customers');
+    Route::post('/customers/{id}/reset-pin', [CustomerController::class, 'resetPin'])->whereNumber('id')->name('admin.customers.reset-pin');
 });
 
 Route::middleware(['auth', 'role:game_admin,super_admin'])->prefix('admin')->group(function () {

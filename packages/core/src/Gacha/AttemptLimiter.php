@@ -70,6 +70,48 @@ final class AttemptLimiter
             ->delete();
     }
 
+    /**
+     * PIN salah dihitung per nomor HP, terpisah dari hitungan resi, dengan
+     * batas yang sama. Dipakai di layar PIN setelah resi dan di Masuk dengan HP.
+     */
+    public function pinLockedFor(string $phone): ?int
+    {
+        $remaining = $this->remaining($this->pinKey($phone));
+
+        return $remaining > 0 ? $remaining : null;
+    }
+
+    public function recordPinFailure(string $phone): bool
+    {
+        return $this->bump($this->pinKey($phone));
+    }
+
+    /** Sisa PIN salah yang masih boleh sebelum nomor ini dikunci. */
+    public function pinFailsLeft(string $phone): int
+    {
+        $fails = (int) ($this->row($this->pinKey($phone))->fails ?? 0);
+
+        return max(0, $this->maxFails - $fails);
+    }
+
+    public function lockMinutes(): int
+    {
+        return $this->lockMinutes;
+    }
+
+    public function clearPin(string $phone): void
+    {
+        DB::table('play_attempts')
+            ->where('brand', $this->brand)
+            ->where('key', $this->pinKey($phone))
+            ->delete();
+    }
+
+    public function pinKey(string $phone): string
+    {
+        return hash('sha256', $this->brand.'|pin|'.AwbMatcher::normalizePhone($phone));
+    }
+
     public function pairKey(string $awb, string $phone): string
     {
         return hash('sha256', $this->brand.'|pair|'.AwbMatcher::normalizeAwb($awb).'|'.AwbMatcher::normalizePhone($phone));

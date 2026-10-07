@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Middleware\RememberedCustomer;
+use App\Support\PendingCustomer;
+use App\Support\PhoneInput;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -42,11 +44,7 @@ final class PlayController extends Controller
             'max' => 'Isian terlalu panjang. Cek lagi angkanya.',
         ]);
 
-        // Form menampilkan "+62" di depan kolom HP, jadi "812..." berarti "0812...".
-        $digits = preg_replace('/\D+/', '', $data['phone']);
-        if ($digits !== '' && ! str_starts_with($digits, '0') && ! str_starts_with($digits, '62')) {
-            $data['phone'] = '0'.$digits;
-        }
+        $data['phone'] = PhoneInput::normalize($data['phone']);
 
         $limiter = AttemptLimiter::fromConfig((string) config('app.brand'));
 
@@ -72,9 +70,8 @@ final class PlayController extends Controller
 
             $limiter->clear($data['awb'], $data['phone']);
 
-            return redirect()->route('home')
-                ->with('ok', 'Masa main untuk paket ini sudah berakhir. Poin dan hadiahmu tetap bisa dilihat di sini.')
-                ->withCookie(RememberedCustomer::cookieFor($customer));
+            return $this->throughPin($request, $customer, route('home'),
+                'Masa main untuk paket ini sudah berakhir. Poin dan hadiahmu tetap bisa dilihat di sini.');
         } catch (\RuntimeException $e) {
             $limiter->recordFailure($data['awb'], $data['phone']);
 
@@ -85,10 +82,30 @@ final class PlayController extends Controller
 
         $customer = Customer::findOrFail($session->customer_id);
         $target = $session->chance_used < $session->chance_total
-            ? redirect()->route('play.board', $session->session_token)
-            : redirect()->route('home');
+            ? route('play.board', $session->session_token)
+            : route('home');
 
-        return $target->withCookie(RememberedCustomer::cookieFor($customer));
+        return $this->throughPin($request, $customer, $target);
+    }
+
+    /**
+     * Resi + HP sudah cocok. Pelanggan baru membuat PIN, pelanggan lama
+     * memasukkan PIN-nya, lalu lanjut ke tujuan (spec PIN 2026-10-07).
+     */
+    private function throughPin(Request $request, Customer $customer, string $next, ?string $notice = null)
+    {
+        $customer->refresh();
+
+        // Perangkat ini sudah diingat untuk pelanggan yang sama, jadi PIN tidak ditanya lagi.
+        $remembered = RememberedCustomer::resolve($request);
+        if ($remembered?->id === $customer->id) {
+            return redirect($next)->with('ok', $notice)->withCookie(RememberedCustomer::cookieFor($customer));
+        }
+
+        $isNew = $customer->pin_hash === null;
+        PendingCustomer::put($request, $customer, $next, canSet: $isNew, notice: $notice);
+
+        return redirect()->route($isNew ? 'pin.create' : 'pin.show');
     }
 
     public function board(string $token)

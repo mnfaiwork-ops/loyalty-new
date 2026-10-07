@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\PendingCustomer;
 use Closure;
 use Illuminate\Http\Request;
 use LoyaltyNew\Core\Models\Customer;
@@ -9,8 +10,10 @@ use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Pelanggan yang sudah masuk dengan resi + HP diingat di perangkat ini 30 hari
- * (spec poin-redeem §7). Cookie dienkripsi Laravel dan hanya berlaku untuk brand ini.
+ * Pelanggan yang sudah lolos PIN diingat di perangkat ini 30 hari
+ * (spec poin-redeem §7, spec PIN 2026-10-07). Cookie dienkripsi Laravel,
+ * hanya berlaku untuk brand ini, dan membawa versi PIN: begitu PIN diganti
+ * atau direset CS, perangkat yang diingat dengan PIN lama harus masuk lagi.
  */
 final class RememberedCustomer
 {
@@ -20,20 +23,56 @@ final class RememberedCustomer
     {
         $customer = self::resolve($request);
 
-        if (! $customer) {
-            $redirect = redirect()->route('play.form')->withoutCookie(self::COOKIE);
+        if ($customer) {
+            $request->attributes->set('customer', $customer);
 
-            return $request->hasCookie(self::COOKIE)
-                ? $redirect->withErrors(['awb' => 'Masuk lagi dengan resi dan nomor HP.'])
-                : $redirect;
+            return $next($request);
         }
 
-        $request->attributes->set('customer', $customer);
+        // Cookie dari sebelum ada PIN: pelanggan sudah terbukti lewat resi + HP,
+        // jadi cukup diminta membuat PIN sekali.
+        $known = self::decode($request);
+        if ($known && $known->pin_hash === null) {
+            PendingCustomer::put($request, $known, $request->fullUrl(), canSet: true);
 
-        return $next($request);
+            return redirect()->route('pin.create');
+        }
+
+        if (! $request->hasCookie(self::COOKIE)) {
+            return redirect()->route('play.form');
+        }
+
+        return redirect()->route('customer.login')
+            ->withoutCookie(self::COOKIE)
+            ->withErrors(['phone' => 'Masuk lagi dengan nomor HP dan PIN.']);
     }
 
+    /** Pelanggan dari cookie, hanya kalau PIN-nya masih sama dengan saat perangkat diingat. */
     public static function resolve(Request $request): ?Customer
+    {
+        $customer = self::decode($request);
+        if (! $customer || $customer->pin_hash === null || $customer->pin_must_change) {
+            return null;
+        }
+
+        $data = json_decode((string) $request->cookie(self::COOKIE), true);
+
+        return ($data['pin'] ?? null) === $customer->pin_version ? $customer : null;
+    }
+
+    public static function cookieFor(Customer $customer): Cookie
+    {
+        $minutes = 60 * 24 * (int) config('play.remember_days', 30);
+
+        return cookie(self::COOKIE, self::payload($customer), $minutes);
+    }
+
+    public static function payload(Customer $customer): string
+    {
+        return json_encode(['id' => $customer->id, 'brand' => $customer->brand, 'pin' => $customer->pin_version]);
+    }
+
+    private static function decode(Request $request): ?Customer
     {
         $raw = $request->cookie(self::COOKIE);
         $data = is_string($raw) ? json_decode($raw, true) : null;
@@ -44,12 +83,5 @@ final class RememberedCustomer
 
         // BrandScope memastikan pelanggan brand lain tidak ditemukan.
         return Customer::find((int) $data['id']);
-    }
-
-    public static function cookieFor(Customer $customer): Cookie
-    {
-        $minutes = 60 * 24 * (int) config('play.remember_days', 30);
-
-        return cookie(self::COOKIE, json_encode(['id' => $customer->id, 'brand' => $customer->brand]), $minutes);
     }
 }
