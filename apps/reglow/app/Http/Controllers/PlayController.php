@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\RememberedCustomer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -10,8 +11,11 @@ use LoyaltyNew\Core\Gacha\AttemptLimiter;
 use LoyaltyNew\Core\Gacha\Grid;
 use LoyaltyNew\Core\Gacha\SessionExpiredException;
 use LoyaltyNew\Core\Gacha\SessionService;
+use LoyaltyNew\Core\Models\Claim;
+use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
+use LoyaltyNew\Core\Models\PointLot;
 use LoyaltyNew\Core\Points\LoyaltySettings;
 use LoyaltyNew\Core\Prizes\ClaimService;
 use LoyaltyNew\Core\Prizes\PrizeAwarder;
@@ -32,7 +36,17 @@ final class PlayController extends Controller
         $data = $request->validate([
             'awb' => ['required', 'string', 'max:64'],
             'phone' => ['required', 'string', 'max:32'],
+        ], [
+            'awb.required' => 'Nomor resi wajib diisi.',
+            'phone.required' => 'Nomor HP wajib diisi.',
+            'max' => 'Isian terlalu panjang. Cek lagi angkanya.',
         ]);
+
+        // Form menampilkan "+62" di depan kolom HP, jadi "812..." berarti "0812...".
+        $digits = preg_replace('/\D+/', '', $data['phone']);
+        if ($digits !== '' && ! str_starts_with($digits, '0') && ! str_starts_with($digits, '62')) {
+            $data['phone'] = '0'.$digits;
+        }
 
         $limiter = AttemptLimiter::fromConfig((string) config('app.brand'));
 
@@ -49,7 +63,18 @@ final class PlayController extends Controller
             $session = $this->sessions->open($data['awb'], $data['phone']);
         } catch (SessionExpiredException $e) {
             // Input benar, masa main saja yang habis: jangan dihitung percobaan gagal.
-            return back()->withErrors(['awb' => $e->getMessage()])->withInput();
+            // Resi + HP sudah cocok, jadi pelanggan tetap masuk ke Beranda untuk
+            // melihat poin dan me-redeem hadiah yang batasnya belum lewat (spec §7).
+            $customer = $e->customerId ? Customer::find($e->customerId) : null;
+            if (! $customer) {
+                return back()->withErrors(['awb' => $e->getMessage()])->withInput();
+            }
+
+            $limiter->clear($data['awb'], $data['phone']);
+
+            return redirect()->route('home')
+                ->with('ok', 'Masa main untuk paket ini sudah berakhir. Poin dan hadiahmu tetap bisa dilihat di sini.')
+                ->withCookie(RememberedCustomer::cookieFor($customer));
         } catch (\RuntimeException $e) {
             $limiter->recordFailure($data['awb'], $data['phone']);
 
@@ -58,7 +83,12 @@ final class PlayController extends Controller
 
         $limiter->clear($data['awb'], $data['phone']);
 
-        return redirect()->route('play.board', $session->session_token);
+        $customer = Customer::findOrFail($session->customer_id);
+        $target = $session->chance_used < $session->chance_total
+            ? redirect()->route('play.board', $session->session_token)
+            : redirect()->route('home');
+
+        return $target->withCookie(RememberedCustomer::cookieFor($customer));
     }
 
     public function board(string $token)
@@ -82,6 +112,7 @@ final class PlayController extends Controller
             'prizes' => $session->prizes()->orderBy('slot')->get(),
             'pendingSlots' => $round->pluck('slot')->values()->all(),
             'pendingRevealed' => $revealed,
+            'taken' => $this->taken($session),
         ]);
     }
 
@@ -239,6 +270,25 @@ final class PlayController extends Controller
             'name' => $prize->tier === 'poin' ? null : ClaimService::prizeName($prize),
             'points' => $prize->tier === 'poin' ? $perGift : null,
         ])->values()->all();
+    }
+
+    /** Hadiah yang sudah diambil di sesi ini, untuk ringkasan di papan. */
+    private function taken(GameSession $session): array
+    {
+        return $session->prizes()->where('taken', true)->orderBy('updated_at')->get()
+            ->map(function (GamePrize $prize) {
+                $claim = Claim::where('game_prize_id', $prize->id)->first();
+
+                return [
+                    'slot' => $prize->slot,
+                    'tier' => $prize->tier,
+                    'label' => $this->tierLabel($prize->tier),
+                    'name' => $claim?->prize_name,
+                    'points' => $prize->tier === 'poin' ? PointLot::where('game_prize_id', $prize->id)->value('points') : null,
+                    'claim_code' => $claim?->claim_code,
+                    'claim_expires_at' => $claim?->expires_at?->toDateString(),
+                ];
+            })->values()->all();
     }
 
     public static function tierLabel(string $tier): string

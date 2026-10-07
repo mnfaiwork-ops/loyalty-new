@@ -142,6 +142,21 @@ final class GameAdminTest extends TestCase
         $this->assertSame(['poin' => 65, 'voucher' => 32, 'merch' => 3], TierConfig::current());
     }
 
+    public function test_tier_config_terisolasi_per_brand(): void
+    {
+        $this->actingAs($this->admin())->post('/admin/game/tiers', [
+            'poin' => 70,
+            'voucher' => 25,
+            'merch' => 5,
+        ])->assertRedirect();
+
+        config(['app.brand' => 'amura']);
+        $this->assertSame(['poin' => 65, 'voucher' => 32, 'merch' => 3], TierConfig::current());
+        config(['app.brand' => 'reglow']);
+
+        $this->assertSame(['poin' => 70, 'voucher' => 25, 'merch' => 5], TierConfig::current());
+    }
+
     public function test_login_mengarahkan_sesuai_role(): void
     {
         $this->post('/login', ['email' => $this->admin('game_admin')->email, 'password' => 'rahasia'])

@@ -82,6 +82,6 @@ class OrderStatusCacheTest extends TestCase
         (new CachedOrderStatusSource($this->countingSource($status, $calls), 60, 'reglow'))->find('LNCH1');
         (new CachedOrderStatusSource($this->countingSource($status, $calls), 60, 'amura'))->find('LNCH1');
 
-        $this->assertSame(2, $calls, 'cache amura dan reglow harus terpisah');
+        $this->assertSame(2, $calls, 'cache reglow dan amura harus terpisah');
     }
 }

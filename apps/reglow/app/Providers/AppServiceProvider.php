@@ -23,6 +23,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Nama bulan/hari di layar pelanggan dalam bahasa Indonesia.
+        \Carbon\Carbon::setLocale('id');
+
+        \Illuminate\Support\Facades\View::composer(['play.*', 'customer.*', 'layouts.play'], function ($view) {
+            $themes = config('play.themes');
+            $view->with('theme', $themes[config('app.brand')] ?? $themes['amura']);
+        });
     }
 }

@@ -18,7 +18,7 @@ final class SuperAdminTest extends TestCase
 
     private function otherBrand(): string
     {
-        return $this->brand() === 'amura' ? 'reglow' : 'amura';
+        return $this->brand() === 'reglow' ? 'amura' : 'reglow';
     }
 
     private function user(string $role, ?string $brand = null): User

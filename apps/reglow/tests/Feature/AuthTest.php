@@ -18,7 +18,7 @@ final class AuthTest extends TestCase
 
     private function otherBrand(): string
     {
-        return $this->brand() === 'amura' ? 'reglow' : 'amura';
+        return $this->brand() === 'reglow' ? 'amura' : 'reglow';
     }
 
     public function test_login_ditolak_kalau_brand_scope_beda(): void
