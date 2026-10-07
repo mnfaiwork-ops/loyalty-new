@@ -48,9 +48,29 @@ class SoscomGateTest extends TestCase
             && $req['awb'] === 'C1MACRQU');
     }
 
+    public function test_hp_dengan_spasi_dan_strip_dikirim_sebagai_angka(): void
+    {
+        Http::fake([self::URL => Http::response($this->order())]);
+
+        $result = (new MarkomApiOrderGate($this->source()))->isDelivered('C1MACRQU', '+62 812-3456-789');
+
+        $this->assertTrue($result->delivered);
+        Http::assertSent(fn (Request $req) => $req['phone'] === '08123456789');
+    }
+
     public function test_order_masih_dikirim_ditolak(): void
     {
-        Http::fake([self::URL => Http::response($this->order(['status' => 'sent']))]);
+        Http::fake([self::URL => Http::response($this->order(['status' => 'sent', 'orders' => ['status' => 'sent']]))]);
+
+        $result = (new MarkomApiOrderGate($this->source()))->isDelivered('C1MACRQU', '08123456789');
+
+        $this->assertFalse($result->delivered);
+        $this->assertSame('Paket belum diterima', $result->reason);
+    }
+
+    public function test_order_completed_tapi_diretur_gudang_ditolak(): void
+    {
+        Http::fake([self::URL => Http::response($this->order(['orders' => ['status' => 'request_return']]))]);
 
         $result = (new MarkomApiOrderGate($this->source()))->isDelivered('C1MACRQU', '08123456789');
 

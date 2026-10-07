@@ -17,15 +17,24 @@ final class OrderStatus
     ) {
     }
 
+    /** Gagal antar, retur, atau batal (FairTrack + WMS Soscom). Selalu ditolak. */
+    private const NOT_RECEIVED = ['request_return', 'returned', 'request_cancel', 'cancelled'];
+
     /**
-     * Aturan kelulusan gate (spec §3): penentu UTAMA `status_fulfillment='complete'`.
+     * Aturan kelulusan gate (spec §3): penentu UTAMA status fulfillment selesai
+     * (`complete` di FairTrack, `completed` di `orders.status` WMS).
      * Padanan aman: `status_order='completed'` (konsisten, mis. order lama).
      * Sengaja TIDAK menerima `status_order='sent'` saja — data live membuktikan
      * `sent` bisa berarti belum sampai (491 order `sent`+`problem`).
      */
     public function isDelivered(): bool
     {
-        if ($this->statusFulfillment !== null && $this->statusFulfillment === 'complete') {
+        if (in_array($this->statusFulfillment, self::NOT_RECEIVED, true)
+            || in_array($this->statusOrder, self::NOT_RECEIVED, true)) {
+            return false;
+        }
+
+        if (in_array($this->statusFulfillment, ['complete', 'completed'], true)) {
             return true;
         }
 

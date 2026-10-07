@@ -24,7 +24,7 @@ final class CoreServiceProvider extends ServiceProvider
 
         // Sumber status order: API Soscom, HTTP Markom, atau FairTrack SQLite.
         $this->app->bind(OrderStatusSource::class, function () {
-            $driver = (string) config('markom.driver', 'markom_api');
+            $driver = (string) config('markom.driver', 'soscom_api');
 
             $source = match ($driver) {
                 'fairtrack_sqlite' => new FairtrackSqliteOrderStatusSource(

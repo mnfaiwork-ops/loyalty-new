@@ -1,6 +1,6 @@
 # Soscom Open API
 
-Base URL: `{{base_url}}/v1/open/social-commerce`
+Base URL: `{{base_url}}/v1/open/social-commerce`, dengan `base_url` = `https://wms-api.sinergisuperapp.com` (produksi, tidak ada staging). Belum ada batas request per key.
 
 Auth: header `X-Api-Key: <api key client>` — ambil di WMS menu **Lainnya → Client → Aksi → API Key**. Data otomatis dibatasi ke client (brand) pemilik key. Tanpa key → `401`, key salah → `403`.
 
@@ -60,7 +60,16 @@ Response `data` (ringkas):
 }
 ```
 
-Struktur sama dengan detail order soscom di WMS.
+Struktur sama dengan detail order soscom di WMS. `completed_at` sudah ditambahkan (per 2026-10-06, posisi field belum dicek di respons nyata).
+
+Arti status (dari tim WMS, 2026-10-06):
+
+| Field | Arti | Nilai |
+|---|---|---|
+| `status` | Status order soscom (sisi penjualan) | `pending` belum diproses, `process` diproses gudang, `sent` dalam pengiriman, `completed` paket diterima, `returned` diretur, `cancelled` batal |
+| `orders.status` | Status fulfillment gudang, lebih detail | `pending`, `paid`, `process`, `pick`, `packing`, `packed`, `ready_to_pickup`, `sent`, `completed`, `request_return`, `returned`, `request_cancel`, `cancelled` |
+
+Gagal antar / retur: `request_return`, `returned`.
 
 ---
 

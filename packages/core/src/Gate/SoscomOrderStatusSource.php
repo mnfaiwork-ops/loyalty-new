@@ -13,9 +13,9 @@ use Illuminate\Support\Facades\Log;
  *   200 → {"code": 200, "msg": {...}, "data": {...order...}}
  *   404 → HP + AWB tidak cocok di order yang sama / order tidak ada
  *
- * Endpoint detail belum punya `status_fulfillment`, dan arti `status` vs
- * `orders.status` belum dikonfirmasi tim WMS. Karena itu path field dibaca dari
- * config (`markom.soscom.fields`), supaya bisa diganti tanpa ubah kode.
+ * Konfirmasi WMS (2026-10-06): `status` = status order soscom (completed = paket
+ * diterima), `orders.status` = status fulfillment gudang (completed, request_return,
+ * returned, ...). Path field tetap dibaca dari config (`markom.soscom.fields`).
  *
  * Fail-closed: error jaringan / key salah / bentuk respons aneh → null (ditolak).
  */
@@ -36,7 +36,8 @@ final class SoscomOrderStatusSource implements OrderStatusSource
     public function find(string $awb, string $phone = ''): ?OrderStatus
     {
         $awb = trim($awb);
-        $phone = trim($phone);
+        // API hanya menerima 08xx/628xx/+628xx; spasi atau strip dari input bisa jadi 404.
+        $phone = AwbMatcher::normalizePhone($phone);
         if ($awb === '' || $phone === '' || trim($this->baseUrl) === '' || ! $this->apiKey) {
             return null;
         }
@@ -80,7 +81,7 @@ final class SoscomOrderStatusSource implements OrderStatusSource
             awb: (string) ($data['awb'] ?? $awb),
             phone: $this->string($data, $this->fields['phone'] ?? 'customer_shipping.phone'),
             statusOrder: $this->string($data, $this->fields['status_order'] ?? 'status'),
-            statusFulfillment: $this->string($data, $this->fields['status_fulfillment'] ?? 'status_fulfillment'),
+            statusFulfillment: $this->string($data, $this->fields['status_fulfillment'] ?? 'orders.status'),
             customerName: $this->string($data, $this->fields['customer_name'] ?? 'customer.name'),
         );
     }

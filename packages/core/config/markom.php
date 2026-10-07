@@ -12,7 +12,7 @@ return [
      | Penentu kelulusan SELALU status_fulfillment='complete' (spec §3),
      | bukan status_order. Padanan aman: status_order='completed'.
      */
-    'driver' => env('MARKOM_DRIVER', 'markom_api'),
+    'driver' => env('MARKOM_DRIVER', 'soscom_api'),
 
     /*
      | Implementasi gate yang dipakai:
@@ -31,18 +31,17 @@ return [
      | Soscom Open API. Key per brand (WMS: Lainnya → Client → Aksi → API Key),
      | jadi .env Amura dan Reglow memakai key masing-masing.
      |
-     | `fields`: path dot-notation di dalam `data` respons detail. Arti `status`
-     | vs `orders.status` belum dikonfirmasi WMS, dan `status_fulfillment` belum
-     | ada di respons detail (null → gate memakai padanan status_order='completed').
-     | Isi kosong = field tidak dibaca.
+     | `fields`: path dot-notation di dalam `data` respons detail. `status` =
+     | status order soscom, `orders.status` = status fulfillment gudang
+     | (dikonfirmasi WMS 2026-10-06). Isi kosong = field tidak dibaca.
      */
     'soscom' => [
-        'base_url' => env('SOSCOM_API_URL'),
+        'base_url' => env('SOSCOM_API_URL', 'https://wms-api.sinergisuperapp.com'),
         'api_key' => env('SOSCOM_API_KEY'),
         'timeout' => (int) env('SOSCOM_API_TIMEOUT', 5),
         'fields' => [
             'status_order' => env('SOSCOM_FIELD_STATUS_ORDER', 'status'),
-            'status_fulfillment' => env('SOSCOM_FIELD_STATUS_FULFILLMENT', 'status_fulfillment'),
+            'status_fulfillment' => env('SOSCOM_FIELD_STATUS_FULFILLMENT', 'orders.status'),
             'phone' => env('SOSCOM_FIELD_PHONE', 'customer_shipping.phone'),
             'customer_name' => env('SOSCOM_FIELD_CUSTOMER_NAME', 'customer.name'),
         ],

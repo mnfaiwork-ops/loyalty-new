@@ -49,7 +49,7 @@ Lainnya → Client → Aksi → API Key):
 ```env
 MARKOM_GATE=markom
 MARKOM_DRIVER=soscom_api
-SOSCOM_API_URL=https://...        # dari tim WMS (Postman masih localhost:8080)
+SOSCOM_API_URL=https://wms-api.sinergisuperapp.com   # produksi; WMS tidak punya staging
 SOSCOM_API_KEY=...                # key brand app ini
 SOSCOM_API_TIMEOUT=5
 ```
@@ -62,21 +62,28 @@ X-Api-Key: {key}
 404 → HP + AWB tidak cocok / order tidak ada · 401/403 → key kosong/salah (dicatat di log error)
 ```
 
-**Belum dikonfirmasi WMS (per 2026-10-05):** arti `status` vs `orders.status`, dan
-endpoint detail belum punya `status_fulfillment`. Default sekarang: `status` dibaca
-sebagai `status_order`, sehingga gate lolos kalau `status='completed'`. Kalau jawaban
-WMS beda, ganti path field lewat `.env` tanpa ubah kode:
+**Dikonfirmasi WMS (2026-10-06):**
+- `status` = status order soscom: `pending`, `process`, `sent`, `completed` (paket diterima), `returned`, `cancelled`.
+- `orders.status` = status fulfillment gudang: `pending`, `paid`, `process`, `pick`, `packing`, `packed`,
+  `ready_to_pickup`, `sent`, `completed`, `request_return`, `returned`, `request_cancel`, `cancelled`.
+- Gagal antar / retur = `request_return`, `returned`. `completed_at` sudah ditambahkan.
+- Tidak ada staging (uji langsung ke produksi dengan AWB sampel). Belum ada batas request per key.
+
+Gate lolos kalau `orders.status='completed'` atau `status='completed'`, dan ditolak kalau salah
+satunya `request_return`/`returned`/`request_cancel`/`cancelled`. Path field bisa diganti lewat
+`.env` tanpa ubah kode:
 ```env
 SOSCOM_FIELD_STATUS_ORDER=status
-SOSCOM_FIELD_STATUS_FULFILLMENT=status_fulfillment   # mis. orders.status
+SOSCOM_FIELD_STATUS_FULFILLMENT=orders.status
 SOSCOM_FIELD_PHONE=customer_shipping.phone
 SOSCOM_FIELD_CUSTOMER_NAME=customer.name
 ```
-Isi kosong = field tidak dibaca. Kelulusan tetap aturan `OrderStatus::isDelivered()`
-(`status_fulfillment='complete'`, padanan `status_order='completed'`) + AWB cocok HP.
+Isi kosong = field tidak dibaca. Kelulusan diatur `OrderStatus::isDelivered()` + AWB cocok HP.
 
-Driver lama `markom_api` (kontrak tebakan `GET /orders/{awb}` + Bearer) masih ada
-di `MarkomHttpOrderStatusSource.php`, tidak dipakai lagi kalau Soscom jalan.
+`soscom_api` juga jadi driver default kalau `MARKOM_DRIVER` kosong. Driver lama
+`markom_api` (kontrak tebakan `GET /orders/{awb}` + Bearer, di
+`MarkomHttpOrderStatusSource.php`) hanya dipakai kalau diisi eksplisit; endpoint-nya
+tidak ada di `markom.sinergisuperapp.com` (404, dicek 2026-10-06).
 
 **Uji cepat sebelum produksi:** set `MARKOM_DRIVER=fairtrack_sqlite` +
 `FAIRTRACK_DB=/path/fairtrack-lead.db` untuk membuktikan gate jalan terhadap data
