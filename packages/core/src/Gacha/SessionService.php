@@ -93,19 +93,49 @@ final class SessionService
                 'expires_at' => now()->addDays(30),
             ]);
 
-            $engine = new DrawEngine($session->tier_config);
-            foreach (Grid::slots() as $slot) {
-                GamePrize::create([
-                    'game_session_id' => $session->id,
-                    'slot' => $slot,
-                    'tier' => $engine->pick(random_int(1, max(1, array_sum($session->tier_config)))),
-                ]);
-            }
-
-            $this->placeBigPrize($session);
+            $this->drawRound($session, 1);
 
             return $session;
         });
+    }
+
+    /**
+     * Siapkan papan kesempatan yang sedang dimainkan kalau belum ada. Setiap
+     * kesempatan mendapat 24 kado yang diundi baru, jadi kesempatan kedua
+     * kembali penuh. Pemanggil harus sudah mengunci sesi.
+     */
+    public function ensureRound(GameSession $session): void
+    {
+        if ($session->chance_used >= $session->chance_total || $session->boardPrizes()->exists()) {
+            return;
+        }
+
+        $this->drawRound($session, $session->currentRound());
+    }
+
+    private function drawRound(GameSession $session, int $round): void
+    {
+        $weights = $session->tier_config ?: TierConfig::default();
+        if (array_sum($weights) <= 0) {
+            $weights = TierConfig::default();
+        }
+
+        $engine = new DrawEngine($weights);
+        foreach (Grid::slots() as $slot) {
+            GamePrize::create([
+                'game_session_id' => $session->id,
+                'round' => $round,
+                'slot' => $slot,
+                'tier' => $engine->pick(random_int(1, array_sum($weights))),
+            ]);
+        }
+
+        // Satu sesi paling banyak satu hadiah utama: yang sudah menang di
+        // kesempatan sebelumnya tidak diberi lagi di papan berikutnya.
+        $alreadyWon = $session->prizes()->where('tier', 'hadiah_besar')->where('taken', true)->exists();
+        if (! $alreadyWon) {
+            $this->placeBigPrize($session, $round);
+        }
     }
 
     /** Kunci chance di DB. Return false kalau sudah habis. */
@@ -170,7 +200,7 @@ final class SessionService
      * Taruh satu hadiah besar di slot acak kalau katalog masih punya kuota.
      * Kuota BELUM dipotong di sini (lihat openRound).
      */
-    private function placeBigPrize(GameSession $session): ?GamePrize
+    private function placeBigPrize(GameSession $session, int $round): ?GamePrize
     {
         $catalogs = PrizeCatalog::where('brand', $this->brand)
             ->where('tier', 'hadiah_besar')
@@ -183,7 +213,7 @@ final class SessionService
                 continue;
             }
 
-            $slot = $session->prizes()->inRandomOrder()->first();
+            $slot = $session->prizes()->where('round', $round)->inRandomOrder()->first();
             $slot->update([
                 'tier' => 'hadiah_besar',
                 'prize_catalog_id' => $catalog->id,

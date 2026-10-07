@@ -216,6 +216,8 @@ button { font-family: inherit; }
 
 .stage-intro { position: relative; z-index: 6; flex: none; padding: 8px 16px 4px; }
 .stage-intro h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
+/* Judul emas hanya selama papan diacak (4h), lalu kembali ke warna biasa di "Pilih 3 kado". */
+.stage-intro h1.is-shuffling { color: #F5DA9A; }
 .stage-intro p { margin: 3px 0 0; font-size: 13px; color: var(--sand); }
 
 /* Grid 4×6 dimiringkan ke belakang seperti meja (kanvas: Kado 3D yang hidup). */
@@ -246,6 +248,10 @@ button { font-family: inherit; }
 .rcard.is-dimmed { opacity: .3; transition: opacity .8s var(--ease-out); }
 .cell.is-used { opacity: .4; }
 .cell.is-used .num { text-decoration: line-through; }
+/* Saat papan dikocok, nomor kotak disembunyikan supaya tumpukan kado jadi satu-satunya fokus. */
+.board .num { transition: opacity .18s; }
+.board.is-shuffling .num { opacity: 0; }
+.board.is-shuffling .cell { pointer-events: none; }
 /* Kado bekas ronde lalu: tutup sudah dibuang, kotak kosong tetap di tempatnya. */
 .cell.is-used .gift-lid { display: none; }
 
@@ -376,6 +382,16 @@ button { font-family: inherit; }
 .won-item .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .won-item .sub b { color: var(--ink); letter-spacing: .06em; }
 
+/* Hasil ronde saat kesempatan masih ada (4h): petunjuk papan akan diisi ulang. */
+.next-card { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 16px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); font-size: 13px; line-height: 1.45; }
+.next-card b { display: block; font-size: 14px; }
+.next-card .next-sub { color: var(--sand); }
+.next-gifts { flex: none; display: flex; }
+.next-gift { position: relative; width: 26px; height: 30px; margin-right: -6px; }
+.next-gift:nth-child(2) { transform: translateY(-4px); z-index: 1; }
+.next-gift .gift-float { animation: none; }
+.next-gift .gift-bow { border-width: 2px; }
+.btn-chip { display: inline-block; margin-left: 4px; padding: 3px 8px; border-radius: 999px; background: rgba(43, 22, 8, .12); font-size: 13px; font-weight: 800; vertical-align: 2px; }
 .empty-note { padding: 16px; border-radius: 16px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); font-size: 14px; line-height: 1.5; color: var(--sand); }
 
 /* Pesan error di panggung (koneksi putus, sesi habis). */

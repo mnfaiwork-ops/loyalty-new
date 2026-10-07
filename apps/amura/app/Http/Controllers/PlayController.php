@@ -117,6 +117,9 @@ final class PlayController extends Controller
                 ->withErrors(['awb' => (new SessionExpiredException)->getMessage()]);
         }
 
+        // Sesi lama dari sebelum papan per kesempatan belum punya papan kesempatan 2.
+        DB::transaction(fn () => $this->sessions->ensureRound($this->lockedSession($token)));
+
         // Ronde yang belum selesai (mis. halaman di-refresh) ditampilkan lagi,
         // supaya pelanggan bisa melanjutkan, bukan terjebak di kotak yang terkunci.
         $round = $this->round($session);
@@ -126,7 +129,7 @@ final class PlayController extends Controller
 
         return view('play.board', [
             'session' => $session,
-            'prizes' => $session->prizes()->orderBy('slot')->get(),
+            'prizes' => $session->boardPrizes()->orderBy('slot')->get(),
             'pendingSlots' => $round->pluck('slot')->values()->all(),
             'pendingRevealed' => $revealed,
             'taken' => $this->taken($session),
@@ -148,9 +151,11 @@ final class PlayController extends Controller
                 return $error;
             }
 
+            $this->sessions->ensureRound($session);
+
             foreach ($data['slots'] as $slot) {
                 $available = $slot >= 1 && $slot <= Grid::SLOTS
-                    && $session->prizes()
+                    && $session->boardPrizes()
                         ->where('slot', $slot)
                         ->where('opened', false)
                         ->where('taken', false)
@@ -165,7 +170,7 @@ final class PlayController extends Controller
                 return response()->json(['error' => 'Sudah memilih slot ronde ini'], 422);
             }
 
-            $session->prizes()->whereIn('slot', $data['slots'])->update(['picked' => true]);
+            $session->boardPrizes()->whereIn('slot', $data['slots'])->update(['picked' => true]);
 
             return response()->json(['ok' => true]);
         });
@@ -251,6 +256,10 @@ final class PlayController extends Controller
         $award = PrizeAwarder::award($session, $chosen);
         $claim = $award['type'] === 'claim' ? $award['claim'] : null;
 
+        // Kesempatan berikutnya langsung disiapkan dengan 24 kado baru.
+        $session = $session->fresh();
+        $this->sessions->ensureRound($session);
+
         return [
             'ok' => true,
             'revealed' => $this->revealed($round),
@@ -260,7 +269,7 @@ final class PlayController extends Controller
             'balance' => $award['type'] === 'points' ? $award['balance'] : null,
             'claim_code' => $claim?->claim_code,
             'claim_expires_at' => $claim?->expires_at->toDateString(),
-            'chance_left' => max(0, $session->chance_total - $session->fresh()->chance_used),
+            'chance_left' => max(0, $session->chance_total - $session->chance_used),
             'chance_total' => $session->chance_total,
         ];
     }
@@ -268,7 +277,7 @@ final class PlayController extends Controller
     /** Slot ronde aktif: sudah dipilih tapi belum disimpan. */
     private function round(GameSession $session): Collection
     {
-        return $session->prizes()
+        return $session->boardPrizes()
             ->where('picked', true)
             ->where('taken', false)
             ->orderBy('slot')

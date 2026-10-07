@@ -16,6 +16,8 @@
 
     const state = {
         chanceUsed: data.chanceUsed,
+        // Kesempatan yang sedang dimainkan (penanda N/total), tetap sampai papan diacak ulang.
+        current: Math.min(data.chanceUsed + 1, data.chanceTotal),
         selected: [],
         locked: false,
         busy: false,
@@ -247,11 +249,11 @@
     }
 
     function paintChance() {
-        const left = chanceLeft();
         document.querySelectorAll('.coin').forEach(coin => {
-            coin.classList.toggle('is-used', Number(coin.dataset.coin) >= left);
+            coin.classList.toggle('is-used', Number(coin.dataset.coin) < state.current - 1);
         });
-        $('chanceText').textContent = `${left}/${data.chanceTotal}`;
+        $('chanceText').textContent = `${state.current}/${data.chanceTotal}`;
+        $('chanceText').parentElement.setAttribute('aria-label', `Kesempatan ${state.current} dari ${data.chanceTotal}`);
     }
 
     // ── Pilih 3 dari 24 ──────────────────────────────────────────────────
@@ -673,6 +675,92 @@
         cell.querySelector('.floor-glow')?.remove();
     }
 
+    // ── Kesempatan berikutnya: papan diisi 24 kado baru ──────────────────
+    function resetCell(cell) {
+        cell.classList.remove('is-used', 'is-picked');
+        cell.disabled = false;
+        cell.querySelector('.gift').classList.remove('is-open');
+        cell.setAttribute('aria-label', `Kado ${cell.dataset.slot.padStart(2, '0')}`);
+        cell.setAttribute('aria-pressed', 'false');
+    }
+
+    // Server sudah mengundi 24 kado baru saat hadiah diambil. Kado dikumpulkan
+    // ke tengah, dikocok, lalu disebar lagi supaya terlihat papannya diisi ulang.
+    // Waktu dan easing mengikuti desain 4h (total ±2,2 s).
+    async function reshuffle() {
+        const board = $('board');
+        state.busy = true;
+        // Penanda berubah di detik 0, supaya jelas kenapa papannya bergerak.
+        state.current = state.chanceUsed + 1;
+        paintChance();
+        cells.forEach(resetCell);
+        // Pembaca layar cukup mendengar judul dan sub sekali, bukan tiap fase.
+        stage.setAttribute('aria-busy', 'true');
+        $('pickTitle').textContent = 'Kado diacak ulang';
+        $('pickTitle').classList.add('is-shuffling');
+        $('pickLead').textContent = `Kesempatan ${state.current}: semua 24 kado diisi hadiah baru.`;
+        show('pick');
+        paintPick();
+        $('pickLabel').textContent = 'Mengacak kado…';
+        board.classList.add('is-shuffling');
+
+        if (reduced) {
+            // Tanpa gerak: papan baru langsung tampil dengan crossfade 150 ms.
+            board.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 150 });
+            await new Promise(r => setTimeout(r, 150));
+        } else {
+            const g = $('grid').getBoundingClientRect();
+            const cx = g.left + g.width / 2;
+            const cy = g.top + g.height / 2;
+            const gifts = cells.map(cell => {
+                const r = cell.getBoundingClientRect();
+                const dx = cx - (r.left + r.width / 2);
+                const dy = cy - (r.top + r.height / 2);
+                return { node: cell.querySelector('.gift'), dx, dy, dist: Math.hypot(dx, dy) };
+            });
+            const pile = ({ dx, dy }, extra = '') => `translate(${dx}px, ${dy}px) scale(.55) ${extra}`;
+
+            // Kumpul 0 → 0,45 s: ease-in, makin cepat masuk tumpukan.
+            const gather = gifts.map(gift => anim(gift.node, [
+                { transform: 'none' }, { transform: pile(gift) },
+            ], { duration: 450, easing: 'cubic-bezier(.5, 0, .75, 0)', fill: 'forwards' }));
+            sound.noise(.3, .05);
+            await Promise.all(gather.map(a => a.finished));
+
+            // Kocok 0,45 → 1,15 s: 6 ketukan ±117 ms, miring 12 · 12 · 10 · 10 · 8 · 0 derajat.
+            const BEAT = 117;
+            const tilt = [0, 12, -12, 10, -10, 8, 0];
+            buzz([15, 60, 15]);
+            setTimeout(() => buzz([15, 60, 15]), BEAT * 5);
+            for (let i = 0; i < 6; i++) sound.tone(300 + i * 70, .05, 'triangle', .07, i * BEAT / 1000);
+            await Promise.all(gifts.map(gift => anim(gift.node,
+                tilt.map(deg => ({ transform: pile(gift, `rotate(${deg}deg)`) })),
+                { duration: BEAT * 6, easing: 'linear' }).finished));
+
+            // Sebar 1,15 → 2,2 s: tujuan kotak tetap acak (diundi server), tapi berangkat
+            // dari tengah ke luar supaya terbaca sebagai satu gelombang. Lintasan naik 34 px.
+            const rank = new Map([...gifts].sort((a, b) => a.dist - b.dist).map((gift, i) => [gift, i]));
+            const scatter = gifts.map(gift => anim(gift.node, [
+                { transform: pile(gift) },
+                { transform: `translate(${gift.dx / 2}px, ${gift.dy / 2 - 34}px) scale(.78)` },
+                { transform: 'none' },
+            ], { duration: 520, delay: rank.get(gift) * 22, easing: EASE_BACK, fill: 'backwards' }));
+            gather.forEach(a => a.cancel?.());
+            // Denting tiap 4 kado; 24 denting dalam satu detik terdengar seperti bunyi galat.
+            for (let i = 0; i < gifts.length; i += 4) sound.tone(1568 + i * 20, .09, 'triangle', .05, i * .022);
+            await Promise.all(scatter.map(a => a.finished));
+        }
+
+        // Selesai: nomor kotak muncul lagi (fade 180 ms), sub tetap memberi tahu kado sudah baru.
+        board.classList.remove('is-shuffling');
+        $('pickTitle').textContent = 'Pilih 3 kado';
+        $('pickTitle').classList.remove('is-shuffling');
+        stage.removeAttribute('aria-busy');
+        state.busy = false;
+        paintPick();
+        cells[0].focus({ preventScroll: true });
+    }
+
     // ── Hasil dan ringkasan ──────────────────────────────────────────────
     function claimNote(item, expires) {
         const until = formatDate(expires);
@@ -743,7 +831,27 @@
 
         const left = chanceLeft();
         $('nextBtn').hidden = false;
-        $('nextBtn').textContent = left > 0 ? `Lanjut ke Kesempatan ${chance + 1}` : 'Lihat ringkasan';
+        if (left > 0) {
+            // Petunjuk bahwa papan akan diisi ulang, supaya acak ulang tidak mengejutkan (4h).
+            const next = el('div', 'next-card');
+            const icons = el('span', 'next-gifts');
+            icons.setAttribute('aria-hidden', 'true');
+            for (let i = 0; i < 3; i++) {
+                const box = el('span', 'next-gift');
+                box.appendChild(el('span', 'gift'));
+                box.firstChild.innerHTML = $('giftTpl').innerHTML;
+                icons.appendChild(box);
+            }
+            const text = el('div');
+            text.appendChild(el('b', null, `Kesempatan ${chance + 1} siap`));
+            text.appendChild(el('span', 'next-sub', 'Papan diisi 24 kado baru dengan hadiah yang diundi ulang.'));
+            next.append(icons, text);
+            view.appendChild(next);
+            $('nextBtn').textContent = `Lanjut ke Kesempatan ${chance + 1} `;
+            $('nextBtn').appendChild(el('span', 'btn-chip', '24 kado baru'));
+        } else {
+            $('nextBtn').textContent = 'Lihat ringkasan';
+        }
         $('laterLink').hidden = left === 0;
         show('result');
         view.scrollTop = 0;
@@ -789,6 +897,8 @@
     }
 
     function showDone() {
+        state.current = data.chanceTotal;
+        paintChance();
         const view = $('resultView');
         view.innerHTML = '';
         view.className = 'result';
@@ -840,7 +950,7 @@
     $('takeBtn').addEventListener('click', take);
     $('nextBtn').addEventListener('click', () => {
         if ($('nextBtn').onclick) return;
-        if (chanceLeft() > 0) enterPick(false);
+        if (chanceLeft() > 0) reshuffle();
         else showDone();
     });
 

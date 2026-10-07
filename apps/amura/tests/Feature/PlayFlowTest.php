@@ -96,15 +96,51 @@ final class PlayFlowTest extends TestCase
         $this->assertSame($before, $session->fresh()->chance_used);
     }
 
-    public function test_pick_slot_yang_sudah_dibuka_ditolak(): void
+    public function test_kesempatan_kedua_memakai_24_kado_baru(): void
     {
         $session = $this->start();
 
         $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
         $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])
+        $round2 = $session->prizes()->where('round', 2);
+        $this->assertSame(24, (clone $round2)->count());
+        $this->assertSame(0, (clone $round2)->where(fn ($q) => $q->where('opened', true)->orWhere('picked', true))->count());
+
+        // Slot yang sama boleh dipilih lagi karena isinya baru.
+        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->assertSame(3, (clone $round2)->where('picked', true)->count());
+    }
+
+    public function test_pick_kedua_di_kesempatan_yang_sama_ditolak(): void
+    {
+        $session = $this->start();
+
+        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+
+        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [4, 5, 6]])
             ->assertStatus(422);
+    }
+
+    public function test_papan_kesempatan_kedua_tidak_diberi_hadiah_utama_lagi_setelah_menang(): void
+    {
+        $catalog = PrizeCatalog::create([
+            'brand' => config('app.brand'), 'name' => 'Emas 1 gram', 'tier' => 'hadiah_besar',
+            'is_capped' => true, 'quota_total' => 5, 'active' => true,
+        ]);
+        \Illuminate\Support\Facades\DB::table('quota_caps')->insert([
+            'brand' => config('app.brand'), 'prize_name' => 'Emas 1 gram', 'cap_units' => 5, 'used_units' => 0,
+            'program_start' => now()->subDay()->toDateString(), 'program_end' => now()->addMonth()->toDateString(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $session = $this->start();
+        $this->forceTiers($session, [1], 'hadiah_besar');
+        $session->prizes()->where('slot', 1)->update(['prize_catalog_id' => $catalog->id]);
+
+        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->postJson("/play/{$session->session_token}/reveal")->assertOk()->assertJson(['auto_taken' => true]);
+
+        $this->assertSame(0, $session->prizes()->where('round', 2)->where('tier', 'hadiah_besar')->count());
     }
 
     public function test_reveal_menampilkan_tier_tanpa_menghabiskan_chance(): void
@@ -176,6 +212,7 @@ final class PlayFlowTest extends TestCase
 
         // Simulasi re-take prize yang sama: kembalikan ke state ronde, lalu take lagi.
         $prize->update(['taken' => false, 'picked' => true]);
+        $session->fresh()->update(['chance_used' => 0]);
         $second = $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
 
         $this->assertSame(1, Claim::where('game_prize_id', $prize->id)->count());
