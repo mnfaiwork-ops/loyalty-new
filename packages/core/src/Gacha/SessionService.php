@@ -52,6 +52,9 @@ final class SessionService
             return self::ensureActive($existing);
         }
 
+        // Periode program hanya menyaring paket baru; sesi yang sudah ada tetap bisa dilanjutkan.
+        $this->ensureInProgram($result->orderedAt);
+
         try {
             return $this->createSession($customer, $awb, $result->orderAmount);
         } catch (\Illuminate\Database\QueryException $e) {
@@ -64,6 +67,30 @@ final class SessionService
                 return self::ensureActive($raced);
             }
             throw $e;
+        }
+    }
+
+    /** Tolak order yang tanggalnya di luar periode program brand ini (Game Admin). */
+    private function ensureInProgram(?string $orderedAt): void
+    {
+        $controls = GameControls::current($this->brand);
+        $from = $controls['order_from'];
+        $until = $controls['order_until'];
+
+        if ($from === null && $until === null) {
+            return;
+        }
+
+        if ($orderedAt === null) {
+            throw OutsideProgramException::unknownDate();
+        }
+
+        if ($from !== null && $orderedAt < $from) {
+            throw OutsideProgramException::before($from);
+        }
+
+        if ($until !== null && $orderedAt > $until) {
+            throw OutsideProgramException::after($until);
         }
     }
 

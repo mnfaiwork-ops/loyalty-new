@@ -140,13 +140,18 @@ final class GameAdminController extends Controller
         $data = $request->validate([
             'paused' => ['boolean'],
             'big_prize_chance' => ['required', 'integer', 'min:0', 'max:100'],
+            'order_from' => ['nullable', 'date_format:Y-m-d'],
+            'order_until' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:order_from'],
         ], [
             'big_prize_chance.*' => 'Peluang hadiah utama diisi 0 sampai 100.',
+            'order_until.after_or_equal' => 'Tanggal berakhir harus sama atau setelah tanggal mulai.',
         ]);
 
         GameControls::store([
             'paused' => (bool) ($data['paused'] ?? false),
             'big_prize_chance' => $data['big_prize_chance'],
+            'order_from' => $data['order_from'] ?? null,
+            'order_until' => $data['order_until'] ?? null,
         ], (string) config('app.brand'));
 
         return back()->with('ok', ($data['paused'] ?? false)

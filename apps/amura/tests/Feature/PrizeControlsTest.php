@@ -142,7 +142,7 @@ final class PrizeControlsTest extends TestCase
 
     public function test_peluang_default_dua_puluh_persen(): void
     {
-        $this->assertSame(['paused' => false, 'big_prize_chance' => 20], GameControls::current());
+        $this->assertSame(['paused' => false, 'big_prize_chance' => 20, 'order_from' => null, 'order_until' => null], GameControls::current());
     }
 
     public function test_kuota_dibuka_bertahap_sepanjang_periode(): void
@@ -281,7 +281,7 @@ final class PrizeControlsTest extends TestCase
             ->post('/admin/game/controls', ['paused' => '1', 'big_prize_chance' => 10])
             ->assertRedirect();
 
-        $this->assertSame(['paused' => true, 'big_prize_chance' => 10], GameControls::current());
+        $this->assertSame(['paused' => true, 'big_prize_chance' => 10, 'order_from' => null, 'order_until' => null], GameControls::current());
 
         $this->actingAs($this->gameAdmin())
             ->post('/admin/game/controls', ['big_prize_chance' => 101])
@@ -386,5 +386,120 @@ final class PrizeControlsTest extends TestCase
     public function test_katalog_awal_menolak_format_bulan_salah(): void
     {
         $this->artisan('loyalty:katalog-awal', ['--period' => '2026-13'])->assertFailed();
+    }
+
+    // --- Periode program (tanggal order) ---
+
+    private function period(?string $from, ?string $until): void
+    {
+        GameControls::store(['paused' => false, 'big_prize_chance' => 20, 'order_from' => $from, 'order_until' => $until], config('app.brand'));
+    }
+
+    private function gateWithOrderDate(?string $date): void
+    {
+        $this->app->instance(OrderGate::class, new class($date) implements OrderGate
+        {
+            public function __construct(private ?string $date)
+            {
+            }
+
+            public function isDelivered(string $awb, string $phone): GateResult
+            {
+                return GateResult::delivered('Budi', 150000, $this->date);
+            }
+        });
+    }
+
+    public function test_order_sebelum_periode_ditolak_tanpa_menambah_lockout(): void
+    {
+        $this->period('2026-10-01', '2026-12-31');
+        $this->gateWithOrderDate('2026-09-30');
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->post('/play/start', ['awb' => 'JX123', 'phone' => '08123456789'])
+                ->assertSessionHasErrors(['awb' => 'Order ini dibuat sebelum program dimulai (1 Oktober 2026), jadi belum bisa ikut Gatcha.']);
+        }
+
+        $this->assertSame(0, GameSession::count());
+    }
+
+    public function test_order_setelah_periode_ditolak(): void
+    {
+        $this->period('2026-10-01', '2026-12-31');
+        $this->gateWithOrderDate('2027-01-01');
+
+        $this->post('/play/start', ['awb' => 'JX123', 'phone' => '08123456789'])
+            ->assertSessionHasErrors(['awb' => 'Order ini dibuat setelah program berakhir (31 Desember 2026), jadi tidak bisa ikut Gatcha.']);
+        $this->assertSame(0, GameSession::count());
+    }
+
+    public function test_order_di_tanggal_batas_bisa_ikut(): void
+    {
+        $this->period('2026-10-01', '2026-12-31');
+
+        foreach (['2026-10-01' => 'JX1', '2026-12-31' => 'JX2'] as $date => $awb) {
+            $this->gateWithOrderDate($date);
+            $this->post('/play/start', ['awb' => $awb, 'phone' => '08123456789'])->assertSessionHasNoErrors();
+        }
+
+        $this->assertSame(2, GameSession::count());
+    }
+
+    public function test_tanggal_order_tidak_terbaca_ditolak_saat_periode_diatur(): void
+    {
+        $this->period('2026-10-01', null);
+        $this->gateWithOrderDate(null);
+
+        $this->post('/play/start', ['awb' => 'JX123', 'phone' => '08123456789'])->assertSessionHasErrors('awb');
+        $this->assertSame(0, GameSession::count());
+    }
+
+    public function test_tanpa_periode_semua_tanggal_bisa_ikut(): void
+    {
+        $this->gateWithOrderDate('2020-01-01');
+
+        $this->post('/play/start', ['awb' => 'JX123', 'phone' => '08123456789'])->assertSessionHasNoErrors();
+        $this->assertSame(1, GameSession::count());
+    }
+
+    public function test_sesi_yang_sudah_ada_tetap_bisa_dilanjutkan_setelah_periode_diubah(): void
+    {
+        $this->gateWithOrderDate('2026-09-15');
+        $session = $this->start();
+        $this->period('2026-10-01', '2026-12-31');
+
+        $this->post('/play/start', ['awb' => 'JX123', 'phone' => '08123456789'])->assertSessionHasNoErrors();
+        $this->assertSame([$session->id], GameSession::pluck('id')->all());
+    }
+
+    public function test_soscom_tanggal_order_dibaca_dalam_wib(): void
+    {
+        Http::fake(['https://wms.test/*' => Http::response(['code' => 200, 'data' => [
+            'status' => 'completed', 'awb' => 'C1MACRQU', 'order_at' => '2026-09-30T23:30:00+07:00',
+            'customer_shipping' => ['phone' => '628123456789'], 'orders' => ['status' => 'completed'],
+        ]])]);
+
+        $result = (new MarkomApiOrderGate(new SoscomOrderStatusSource('https://wms.test', 'key')))
+            ->isDelivered('C1MACRQU', '08123456789');
+
+        $this->assertSame('2026-09-30', $result->orderedAt);
+    }
+
+    public function test_admin_menyimpan_periode_program(): void
+    {
+        $this->actingAs($this->gameAdmin())->post('/admin/game/controls', [
+            'big_prize_chance' => 20, 'order_from' => '2026-10-01', 'order_until' => '2026-09-01',
+        ])->assertSessionHasErrors('order_until');
+
+        $this->actingAs($this->gameAdmin())->post('/admin/game/controls', [
+            'big_prize_chance' => 20, 'order_from' => '2026-10-01', 'order_until' => '2026-12-31',
+        ])->assertRedirect();
+
+        $controls = GameControls::current();
+        $this->assertSame(['2026-10-01', '2026-12-31'], [$controls['order_from'], $controls['order_until']]);
+
+        $this->actingAs($this->gameAdmin())->get('/admin/game')
+            ->assertSee('Hanya order tanggal 1 Oktober 2026')
+            ->assertSee('sampai 31 Desember 2026');
     }
 }

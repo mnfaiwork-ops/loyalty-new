@@ -36,8 +36,25 @@
                 Peluang hadiah utama per papan (%)
                 <input type="number" name="big_prize_chance" min="0" max="100" value="{{ old('big_prize_chance', $controls['big_prize_chance']) }}" required>
             </label>
+            <label>
+                Order mulai tanggal
+                <input type="date" name="order_from" value="{{ old('order_from', $controls['order_from']) }}">
+            </label>
+            <label>
+                Order sampai tanggal
+                <input type="date" name="order_until" value="{{ old('order_until', $controls['order_until']) }}">
+            </label>
             <button class="btn" type="submit">Simpan kendali</button>
         </form>
+        <p class="muted hint" style="padding:0 16px 8px">
+            @if ($controls['order_from'] || $controls['order_until'])
+                Hanya order tanggal {{ $controls['order_from'] ? \Illuminate\Support\Carbon::parse($controls['order_from'])->locale('id')->translatedFormat('j F Y') : 'berapa pun' }}
+                sampai {{ $controls['order_until'] ? \Illuminate\Support\Carbon::parse($controls['order_until'])->locale('id')->translatedFormat('j F Y') : 'seterusnya' }} yang bisa ikut.
+            @else
+                Periode program belum diatur: order tanggal berapa pun bisa ikut.
+            @endif
+            Yang dihitung tanggal order, bukan tanggal paket sampai. Pelanggan yang sudah mulai main tetap bisa melanjutkan sesinya.
+        </p>
         <p class="muted hint" style="padding:0 16px 16px">
             Peluang 20% berarti hadiah utama hanya ditaruh di 1 dari 5 papan, dan pelanggan masih harus memilih kotaknya (3 dari 24).
             Hadiah utama tetap dibatasi kuota dan jadwal di tabel bawah.

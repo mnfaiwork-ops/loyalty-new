@@ -11,6 +11,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Gacha\AttemptLimiter;
 use LoyaltyNew\Core\Gacha\Grid;
+use LoyaltyNew\Core\Gacha\OutsideProgramException;
 use LoyaltyNew\Core\Gacha\SessionExpiredException;
 use LoyaltyNew\Core\Gacha\SessionService;
 use LoyaltyNew\Core\Models\Claim;
@@ -74,6 +75,11 @@ final class PlayController extends Controller
 
             return $this->throughPin($request, $customer, route('home'),
                 'Masa main untuk paket ini sudah berakhir. Poin dan hadiahmu tetap bisa dilihat di sini.');
+        } catch (OutsideProgramException $e) {
+            // Resi + HP benar, ordernya saja di luar periode: bukan percobaan gagal.
+            $limiter->clear($data['awb'], $data['phone']);
+
+            return back()->withErrors(['awb' => $e->getMessage()])->withInput();
         } catch (\RuntimeException $e) {
             $limiter->recordFailure($data['awb'], $data['phone']);
 

@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Log;
 final class SoscomOrderStatusSource implements OrderStatusSource
 {
     /**
-     * @param  array{status_order?: string, status_fulfillment?: string, phone?: string, customer_name?: string, amount?: string, discount?: string}  $fields
+     * @param  array{status_order?: string, status_fulfillment?: string, phone?: string, customer_name?: string, amount?: string, discount?: string, ordered_at?: string}  $fields
      *         path dot-notation di dalam `data`
      */
     public function __construct(
@@ -84,7 +84,23 @@ final class SoscomOrderStatusSource implements OrderStatusSource
             statusFulfillment: $this->string($data, $this->fields['status_fulfillment'] ?? 'orders.status'),
             customerName: $this->string($data, $this->fields['customer_name'] ?? 'customer.name'),
             orderAmount: $this->amount($data),
+            orderedAt: $this->date($data, $this->fields['ordered_at'] ?? 'order_at'),
         );
+    }
+
+    /** Tanggal WIB dari timestamp Soscom (contoh "2026-07-17T11:57:00+07:00"). */
+    private function date(array $data, string $path): ?string
+    {
+        $value = $this->string($data, $path);
+        if ($value === null) {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Carbon::parse($value, 'Asia/Jakarta')->setTimezone('Asia/Jakarta')->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /** Nilai produk setelah diskon (`amount - discount_amount`), tanpa ongkir dan biaya COD. */

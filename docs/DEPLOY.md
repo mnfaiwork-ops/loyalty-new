@@ -161,3 +161,4 @@ php artisan schedule:list                     # pastikan terjadwal
 - Batas per IP: `POST /login` 10/menit, `POST /play/start` 30/menit.
 - Produksi wajib: `APP_ENV=production`, `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true` (HTTPS), `ADMIN_PASSWORD` sendiri. `AdminUserSeeder` menolak jalan di produksi tanpa `ADMIN_PASSWORD`.
 - Tes memaksa `MARKOM_GATE=stub` lewat `phpunit.xml`, jadi `.env` dengan gate nyata tidak membuat tes memanggil Soscom.
+- Periode program per brand di `/admin/game` (Kendali Gatcha): "Order mulai tanggal" dan "Order sampai tanggal". Yang dicek tanggal order dari Soscom (`order_at`, WIB), bukan tanggal paket sampai. Kosong = tanpa batas. Penolakan karena periode tidak menambah hitungan kunci 5x salah. Sesi yang sudah ada tetap bisa dilanjutkan. Isi periode Fase 1 sebelum rilis.

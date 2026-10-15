@@ -46,6 +46,7 @@ return [
             'customer_name' => env('SOSCOM_FIELD_CUSTOMER_NAME', 'customer.name'),
             'amount' => env('SOSCOM_FIELD_AMOUNT', 'amount'),
             'discount' => env('SOSCOM_FIELD_DISCOUNT', 'discount_amount'),
+            'ordered_at' => env('SOSCOM_FIELD_ORDERED_AT', 'order_at'),
         ],
     ],
 

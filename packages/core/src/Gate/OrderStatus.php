@@ -15,6 +15,8 @@ final class OrderStatus
         public readonly ?string $statusFulfillment,
         public readonly ?string $customerName = null,
         public readonly ?int $orderAmount = null,
+        /** Tanggal order (Y-m-d, WIB), untuk periode program. */
+        public readonly ?string $orderedAt = null,
     ) {
     }
 
