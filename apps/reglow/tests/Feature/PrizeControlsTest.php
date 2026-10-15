@@ -383,8 +383,10 @@ final class PrizeControlsTest extends TestCase
 
         $catalog = RewardCatalog::where('period', '2026-10')->firstOrFail();
         $this->assertNotNull($catalog->published_at);
-        $this->assertSame(6, $catalog->items()->where('active', true)->count());
-        foreach (LaunchCatalog::items(config('app.brand')) as $item) {
+        $preset = LaunchCatalog::items(config('app.brand'));
+        $this->assertSame(count(array_filter($preset, fn ($item) => $item['active'])), $catalog->items()->where('active', true)->count());
+        $this->assertSame(LaunchCatalog::MIN_REDEEM, \LoyaltyNew\Core\Points\LoyaltySettings::current()['min_redeem']);
+        foreach ($preset as $item) {
             $this->assertSame($item['active'], (bool) $catalog->items()->where('name', $item['name'])->value('active'), $item['name']);
         }
     }

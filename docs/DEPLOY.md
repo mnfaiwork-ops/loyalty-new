@@ -154,7 +154,8 @@ php artisan schedule:list                     # pastikan terjadwal
   php artisan loyalty:katalog-awal                  # bulan berjalan
   php artisan loyalty:katalog-awal --period=2026-11 # bulan tertentu
   ```
-  Isi per brand ada di `packages/core/src/Seeding/LaunchCatalog.php`. Dijalankan ulang aman: item dicocokkan per nama, item lain di bulan itu dinonaktifkan.
+  Isi per brand ada di `packages/core/src/Seeding/LaunchCatalog.php` (harga poin keputusan 2026-10-15: Gratis Ongkir maks Rp8.000 800, Pouch 1.000, Voucher 25rb 2.000, produk 2.500, Voucher 50rb 4.000). Perintah ini juga mengatur minimal tukar 800. Dijalankan ulang aman: item dicocokkan per nama, item lain di bulan itu dinonaktifkan.
+- Hadiah Gatcha voucher ongkir: isi di `/admin/game` sebagai "Voucher Gratis Ongkir maks Rp8.000" dengan nilai Rp8.000.
 - Panel Game Admin (`/admin/game`): jeda hadiah selain poin, peluang hadiah utama per papan (default 20%), stok bulanan tiap voucher/merch, kuota dan periode hadiah utama (kuota dibuka bertahap sepanjang periode). Voucher/merch tanpa item aktif atau stoknya habis jadi kado poin.
 - Kado poin = (nilai produk order setelah diskon ÷ Rp1.000) × `per_thousand` ÷ jumlah kesempatan (2), diambil acak `min_percent`%–100%. Dua kado poin bersama tidak melebihi nilai belanja. Default 1 poin per Rp1.000, 95%. Diatur di `/admin/catalog` bagian Aturan poin. Tanpa nominal (gate stub) memakai `per_gift`.
 - Papan `/play/{token}` hanya bisa dimainkan dari perangkat pemiliknya (cookie setelah PIN).

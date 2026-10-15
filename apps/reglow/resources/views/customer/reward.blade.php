@@ -4,7 +4,7 @@
 
 @section('content')
     <div class="page">
-        <a class="back" href="{{ route('rewards') }}"><span aria-hidden="true">‹</span> Hadiahku</a>
+        <a class="back" href="{{ route('rewards') }}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Hadiahku</a>
 
         @if (session('ok'))
             <div class="notice" role="status">{{ session('ok') }}</div>
