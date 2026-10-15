@@ -216,7 +216,7 @@ final class SessionService
             }
 
             if ($prize->tier === 'poin' && $prize->points === null) {
-                $prize->points = GiftPoints::roll($session->order_amount, $this->brand);
+                $prize->points = GiftPoints::roll($session->order_amount, $this->brand, (int) $session->chance_total);
             }
 
             $prize->opened = true;

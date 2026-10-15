@@ -92,7 +92,7 @@
             <button class="btn" type="submit">Simpan aturan</button>
         </form>
         <p class="muted" style="font-size:12px;margin:0;padding:0 16px 16px">
-            Kado poin dihitung dari nilai produk order setelah diskon, tanpa ongkir. Contoh: 1 poin per Rp1.000 dan 95%, order produk Rp150.000 memberi kado poin 143 sampai 150.
+            Kado poin dihitung dari nilai produk order setelah diskon, tanpa ongkir, lalu dibagi rata ke 2 kesempatan. Contoh: 1 poin per Rp1.000 dan 95%, order produk Rp150.000 memberi kado poin 72 sampai 75 per kesempatan, paling banyak 150 kalau dua-duanya poin.
         </p>
     </div>
 @endsection

@@ -156,7 +156,7 @@ php artisan schedule:list                     # pastikan terjadwal
   ```
   Isi per brand ada di `packages/core/src/Seeding/LaunchCatalog.php`. Dijalankan ulang aman: item dicocokkan per nama, item lain di bulan itu dinonaktifkan.
 - Panel Game Admin (`/admin/game`): jeda hadiah selain poin, peluang hadiah utama per papan (default 20%), stok bulanan tiap voucher/merch, kuota dan periode hadiah utama (kuota dibuka bertahap sepanjang periode). Voucher/merch tanpa item aktif atau stoknya habis jadi kado poin.
-- Kado poin = (nilai produk order setelah diskon ÷ Rp1.000) × `per_thousand`, diambil acak `min_percent`%–100%. Default 1 poin per Rp1.000, 95%. Diatur di `/admin/catalog` bagian Aturan poin. Tanpa nominal (gate stub) memakai `per_gift`.
+- Kado poin = (nilai produk order setelah diskon ÷ Rp1.000) × `per_thousand` ÷ jumlah kesempatan (2), diambil acak `min_percent`%–100%. Dua kado poin bersama tidak melebihi nilai belanja. Default 1 poin per Rp1.000, 95%. Diatur di `/admin/catalog` bagian Aturan poin. Tanpa nominal (gate stub) memakai `per_gift`.
 - Papan `/play/{token}` hanya bisa dimainkan dari perangkat pemiliknya (cookie setelah PIN).
 - Batas per IP: `POST /login` 10/menit, `POST /play/start` 30/menit.
 - Produksi wajib: `APP_ENV=production`, `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true` (HTTPS), `ADMIN_PASSWORD` sendiri. `AdminUserSeeder` menolak jalan di produksi tanpa `ADMIN_PASSWORD`.

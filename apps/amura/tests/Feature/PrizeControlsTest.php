@@ -218,16 +218,17 @@ final class PrizeControlsTest extends TestCase
 
     // --- Kado poin ikut nominal order ---
 
-    public function test_kado_poin_ikut_nominal_order(): void
+    public function test_kado_poin_ikut_nominal_order_dibagi_dua_kesempatan(): void
     {
         $session = $this->start();
         $session->update(['order_amount' => 150000]);
         $this->forceTiers($session, [1, 2, 3], 'poin');
 
+        // 150 poin penuh dibagi 2 kesempatan = 75, diambil 95-100%: 72 sampai 75.
         $revealed = $this->openRound($session);
         foreach ($revealed as $prize) {
-            $this->assertGreaterThanOrEqual(143, $prize['points']);
-            $this->assertLessThanOrEqual(150, $prize['points']);
+            $this->assertGreaterThanOrEqual(72, $prize['points']);
+            $this->assertLessThanOrEqual(75, $prize['points']);
         }
 
         $take = $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 2])->assertOk();
@@ -235,6 +236,23 @@ final class PrizeControlsTest extends TestCase
 
         $this->assertSame($shown, $take->json('points'));
         $this->assertSame($shown, (int) PointLot::sum('points'));
+    }
+
+    public function test_dua_kado_poin_tidak_melebihi_nilai_belanja(): void
+    {
+        $session = $this->start();
+        $session->update(['order_amount' => 150000]);
+
+        for ($round = 1; $round <= 2; $round++) {
+            $session->boardPrizes()->update(['tier' => 'poin', 'prize_catalog_id' => null]);
+            $this->openRound($session);
+            $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
+            $session->refresh();
+        }
+
+        $total = (int) PointLot::sum('points');
+        $this->assertGreaterThanOrEqual(144, $total);
+        $this->assertLessThanOrEqual(150, $total);
     }
 
     public function test_tanpa_nominal_order_kado_poin_memakai_poin_per_kado(): void

@@ -4,13 +4,14 @@ namespace LoyaltyNew\Core\Points;
 
 /**
  * Nilai satu kado poin. Dasarnya nominal produk order setelah diskon:
- * per Rp1.000 dapat `per_thousand` poin, lalu diambil acak antara
- * `min_percent`% sampai 100% dari angka itu, supaya tidak sama persis
- * tapi juga tidak terlalu acak (feedback testing 2026-10-15).
+ * per Rp1.000 dapat `per_thousand` poin, dibagi rata ke jumlah kesempatan
+ * (2 kesempatan = 50% per kesempatan), lalu diambil acak antara
+ * `min_percent`% sampai 100% dari bagian itu. Jadi dua kado poin bersama
+ * tidak pernah melebihi nilai belanja (feedback testing 2026-10-15).
  */
 final class GiftPoints
 {
-    public static function roll(?int $orderAmount, ?string $brand = null): int
+    public static function roll(?int $orderAmount, ?string $brand = null, int $chances = 1): int
     {
         $settings = LoyaltySettings::current($brand);
         $full = self::full($orderAmount, $settings);
@@ -19,9 +20,10 @@ final class GiftPoints
             return $settings['per_gift'];
         }
 
-        $min = max(1, (int) ceil($full * $settings['min_percent'] / 100));
+        $share = max(1, intdiv($full, max(1, $chances)));
+        $min = max(1, (int) ceil($share * $settings['min_percent'] / 100));
 
-        return random_int(min($min, $full), $full);
+        return random_int(min($min, $share), $share);
     }
 
     /** Poin 100% untuk nominal ini, atau null kalau nominal tidak ada / terlalu kecil. */
