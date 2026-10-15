@@ -84,10 +84,15 @@
     <div class="card">
         <form method="post" action="{{ route('admin.catalog.settings') }}" class="grid-settings">
             @csrf
-            <label>Poin per kado poin <input type="number" name="per_gift" min="1" value="{{ $settings['per_gift'] }}" required></label>
+            <label>Poin per Rp1.000 belanja <input type="number" name="per_thousand" min="1" max="1000" value="{{ $settings['per_thousand'] }}" required></label>
+            <label>Kado poin paling sedikit (% dari penuh) <input type="number" name="min_percent" min="1" max="100" value="{{ $settings['min_percent'] }}" required></label>
+            <label>Poin per kado kalau nominal order tidak ada <input type="number" name="per_gift" min="1" value="{{ $settings['per_gift'] }}" required></label>
             <label>Minimal tukar <input type="number" name="min_redeem" min="1" value="{{ $settings['min_redeem'] }}" required></label>
             <label>Masa berlaku (bulan) <input type="number" name="validity_months" min="1" max="60" value="{{ $settings['validity_months'] }}" required></label>
             <button class="btn" type="submit">Simpan aturan</button>
         </form>
+        <p class="muted" style="font-size:12px;margin:0;padding:0 16px 16px">
+            Kado poin dihitung dari nilai produk order setelah diskon, tanpa ongkir. Contoh: 1 poin per Rp1.000 dan 95%, order produk Rp150.000 memberi kado poin 143 sampai 150.
+        </p>
     </div>
 @endsection

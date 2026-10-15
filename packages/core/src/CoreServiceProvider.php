@@ -5,6 +5,7 @@ namespace LoyaltyNew\Core;
 use Illuminate\Support\ServiceProvider;
 use LoyaltyNew\Core\Console\ExpireClaimsCommand;
 use LoyaltyNew\Core\Console\ExpirePointsCommand;
+use LoyaltyNew\Core\Console\LaunchCatalogCommand;
 use LoyaltyNew\Core\Console\SmokeSeedCommand;
 use LoyaltyNew\Core\Gate\CachedOrderStatusSource;
 use LoyaltyNew\Core\Gate\FairtrackSqliteOrderStatusSource;
@@ -70,7 +71,7 @@ final class CoreServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([SmokeSeedCommand::class, ExpireClaimsCommand::class, ExpirePointsCommand::class]);
+            $this->commands([SmokeSeedCommand::class, ExpireClaimsCommand::class, ExpirePointsCommand::class, LaunchCatalogCommand::class]);
 
             $this->publishes([
                 __DIR__.'/../config/markom.php' => config_path('markom.php'),

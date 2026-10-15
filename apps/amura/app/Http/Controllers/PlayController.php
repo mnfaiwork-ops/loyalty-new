@@ -24,6 +24,8 @@ use LoyaltyNew\Core\Prizes\PrizeAwarder;
 
 final class PlayController extends Controller
 {
+    private const NOT_OWNER = 'Papan ini hanya bisa dibuka dari HP pemiliknya. Masuk dengan nomor resi dan nomor HP.';
+
     public function __construct(private SessionService $sessions)
     {
     }
@@ -108,9 +110,14 @@ final class PlayController extends Controller
         return redirect()->route($isNew ? 'pin.create' : 'pin.show');
     }
 
-    public function board(string $token)
+    public function board(Request $request, string $token)
     {
         $session = $this->session($token);
+
+        if (! $this->owns($request, $session)) {
+            return redirect()->route('play.form')
+                ->withErrors(['awb' => self::NOT_OWNER]);
+        }
 
         if (SessionService::isExpired($session)) {
             return redirect()->route('play.form')
@@ -144,8 +151,12 @@ final class PlayController extends Controller
         ]);
 
         // Dikunci per sesi supaya dua pick bersamaan tidak sama-sama lolos cek ronde.
-        return DB::transaction(function () use ($token, $data) {
+        return DB::transaction(function () use ($request, $token, $data) {
             $session = $this->lockedSession($token);
+
+            if (! $this->owns($request, $session)) {
+                return $this->notOwnerResponse();
+            }
 
             if ($error = $this->playableError($session)) {
                 return $error;
@@ -176,10 +187,14 @@ final class PlayController extends Controller
         });
     }
 
-    public function reveal(string $token): JsonResponse
+    public function reveal(Request $request, string $token): JsonResponse
     {
-        return DB::transaction(function () use ($token) {
+        return DB::transaction(function () use ($request, $token) {
             $session = $this->lockedSession($token);
+
+            if (! $this->owns($request, $session)) {
+                return $this->notOwnerResponse();
+            }
 
             if (SessionService::isExpired($session)) {
                 return $this->expiredResponse();
@@ -217,8 +232,12 @@ final class PlayController extends Controller
             'slot' => ['required', 'integer'],
         ]);
 
-        return DB::transaction(function () use ($token, $data) {
+        return DB::transaction(function () use ($request, $token, $data) {
             $session = $this->lockedSession($token);
+
+            if (! $this->owns($request, $session)) {
+                return $this->notOwnerResponse();
+            }
 
             if (SessionService::isExpired($session)) {
                 return $this->expiredResponse();
@@ -294,7 +313,7 @@ final class PlayController extends Controller
             'tier' => $prize->tier,
             'label' => $this->tierLabel($prize->tier),
             'name' => $prize->tier === 'poin' ? null : ClaimService::prizeName($prize),
-            'points' => $prize->tier === 'poin' ? $perGift : null,
+            'points' => $prize->tier === 'poin' ? ($prize->points ?? $perGift) : null,
         ])->values()->all();
     }
 
@@ -325,6 +344,20 @@ final class PlayController extends Controller
             'merch' => 'Merch',
             default => 'Poin',
         };
+    }
+
+    /**
+     * Papan hanya bisa dimainkan dari perangkat pemiliknya yang sudah lolos PIN,
+     * jadi link papan yang dibagikan ke orang lain tidak bisa dipakai.
+     */
+    private function owns(Request $request, GameSession $session): bool
+    {
+        return RememberedCustomer::resolve($request)?->id === (int) $session->customer_id;
+    }
+
+    private function notOwnerResponse(): JsonResponse
+    {
+        return response()->json(['error' => self::NOT_OWNER], 403);
     }
 
     private function session(string $token): GameSession

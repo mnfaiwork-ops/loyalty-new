@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Log;
 final class SoscomOrderStatusSource implements OrderStatusSource
 {
     /**
-     * @param  array{status_order?: string, status_fulfillment?: string, phone?: string, customer_name?: string}  $fields
+     * @param  array{status_order?: string, status_fulfillment?: string, phone?: string, customer_name?: string, amount?: string, discount?: string}  $fields
      *         path dot-notation di dalam `data`
      */
     public function __construct(
@@ -83,7 +83,22 @@ final class SoscomOrderStatusSource implements OrderStatusSource
             statusOrder: $this->string($data, $this->fields['status_order'] ?? 'status'),
             statusFulfillment: $this->string($data, $this->fields['status_fulfillment'] ?? 'orders.status'),
             customerName: $this->string($data, $this->fields['customer_name'] ?? 'customer.name'),
+            orderAmount: $this->amount($data),
         );
+    }
+
+    /** Nilai produk setelah diskon (`amount - discount_amount`), tanpa ongkir dan biaya COD. */
+    private function amount(array $data): ?int
+    {
+        $amount = data_get($data, $this->fields['amount'] ?? 'amount');
+        if (! is_numeric($amount)) {
+            return null;
+        }
+
+        $discount = data_get($data, $this->fields['discount'] ?? 'discount_amount');
+        $net = (int) round((float) $amount - (is_numeric($discount) ? (float) $discount : 0));
+
+        return $net > 0 ? $net : null;
     }
 
     private function string(array $data, string $path): ?string

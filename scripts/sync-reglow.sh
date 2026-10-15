@@ -25,7 +25,7 @@ swap() {
         -e 's/AMURA/__B3__/g; s/REGLOW/AMURA/g; s/__B3__/REGLOW/g' "$1" > "$2"
 }
 
-for t in "$A"/tests/Feature/*.php "$A"/tests/Unit/*.php; do
+for t in "$A"/tests/TestCase.php "$A"/tests/Feature/*.php "$A"/tests/Unit/*.php; do
     swap "$t" "$R/${t#"$A/"}"
 done
 

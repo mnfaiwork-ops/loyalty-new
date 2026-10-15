@@ -8,12 +8,13 @@ final class GateResult
         public readonly bool $delivered,
         public readonly ?string $reason = null,
         public readonly ?string $customerName = null,
+        public readonly ?int $orderAmount = null,
     ) {
     }
 
-    public static function delivered(?string $customerName = null): self
+    public static function delivered(?string $customerName = null, ?int $orderAmount = null): self
     {
-        return new self(true, null, $customerName);
+        return new self(true, null, $customerName, $orderAmount);
     }
 
     public static function rejected(string $reason): self

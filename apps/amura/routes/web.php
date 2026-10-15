@@ -37,13 +37,14 @@ Route::post('/pin/buat', [PinController::class, 'store']);
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
-    Route::post('/login', [LoginController::class, 'store']);
+    Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:10,1');
 });
 
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
 
 Route::get('/play', [PlayController::class, 'form'])->name('play.form');
-Route::post('/play/start', [PlayController::class, 'start'])->name('play.start');
+// Batas per IP di atas kunci per resi+HP, supaya bot tidak membanjiri API Soscom.
+Route::post('/play/start', [PlayController::class, 'start'])->middleware('throttle:30,1')->name('play.start');
 Route::get('/play/{token}', [PlayController::class, 'board'])->name('play.board');
 Route::post('/play/{token}/pick', [PlayController::class, 'pick'])->name('play.pick');
 Route::post('/play/{token}/reveal', [PlayController::class, 'reveal'])->name('play.reveal');
@@ -65,6 +66,8 @@ Route::middleware(['auth', 'role:game_admin,super_admin'])->prefix('admin')->gro
     Route::get('/game', [GameAdminController::class, 'index'])->name('admin.game');
     Route::post('/game/catalog', [GameAdminController::class, 'storeCatalog'])->name('admin.game.catalog');
     Route::post('/game/tiers', [GameAdminController::class, 'updateTiers'])->name('admin.game.tiers');
+    Route::post('/game/controls', [GameAdminController::class, 'updateControls'])->name('admin.game.controls');
+    Route::post('/game/catalog/{id}', [GameAdminController::class, 'updateCatalog'])->whereNumber('id')->name('admin.game.catalog.update');
     Route::get('/catalog', [RewardCatalogController::class, 'index'])->name('admin.catalog');
     Route::post('/catalog/items', [RewardCatalogController::class, 'storeItem'])->name('admin.catalog.items');
     Route::post('/catalog/items/{item}', [RewardCatalogController::class, 'updateItem'])->name('admin.catalog.items.update');

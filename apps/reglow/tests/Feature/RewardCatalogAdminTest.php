@@ -58,10 +58,12 @@ final class RewardCatalogAdminTest extends TestCase
     public function test_simpan_pengaturan_poin(): void
     {
         $this->actingAs($this->admin())->post('/admin/catalog/settings', [
-            'per_gift' => 250, 'min_redeem' => 600, 'validity_months' => 6,
+            'per_gift' => 250, 'min_redeem' => 600, 'validity_months' => 6, 'per_thousand' => 2, 'min_percent' => 90,
         ])->assertRedirect();
 
-        $this->assertSame(['per_gift' => 250, 'min_redeem' => 600, 'validity_months' => 6], LoyaltySettings::current());
+        $this->assertSame([
+            'per_gift' => 250, 'min_redeem' => 600, 'validity_months' => 6, 'per_thousand' => 2, 'min_percent' => 90,
+        ], LoyaltySettings::current());
     }
 
     public function test_validasi_harga_poin(): void

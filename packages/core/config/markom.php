@@ -44,6 +44,8 @@ return [
             'status_fulfillment' => env('SOSCOM_FIELD_STATUS_FULFILLMENT', 'orders.status'),
             'phone' => env('SOSCOM_FIELD_PHONE', 'customer_shipping.phone'),
             'customer_name' => env('SOSCOM_FIELD_CUSTOMER_NAME', 'customer.name'),
+            'amount' => env('SOSCOM_FIELD_AMOUNT', 'amount'),
+            'discount' => env('SOSCOM_FIELD_DISCOUNT', 'discount_amount'),
         ],
     ],
 

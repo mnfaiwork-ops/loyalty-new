@@ -45,10 +45,10 @@ final class PlayFlowTest extends TestCase
     {
         $session = $this->start();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])
             ->assertOk();
 
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 1])
             ->assertOk();
 
         $this->assertTrue((bool) $session->prizes()->where('slot', 1)->value('taken'));
@@ -59,7 +59,7 @@ final class PlayFlowTest extends TestCase
         $session = $this->start();
         $session->update(['chance_used' => 2]);
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [4, 5, 6]])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [4, 5, 6]])
             ->assertStatus(422);
     }
 
@@ -67,10 +67,10 @@ final class PlayFlowTest extends TestCase
     {
         $session = $this->start();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])
             ->assertOk();
 
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 5])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 5])
             ->assertStatus(422);
     }
 
@@ -78,7 +78,7 @@ final class PlayFlowTest extends TestCase
     {
         $session = $this->start();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3, 4]])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3, 4]])
             ->assertStatus(422);
     }
 
@@ -86,11 +86,11 @@ final class PlayFlowTest extends TestCase
     {
         $session = $this->start();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
 
         $before = $session->fresh()->chance_used;
 
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 5])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 5])
             ->assertStatus(422);
 
         $this->assertSame($before, $session->fresh()->chance_used);
@@ -100,15 +100,15 @@ final class PlayFlowTest extends TestCase
     {
         $session = $this->start();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
 
         $round2 = $session->prizes()->where('round', 2);
         $this->assertSame(24, (clone $round2)->count());
         $this->assertSame(0, (clone $round2)->where(fn ($q) => $q->where('opened', true)->orWhere('picked', true))->count());
 
         // Slot yang sama boleh dipilih lagi karena isinya baru.
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
         $this->assertSame(3, (clone $round2)->where('picked', true)->count());
     }
 
@@ -116,9 +116,9 @@ final class PlayFlowTest extends TestCase
     {
         $session = $this->start();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [4, 5, 6]])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [4, 5, 6]])
             ->assertStatus(422);
     }
 
@@ -128,6 +128,7 @@ final class PlayFlowTest extends TestCase
             'brand' => config('app.brand'), 'name' => 'Emas 1 gram', 'tier' => 'hadiah_besar',
             'is_capped' => true, 'quota_total' => 5, 'active' => true,
         ]);
+        $this->alwaysPlaceBigPrize();
         \Illuminate\Support\Facades\DB::table('quota_caps')->insert([
             'brand' => config('app.brand'), 'prize_name' => 'Emas 1 gram', 'cap_units' => 5, 'used_units' => 0,
             'program_start' => now()->subDay()->toDateString(), 'program_end' => now()->addMonth()->toDateString(),
@@ -137,8 +138,8 @@ final class PlayFlowTest extends TestCase
         $this->forceTiers($session, [1], 'hadiah_besar');
         $session->prizes()->where('slot', 1)->update(['prize_catalog_id' => $catalog->id]);
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
-        $this->postJson("/play/{$session->session_token}/reveal")->assertOk()->assertJson(['auto_taken' => true]);
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk()->assertJson(['auto_taken' => true]);
 
         $this->assertSame(0, $session->prizes()->where('round', 2)->where('tier', 'hadiah_besar')->count());
     }
@@ -147,9 +148,9 @@ final class PlayFlowTest extends TestCase
     {
         $session = $this->start();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
 
-        $this->postJson("/play/{$session->session_token}/reveal")
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")
             ->assertOk()
             ->assertJsonCount(3, 'revealed');
 
@@ -160,10 +161,10 @@ final class PlayFlowTest extends TestCase
     {
         $session = $this->start();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
-        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk();
 
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 2])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 2])
             ->assertOk()
             ->assertJsonPath('chosen', 2);
 
@@ -172,16 +173,25 @@ final class PlayFlowTest extends TestCase
         $this->assertSame(3, $session->prizes()->where('opened', true)->count());
     }
 
+    /** Kado voucher butuh item aktif di katalog Gatcha; tanpa item, kotaknya jadi poin. */
+    private function voucherItem(): PrizeCatalog
+    {
+        return PrizeCatalog::create([
+            'brand' => config('app.brand'), 'name' => 'Voucher Gratis Ongkir', 'tier' => 'voucher', 'active' => true,
+        ]);
+    }
+
     public function test_take_membuat_klaim(): void
     {
         $session = $this->start();
+        $this->voucherItem();
         $this->forceTiers($session, [1, 2, 3], 'voucher');
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
-        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk();
 
         $chosenSlot = 2;
-        $response = $this->postJson("/play/{$session->session_token}/take", ['slot' => $chosenSlot])
+        $response = $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => $chosenSlot])
             ->assertOk()
             ->assertJsonStructure(['claim_code', 'claim_expires_at']);
 
@@ -203,17 +213,18 @@ final class PlayFlowTest extends TestCase
     public function test_take_dua_kali_tidak_membuat_dua_klaim(): void
     {
         $session = $this->start();
+        $this->voucherItem();
         $this->forceTiers($session, [1, 2, 3], 'voucher');
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
-        $first = $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $first = $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
 
         $prize = $session->prizes()->where('slot', 1)->firstOrFail();
 
         // Simulasi re-take prize yang sama: kembalikan ke state ronde, lalu take lagi.
         $prize->update(['taken' => false, 'picked' => true]);
         $session->fresh()->update(['chance_used' => 0]);
-        $second = $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
+        $second = $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
 
         $this->assertSame(1, Claim::where('game_prize_id', $prize->id)->count());
         $this->assertSame($first->json('claim_code'), $second->json('claim_code'));
@@ -223,15 +234,15 @@ final class PlayFlowTest extends TestCase
     {
         $session = $this->start();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [4, 5, 6]])->assertOk();
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 4])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [4, 5, 6]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 4])->assertOk();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [7, 8, 9]])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [7, 8, 9]])
             ->assertStatus(422);
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 7])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 7])
             ->assertStatus(422);
     }
 
@@ -239,7 +250,7 @@ final class PlayFlowTest extends TestCase
     {
         $session = $this->start();
 
-        $this->get("/play/{$session->session_token}")
+        $this->playAs($session)->get("/play/{$session->session_token}")
             ->assertOk()
             ->assertDontSee('hadiah_besar')
             ->assertDontSee('voucher')
@@ -257,8 +268,8 @@ final class PlayFlowTest extends TestCase
         $session = $this->start();
         $this->forceTiers($session, [1, 2, 3], 'poin');
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 2])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 2])
             ->assertOk()
             ->assertJsonPath('points', 200)
             ->assertJsonPath('balance', 200)
@@ -275,12 +286,12 @@ final class PlayFlowTest extends TestCase
         $session = $this->start();
         $this->forceTiers($session, [1, 2, 3], 'voucher');
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
-        $response = $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $response = $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk();
 
         $this->assertSame(['Voucher Gratis Ongkir'], array_values(array_unique(array_column($response->json('revealed'), 'name'))));
 
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 1])
             ->assertOk()
             ->assertJsonPath('prize_name', 'Voucher Gratis Ongkir');
         $this->assertSame('Voucher Gratis Ongkir', Claim::firstOrFail()->prize_name);
@@ -291,8 +302,8 @@ final class PlayFlowTest extends TestCase
         $session = $this->start();
         $this->forceTiers($session, [1, 2, 3], 'poin');
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
-        $this->postJson("/play/{$session->session_token}/reveal")
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")
             ->assertOk()
             ->assertJsonPath('revealed.0.points', 200);
     }

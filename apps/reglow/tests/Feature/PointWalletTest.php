@@ -71,10 +71,15 @@ final class PointWalletTest extends TestCase
 
     public function test_pengaturan_default_200_500_12(): void
     {
-        $this->assertSame(['per_gift' => 200, 'min_redeem' => 500, 'validity_months' => 12], LoyaltySettings::current());
+        $this->assertSame([
+            'per_gift' => 200, 'min_redeem' => 500, 'validity_months' => 12, 'per_thousand' => 1, 'min_percent' => 95,
+        ], LoyaltySettings::current());
 
+        // Pengaturan yang disimpan sebelum ada per_thousand/min_percent tetap memakai default untuk dua kunci itu.
         LoyaltySettings::store(['per_gift' => 250, 'min_redeem' => 600, 'validity_months' => 6]);
-        $this->assertSame(['per_gift' => 250, 'min_redeem' => 600, 'validity_months' => 6], LoyaltySettings::current());
+        $this->assertSame([
+            'per_gift' => 250, 'min_redeem' => 600, 'validity_months' => 6, 'per_thousand' => 1, 'min_percent' => 95,
+        ], LoyaltySettings::current());
         $this->assertSame(LoyaltySettings::DEFAULTS, LoyaltySettings::current('brand-lain'));
     }
 

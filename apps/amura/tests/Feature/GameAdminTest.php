@@ -86,7 +86,7 @@ final class GameAdminTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/game')
             ->assertOk()
-            ->assertSee('Sisa 1 dari 1');
+            ->assertSee('0 dari 1 unit');
     }
 
     public function test_catalog_brand_scoped(): void

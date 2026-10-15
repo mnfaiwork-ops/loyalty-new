@@ -55,6 +55,7 @@ final class BugfixRegressionTest extends TestCase
             'is_capped' => true,
             'active' => true,
         ]);
+        $this->alwaysPlaceBigPrize();
         DB::table('quota_caps')->insert([
             'brand' => $this->brand(),
             'prize_name' => 'Emas 1 gram',
@@ -99,7 +100,7 @@ final class BugfixRegressionTest extends TestCase
         $big = $session->prizes()->where('tier', 'hadiah_besar')->value('slot');
         $others = $session->prizes()->where('slot', '!=', $big)->orderBy('slot')->limit(2)->pluck('slot')->all();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [$big, ...$others]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [$big, ...$others]])->assertOk();
 
         return [$big, $others];
     }
@@ -110,7 +111,7 @@ final class BugfixRegressionTest extends TestCase
         $session = $this->start();
         [$big, $others] = $this->pickBigPrizeRound($session);
 
-        $this->postJson("/play/{$session->session_token}/reveal")
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")
             ->assertOk()
             ->assertJson(['auto_taken' => true, 'chosen' => $big, 'chance_left' => 1, 'chance_total' => 2]);
 
@@ -120,7 +121,7 @@ final class BugfixRegressionTest extends TestCase
         $this->assertTrue((bool) $session->prizes()->where('slot', $big)->value('taken'));
         // Dua kado lain otomatis tidak terpilih: ronde selesai, tidak bisa diambil lagi.
         $this->assertSame(0, $session->prizes()->whereIn('slot', $others)->where('picked', true)->count());
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => $others[0]])->assertStatus(422);
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => $others[0]])->assertStatus(422);
         $this->assertSame(1, Claim::count());
     }
 
@@ -130,7 +131,7 @@ final class BugfixRegressionTest extends TestCase
         $session = $this->start();
         [$big, $others] = $this->pickBigPrizeRound($session);
 
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => $others[0]])
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => $others[0]])
             ->assertOk()
             ->assertJson(['chosen' => $big]);
 
@@ -144,8 +145,8 @@ final class BugfixRegressionTest extends TestCase
         $session = $this->start();
         $this->pickBigPrizeRound($session);
 
-        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
-        $this->postJson("/play/{$session->session_token}/reveal")->assertStatus(422);
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertStatus(422);
 
         $this->assertSame(1, $this->usedUnits());
         $this->assertSame(1, Claim::count());
@@ -156,7 +157,7 @@ final class BugfixRegressionTest extends TestCase
         $this->bigPrizeCatalog(cap: 1);
         $session = $this->start();
         $this->pickBigPrizeRound($session);
-        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk();
         $this->assertSame(1, $this->usedUnits());
 
         // Kuota habis: sesi baru tidak mendapat hadiah utama.
@@ -179,7 +180,7 @@ final class BugfixRegressionTest extends TestCase
         $this->bigPrizeCatalog(cap: 1);
         $session = $this->start();
         $this->pickBigPrizeRound($session);
-        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk();
         $claim = Claim::firstOrFail();
 
         \LoyaltyNew\Core\Prizes\ClaimFlow::expire($claim);
@@ -213,9 +214,9 @@ final class BugfixRegressionTest extends TestCase
         $token = $session->session_token;
 
         $this->get("/play/{$token}")->assertRedirect(route('play.form'));
-        $this->postJson("/play/{$token}/pick", ['slots' => [1, 2, 3]])->assertStatus(422);
-        $this->postJson("/play/{$token}/reveal")->assertStatus(422);
-        $this->postJson("/play/{$token}/take", ['slot' => 1])->assertStatus(422);
+        $this->playAs($session)->postJson("/play/{$token}/pick", ['slots' => [1, 2, 3]])->assertStatus(422);
+        $this->playAs($session)->postJson("/play/{$token}/reveal")->assertStatus(422);
+        $this->playAs($session)->postJson("/play/{$token}/take", ['slot' => 1])->assertStatus(422);
 
         $this->assertSame(0, Claim::count());
         $this->assertSame(0, $session->fresh()->chance_used);
@@ -224,10 +225,10 @@ final class BugfixRegressionTest extends TestCase
     public function test_3_ronde_tertunda_di_sesi_kedaluwarsa_tidak_bisa_diambil(): void
     {
         $session = $this->start();
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
         $session->update(['expires_at' => now()->subDay()]);
 
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertStatus(422);
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertStatus(422);
         $this->assertSame(0, Claim::count());
     }
 
@@ -318,27 +319,27 @@ final class BugfixRegressionTest extends TestCase
     public function test_5_refresh_setelah_reveal_menampilkan_lagi_pilihan_hadiah(): void
     {
         $session = $this->start();
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
-        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [1, 2, 3]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk();
 
-        $response = $this->get("/play/{$session->session_token}")->assertOk();
+        $response = $this->playAs($session)->get("/play/{$session->session_token}")->assertOk();
         $this->assertSame([1, 2, 3], $response->viewData('pendingSlots'));
         $this->assertSame([1, 2, 3], array_column($response->viewData('pendingRevealed'), 'slot'));
 
-        $this->postJson("/play/{$session->session_token}/take", ['slot' => 2])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 2])->assertOk();
     }
 
     public function test_5_refresh_setelah_pick_sebelum_reveal_bisa_lanjut_buka(): void
     {
         $session = $this->start();
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [4, 5, 6]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [4, 5, 6]])->assertOk();
 
-        $response = $this->get("/play/{$session->session_token}")->assertOk();
+        $response = $this->playAs($session)->get("/play/{$session->session_token}")->assertOk();
         $this->assertSame([4, 5, 6], $response->viewData('pendingSlots'));
         // Belum dibuka: isi kado tidak boleh ikut terkirim ke browser.
         $this->assertSame([], $response->viewData('pendingRevealed'));
 
-        $this->postJson("/play/{$session->session_token}/reveal")->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk();
     }
 
     // ── Bug 6: lockout mengunci lagi setelah 1x salah ───────────────────────
@@ -400,7 +401,7 @@ final class BugfixRegressionTest extends TestCase
         $this->assertSame(0, $picked);
 
         $free = $session->prizes()->where('opened', false)->orderBy('slot')->limit(3)->pluck('slot')->all();
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => $free])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => $free])->assertOk();
 
         $used = (int) DB::table('quota_caps')
             ->where('brand', $this->brand())

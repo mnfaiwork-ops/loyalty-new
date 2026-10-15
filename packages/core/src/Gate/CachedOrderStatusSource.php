@@ -37,6 +37,7 @@ final class CachedOrderStatusSource implements OrderStatusSource
                 statusOrder: $cached['status_order'] ?? null,
                 statusFulfillment: $cached['status_fulfillment'] ?? null,
                 customerName: $cached['customer_name'] ?? null,
+                orderAmount: $cached['order_amount'] ?? null,
             );
         }
 
@@ -49,6 +50,7 @@ final class CachedOrderStatusSource implements OrderStatusSource
                 'status_order' => $status->statusOrder,
                 'status_fulfillment' => $status->statusFulfillment,
                 'customer_name' => $status->customerName,
+                'order_amount' => $status->orderAmount,
             ], $this->ttlSeconds);
         }
 

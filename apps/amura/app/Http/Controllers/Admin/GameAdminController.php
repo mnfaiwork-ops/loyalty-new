@@ -7,7 +7,9 @@ use App\Http\Requests\UpdateTierConfigRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Models\PrizeCatalog;
-use LoyaltyNew\Core\Prizes\QuotaGuard;
+use LoyaltyNew\Core\Prizes\BigPrizeQuota;
+use LoyaltyNew\Core\Prizes\GameControls;
+use LoyaltyNew\Core\Prizes\PrizeStock;
 use LoyaltyNew\Core\Prizes\TierConfig;
 
 final class GameAdminController extends Controller
@@ -17,26 +19,29 @@ final class GameAdminController extends Controller
         $brand = config('app.brand');
 
         $catalog = PrizeCatalog::where('brand', $brand)
-            ->latest()
-            ->paginate(20);
+            ->orderByRaw("case tier when 'hadiah_besar' then 0 when 'merch' then 1 when 'voucher' then 2 else 3 end")
+            ->orderBy('name')
+            ->get();
 
         $caps = DB::table('quota_caps')
             ->where('brand', $brand)
             ->get()
             ->keyBy('prize_name');
 
-        $remaining = $catalog->getCollection()->mapWithKeys(function (PrizeCatalog $prize) use ($caps) {
+        // Pemakaian per hadiah: stok bulan ini untuk voucher/merch, kuota periode untuk hadiah utama.
+        $usage = $catalog->mapWithKeys(function (PrizeCatalog $prize) use ($caps) {
             $cap = $caps->get($prize->name);
 
             return [$prize->id => $cap
-                ? QuotaGuard::remaining((int) $cap->cap_units, (int) $cap->used_units)
-                : null];
+                ? ['cap' => $cap, 'unlocked' => BigPrizeQuota::unlocked($cap)]
+                : ['used' => PrizeStock::usedThisMonth((int) $prize->id)]];
         });
 
         return view('admin.game', [
             'catalog' => $catalog,
+            'usage' => $usage,
             'tiers' => TierConfig::current(),
-            'remaining' => $remaining,
+            'controls' => GameControls::current($brand),
         ]);
     }
 
@@ -48,6 +53,7 @@ final class GameAdminController extends Controller
             'point_value' => ['nullable', 'integer', 'min:0'],
             'face_value' => ['nullable', 'integer', 'min:0'],
             'quota_total' => ['nullable', 'integer', 'min:0'],
+            'monthly_stock' => ['nullable', 'integer', 'min:0'],
             'is_capped' => ['boolean'],
             'cap_units' => ['nullable', 'required_if:is_capped,1', 'required_if:tier,hadiah_besar', 'integer', 'min:1'],
             'program_start' => ['nullable', 'date'],
@@ -69,6 +75,7 @@ final class GameAdminController extends Controller
             'point_value' => $data['point_value'] ?? null,
             'face_value' => $data['face_value'] ?? null,
             'quota_total' => $data['quota_total'] ?? null,
+            'monthly_stock' => $isCapped ? null : ($data['monthly_stock'] ?? null),
             'is_capped' => $isCapped,
             'active' => true,
         ]);
@@ -87,6 +94,64 @@ final class GameAdminController extends Controller
         }
 
         return back()->with('ok', 'Hadiah ditambahkan');
+    }
+
+    /**
+     * Ubah hadiah yang sudah ada. Nama tidak bisa diganti karena kuota hadiah
+     * utama terikat ke nama itu (quota_caps.prize_name) dan klaim lama menyimpannya.
+     */
+    public function updateCatalog(Request $request, int $id)
+    {
+        $prize = PrizeCatalog::where('brand', config('app.brand'))->findOrFail($id);
+        $cap = $prize->is_capped ? BigPrizeQuota::cap((string) $prize->brand, $prize->name) : null;
+
+        $data = $request->validate([
+            'active' => ['boolean'],
+            'face_value' => ['nullable', 'integer', 'min:0'],
+            'monthly_stock' => ['nullable', 'integer', 'min:0'],
+            'cap_units' => [$cap ? 'required' : 'nullable', 'integer', 'min:'.($cap ? max(1, (int) $cap->used_units) : 1)],
+            'program_start' => [$cap ? 'required' : 'nullable', 'date'],
+            'program_end' => [$cap ? 'required' : 'nullable', 'date', 'after_or_equal:program_start'],
+        ], [
+            'cap_units.min' => 'Kuota tidak boleh di bawah unit yang sudah keluar.',
+            'program_end.after_or_equal' => 'Tanggal selesai harus sama atau setelah tanggal mulai.',
+        ]);
+
+        $prize->update([
+            'active' => (bool) ($data['active'] ?? false),
+            'face_value' => $data['face_value'] ?? null,
+            'monthly_stock' => $prize->is_capped ? null : ($data['monthly_stock'] ?? null),
+        ]);
+
+        if ($cap) {
+            DB::table('quota_caps')->where('id', $cap->id)->update([
+                'cap_units' => $data['cap_units'],
+                'program_start' => $data['program_start'],
+                'program_end' => $data['program_end'],
+                'updated_at' => now(),
+            ]);
+        }
+
+        return back()->with('ok', "{$prize->name} disimpan.");
+    }
+
+    public function updateControls(Request $request)
+    {
+        $data = $request->validate([
+            'paused' => ['boolean'],
+            'big_prize_chance' => ['required', 'integer', 'min:0', 'max:100'],
+        ], [
+            'big_prize_chance.*' => 'Peluang hadiah utama diisi 0 sampai 100.',
+        ]);
+
+        GameControls::store([
+            'paused' => (bool) ($data['paused'] ?? false),
+            'big_prize_chance' => $data['big_prize_chance'],
+        ], (string) config('app.brand'));
+
+        return back()->with('ok', ($data['paused'] ?? false)
+            ? 'Gatcha dijeda: semua kado yang dibuka sekarang berisi poin.'
+            : 'Kendali Gatcha disimpan.');
     }
 
     public function updateTiers(UpdateTierConfigRequest $request)

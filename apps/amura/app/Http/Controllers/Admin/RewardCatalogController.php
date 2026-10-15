@@ -92,6 +92,8 @@ final class RewardCatalogController extends Controller
             'per_gift' => ['required', 'integer', 'min:1', 'max:100000'],
             'min_redeem' => ['required', 'integer', 'min:1', 'max:1000000'],
             'validity_months' => ['required', 'integer', 'min:1', 'max:60'],
+            'per_thousand' => ['required', 'integer', 'min:1', 'max:1000'],
+            'min_percent' => ['required', 'integer', 'min:1', 'max:100'],
         ]);
 
         LoyaltySettings::store($data);

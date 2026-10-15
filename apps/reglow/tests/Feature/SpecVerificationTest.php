@@ -119,6 +119,7 @@ final class SpecVerificationTest extends TestCase
             'is_capped' => true,
             'active' => true,
         ]);
+        $this->alwaysPlaceBigPrize();
         DB::table('quota_caps')->insert([
             'brand' => 'reglow',
             'prize_name' => 'Emas 1 gram',
@@ -156,9 +157,9 @@ final class SpecVerificationTest extends TestCase
         $big = $session->prizes()->where('tier', 'hadiah_besar')->value('slot');
         $others = $session->prizes()->where('slot', '!=', $big)->orderBy('slot')->limit(2)->pluck('slot')->all();
 
-        $this->postJson("/play/{$session->session_token}/pick", ['slots' => [$big, ...$others]])->assertOk();
+        $this->playAs($session)->postJson("/play/{$session->session_token}/pick", ['slots' => [$big, ...$others]])->assertOk();
 
-        return $this->postJson("/play/{$session->session_token}/reveal")->assertOk()->json('revealed');
+        return $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk()->json('revealed');
     }
 
     // ── Cek #5: AWB+HP harus cocok (anti-fraud) ─────────────────────────────

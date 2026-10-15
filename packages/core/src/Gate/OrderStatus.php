@@ -14,6 +14,7 @@ final class OrderStatus
         public readonly ?string $statusOrder,
         public readonly ?string $statusFulfillment,
         public readonly ?string $customerName = null,
+        public readonly ?int $orderAmount = null,
     ) {
     }
 

@@ -44,6 +44,6 @@ final class MarkomApiOrderGate implements OrderGate
             return GateResult::rejected('AWB tidak cocok dengan nomor HP');
         }
 
-        return GateResult::delivered($order->customerName);
+        return GateResult::delivered($order->customerName, $order->orderAmount);
     }
 }
