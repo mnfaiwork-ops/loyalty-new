@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use LoyaltyNew\Core\Content\SiteContent;
 use LoyaltyNew\Core\Gacha\AttemptLimiter;
 use LoyaltyNew\Core\Gacha\Grid;
 use LoyaltyNew\Core\Gacha\OutsideProgramException;
@@ -33,7 +34,7 @@ final class PlayController extends Controller
 
     public function form()
     {
-        return view('play.form');
+        return view('play.form', ['content' => SiteContent::current()]);
     }
 
     public function start(Request $request)

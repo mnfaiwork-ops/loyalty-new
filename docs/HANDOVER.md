@@ -68,6 +68,7 @@ cp .env.example .env    # lalu isi nilai produksi
 php artisan key:generate
 php artisan migrate --force
 php artisan db:seed --force          # hanya AdminUserSeeder (admin@<brand>)
+php artisan storage:link             # gambar pop up promo di /storage
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
 
@@ -90,7 +91,7 @@ Login staf di `/login`. Akun hanya berlaku di brand-nya sendiri.
 |---|---|---|
 | `super_admin` | `/admin/users` + semua halaman | buat akun staf, ganti peran |
 | `cs` | `/admin/claims`, `/admin/shipping`, `/admin/customers` | konfirmasi klaim WhatsApp, kirim hadiah, reset PIN pelanggan |
-| `game_admin` | `/admin/game`, `/admin/catalog` | hadiah Gatcha, kuota dan tanggal hadiah utama, periode program, katalog poin bulanan |
+| `game_admin` | `/admin/game`, `/admin/catalog`, `/admin/tampilan` | hadiah Gatcha, kuota dan tanggal hadiah utama, periode program, katalog poin bulanan, teks halaman resi dan pop up promo |
 | `finance` | `/admin/finance` | setujui klaim hadiah utama |
 
 Halaman pelanggan: `/play` (masukkan resi), `/masuk` (nomor HP + PIN), `/` (Beranda),

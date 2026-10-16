@@ -192,3 +192,15 @@ php artisan schedule:list                     # pastikan terjadwal
 - DB produksi baru mulai dari kuota terpakai 0. Jangan memindahkan DB dev ke produksi: di dev, kuota
   Emas kedua brand sudah habis (1 dari 1) karena testing.
 
+## Jenis hadiah Produk, teks halaman resi, dan pop up promo (2026-10-16)
+
+- Hadiah Gatcha punya jenis baru **Produk** (tier `produk`) dengan bobot sendiri di Bobot tier. Default 0, jadi peluang hadiah lain tidak berubah sampai Game Admin mengisinya. Tidak butuh migration.
+- Halaman admin baru **Tampilan & pop up** (`/admin/tampilan`, Game Admin dan Super Admin): judul dan keterangan halaman `/play`, serta pop up promo (gambar, link, halaman tempat muncul). Data di tabel `settings`, kunci `site_content:<brand>`.
+- Gambar pop up disimpan di disk `public` (`storage/app/public/popups/<brand>`). **Wajib sekali per app di server:**
+  ```bash
+  (cd apps/amura  && php artisan storage:link)
+  (cd apps/reglow && php artisan storage:link)
+  ```
+  Tanpa ini gambar pop up 404. Folder `storage/app/public` ikut dibackup.
+- Batas unggah 2 MB per gambar. Pastikan `upload_max_filesize` dan `post_max_size` PHP minimal 2M, dan `client_max_body_size` nginx minimal 3m.
+

@@ -101,6 +101,7 @@
                         <a href="{{ route('admin.catalog') }}" @if (request()->routeIs('admin.catalog*')) aria-current="page" @endif>Katalog poin</a>
                     @endif
                     <a href="{{ route('admin.game') }}" @if (request()->routeIs('admin.game*')) aria-current="page" @endif>Hadiah Gatcha</a>
+                    <a href="{{ route('admin.display') }}" @if (request()->routeIs('admin.display*')) aria-current="page" @endif>Tampilan &amp; pop up</a>
                 @endif
                 @if ($is('super_admin'))
                     <a href="{{ route('admin.users') }}" @if (request()->routeIs('admin.users*')) aria-current="page" @endif>Pengguna</a>

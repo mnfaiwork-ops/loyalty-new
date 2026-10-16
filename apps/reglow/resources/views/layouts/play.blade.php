@@ -21,6 +21,7 @@
     <main class="app">
         @yield('content')
     </main>
+    @include('customer.partials.popup')
     @stack('scripts')
 </body>
 </html>

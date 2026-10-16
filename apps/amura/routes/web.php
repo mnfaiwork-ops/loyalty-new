@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\CsClaimController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\DisplayController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GameAdminController;
 use App\Http\Controllers\Admin\RewardCatalogController;
@@ -70,10 +71,14 @@ Route::middleware(['auth', 'role:game_admin,super_admin'])->prefix('admin')->gro
     Route::post('/game/catalog/{id}', [GameAdminController::class, 'updateCatalog'])->whereNumber('id')->name('admin.game.catalog.update');
     Route::get('/catalog', [RewardCatalogController::class, 'index'])->name('admin.catalog');
     Route::post('/catalog/items', [RewardCatalogController::class, 'storeItem'])->name('admin.catalog.items');
+    Route::post('/catalog/items/bulk', [RewardCatalogController::class, 'updateItems'])->name('admin.catalog.items.bulk');
     Route::post('/catalog/items/{item}', [RewardCatalogController::class, 'updateItem'])->name('admin.catalog.items.update');
     Route::post('/catalog/copy', [RewardCatalogController::class, 'copy'])->name('admin.catalog.copy');
     Route::post('/catalog/publish', [RewardCatalogController::class, 'publish'])->name('admin.catalog.publish');
     Route::post('/catalog/settings', [RewardCatalogController::class, 'settings'])->name('admin.catalog.settings');
+    Route::get('/tampilan', [DisplayController::class, 'index'])->name('admin.display');
+    Route::post('/tampilan/teks', [DisplayController::class, 'updateTexts'])->name('admin.display.texts');
+    Route::post('/tampilan/popup', [DisplayController::class, 'updatePopup'])->name('admin.display.popup');
 });
 
 Route::middleware(['auth', 'role:finance,super_admin'])->prefix('admin')->group(function () {
