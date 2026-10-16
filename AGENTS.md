@@ -1,19 +1,22 @@
-# Loyalty New — Amura & Reglow
+# Loyalty New: Amura & Reglow
 
 Program loyalty berbasis game Gatcha untuk dua brand (Amura & Reglow), terpisah total per brand.
 Repo ini adalah **project Laravel 12** (bukan app lama `loyaltypointamura`).
 
 ## Struktur
 
-- `app/` — aplikasi Laravel 12.69.2 (PHP 8.5, PostgreSQL 18.6)
-- `design/` — mock desain dari Claude Design (sumber kebenaran visual). Jangan diubah.
-- `.db-credentials` — kredensial Postgres. **Jangan pernah di-commit** (sudah di `.gitignore`).
+- `packages/core/`: logika bersama (gate, undian, kuota, klaim, poin, PIN), namespace `LoyaltyNew\Core`
+- `apps/amura/`: app Laravel 12 Amura, sumber utama kode app
+- `apps/reglow/`: salinan Amura untuk Reglow lewat `scripts/sync-reglow.sh`. Jangan diedit langsung.
+- `design/`: mock desain dari Claude Design (sumber kebenaran visual). Jangan diubah.
+- `docs/HANDOVER.md`: panduan untuk tim IT. `docs/DEPLOY.md`: langkah deploy.
+- `.db-credentials`: kredensial Postgres. **Jangan pernah di-commit** (sudah di `.gitignore`).
 
 ## Stack
 
-- PHP 8.5.4 CLI · Laravel 12.69.2 · Composer 2.9.8
-- PostgreSQL 18.6 — DB dev `loyalty_new`, test `loyalty_new_test`
-- Blade + (Vite/Tailwind sesuai laravel default)
+- PHP 8.5 · Laravel 12 · Composer 2
+- PostgreSQL 18. Dev: kedua app berbagi `loyalty_new`, tes `loyalty_new_test`. Produksi: satu DB per brand.
+- Blade, CSS/JS polos di `public/`. Tanpa build Node.
 
 > ⚠️ Jangan pakai app lama di `~/Documents/Claude Code/Amura Loyalty Point/loyaltypointamura`
 > sebagai basis kode, hanya sebagai **acuan pola** (model Customer/PointTransaction, pessimistic lock,
@@ -22,10 +25,13 @@ Repo ini adalah **project Laravel 12** (bukan app lama `loyaltypointamura`).
 ## Perintah
 
 ```bash
-cd app
-php artisan serve     # dev server
-php artisan test      # pakai loyalty_new_test
-php artisan migrate   # ke loyalty_new
+cd apps/amura
+php artisan serve --port=8001   # dev server (Reglow: apps/reglow, --port=8002)
+php artisan test                # pakai loyalty_new_test
+php artisan migrate             # ke loyalty_new
+
+# setelah mengubah kode bersama di Amura:
+bash scripts/sync-reglow.sh     # dari root repo, lalu tes core + Amura + Reglow
 ```
 
 ## Keputusan yang sudah dikunci

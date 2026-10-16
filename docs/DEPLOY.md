@@ -182,3 +182,13 @@ php artisan schedule:list                     # pastikan terjadwal
   (staf dan pelanggan yang sedang di layar PIN perlu masuk lagi).
 - Keluar di halaman pelanggan mencabut semua perangkat yang diingat untuk akun itu.
 - Izin `.env` produksi: `chmod 640` (pemilik app, grup web server).
+
+## Tanggal mulai keluar hadiah utama (2026-10-16)
+
+- Migration `2026_10_16_000002_add_quota_cap_release_from` menambah kolom `quota_caps.release_from`.
+- Hadiah utama (Emas, Philips) baru bisa keluar mulai tanggal itu, lalu kuota dibuka bertahap sampai
+  `program_end`. Kosong = 14 hari terakhir periode. Sebelumnya hadiah utama bisa keluar sejak hari pertama.
+- Diatur Game Admin di `/admin/game`, kolom "Mulai keluar" per hadiah utama. Tanggal harus di dalam periode program.
+- DB produksi baru mulai dari kuota terpakai 0. Jangan memindahkan DB dev ke produksi: di dev, kuota
+  Emas kedua brand sudah habis (1 dari 1) karena testing.
+
