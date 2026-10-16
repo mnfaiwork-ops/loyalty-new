@@ -113,7 +113,7 @@ Halaman pelanggan: `/play` (masukkan resi), `/masuk` (nomor HP + PIN), `/` (Bera
 
 4. Buka PR ke `master`.
 
-Kondisi 16 Okt 2026: core 45, Amura 300, Reglow 300, semua lulus.
+Kondisi 16 Okt 2026: core 45, Amura 313, Reglow 313, semua lulus.
 
 ## 7. Perintah artisan
 
