@@ -57,11 +57,15 @@ final class CoreServiceProvider extends ServiceProvider
             return $source;
         });
 
-        // Gate: 'stub' (fase 1 / dev), 'markom' (gate nyata). Default stub supaya
-        // alur tetap jalan tanpa konfigurasi.
+        // Gate: 'markom' (gate nyata, default) atau 'stub' (dev/tes). Stub meloloskan
+        // resi apa pun, jadi hanya dipakai kalau diminta eksplisit dan tidak pernah di produksi.
         $this->app->bind(OrderGate::class, function () {
-            if ((string) config('markom.gate', 'stub') === 'markom') {
+            if ((string) config('markom.gate', 'markom') !== 'stub') {
                 return new MarkomApiOrderGate($this->app->make(OrderStatusSource::class));
+            }
+
+            if ($this->app->environment('production')) {
+                throw new \RuntimeException('MARKOM_GATE=stub tidak boleh dipakai saat APP_ENV=production.');
             }
 
             return new StubOrderGate;

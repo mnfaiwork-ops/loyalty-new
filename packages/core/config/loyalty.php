@@ -2,12 +2,14 @@
 
 return [
     /*
-     | Kunci akses percobaan masuk game (spec §7):
-     | setelah N kali AWB+HP salah, kunci selama M menit.
+     | Kunci akses percobaan masuk (spec §7): setelah N kali resi+HP atau PIN
+     | salah dari satu perangkat/jaringan, kunci M menit. Lintas jaringan, satu
+     | nomor HP dikunci 24 jam setelah `daily_max_fails` gagal (CS bisa membuka).
      */
     'lockout' => [
         'max_fails' => (int) env('LOYALTY_MAX_FAILS', 5),
         'minutes' => (int) env('LOYALTY_LOCKOUT_MINUTES', 15),
+        'daily_max_fails' => (int) env('LOYALTY_DAILY_MAX_FAILS', 20),
     ],
 
     /*

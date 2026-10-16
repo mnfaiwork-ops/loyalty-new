@@ -16,10 +16,11 @@ return [
 
     /*
      | Implementasi gate yang dipakai:
-     | - 'stub'   : StubOrderGate (fase 1 / dev, selalu lolos selama AWB+HP terisi)
-     | - 'markom' : MarkomApiOrderGate (cek order nyata + cocokkan AWB dengan HP)
+     | - 'markom' : MarkomApiOrderGate (cek order nyata + cocokkan AWB dengan HP). Default.
+     | - 'stub'   : StubOrderGate (dev/tes, selalu lolos selama AWB+HP terisi).
+     |              Harus diisi eksplisit, dan ditolak saat APP_ENV=production.
      */
-    'gate' => env('MARKOM_GATE', 'stub'),
+    'gate' => env('MARKOM_GATE', 'markom'),
 
     'api' => [
         'base_url' => env('MARKOM_API_URL', 'https://markom.sinergisuperapp.com/api'),

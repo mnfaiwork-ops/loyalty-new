@@ -163,3 +163,22 @@ php artisan schedule:list                     # pastikan terjadwal
 - Produksi wajib: `APP_ENV=production`, `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true` (HTTPS), `ADMIN_PASSWORD` sendiri. `AdminUserSeeder` menolak jalan di produksi tanpa `ADMIN_PASSWORD`.
 - Tes memaksa `MARKOM_GATE=stub` lewat `phpunit.xml`, jadi `.env` dengan gate nyata tidak membuat tes memanggil Soscom.
 - Periode program per brand di `/admin/game` (Kendali Gatcha): "Order mulai tanggal" dan "Order sampai tanggal". Yang dicek tanggal order dari Soscom (`order_at`, WIB), bukan tanggal paket sampai. Kosong = tanpa batas. Penolakan karena periode tidak menambah hitungan kunci 5x salah. Sesi yang sudah ada tetap bisa dilanjutkan. Isi periode Fase 1 sebelum rilis.
+
+## Perbaikan audit keamanan (2026-10-16)
+
+- Migration baru (idempoten, aman di DB bersama): `2026_10_16_000001_add_customer_device_version`
+  (`customers.device_version`). Jalankan di kedua app sebelum kode dipasang.
+- `MARKOM_GATE` sekarang default `markom`. `stub` harus diisi eksplisit dan membuat `/play/start` error
+  kalau `APP_ENV=production`.
+- Di belakang reverse proxy (nginx, Cloudflare, load balancer) isi `TRUSTED_PROXIES` dengan IP proxy,
+  dipisah koma. Tanpa ini semua pengunjung terlihat satu IP dan batas per IP berlaku untuk semua orang.
+  Jangan isi `*` kalau app juga bisa diakses langsung.
+- Kunci salah resi/PIN sekarang per nomor HP + jaringan (5 kali, 15 menit), ditambah batas harian per
+  nomor lintas jaringan (`LOYALTY_DAILY_MAX_FAILS`, default 20, kunci 24 jam). Reset PIN oleh CS membuka
+  semua kunci nomor itu.
+- `POST /masuk` dan `POST /pin`: 20/menit dan 200/jam per IP. Login admin dikunci 15 menit per email
+  setelah 5 kata sandi salah. Kata sandi staf baru minimal 12 karakter.
+- `SESSION_ENCRYPT` default `true`. Mengubahnya membuat session yang sedang aktif tidak terbaca
+  (staf dan pelanggan yang sedang di layar PIN perlu masuk lagi).
+- Keluar di halaman pelanggan mencabut semua perangkat yang diingat untuk akun itu.
+- Izin `.env` produksi: `chmod 640` (pemilik app, grup web server).

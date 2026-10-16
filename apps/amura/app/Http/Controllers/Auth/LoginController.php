@@ -6,10 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 
 final class LoginController extends Controller
 {
+    /** Kata sandi salah per email sebelum akun itu dikunci, di atas batas per IP di route. */
+    private const MAX_FAILS = 5;
+
+    private const LOCK_SECONDS = 15 * 60;
+
     public function show()
     {
         return view('auth.login');
@@ -22,22 +28,36 @@ final class LoginController extends Controller
             'password' => ['required'],
         ]);
 
+        $key = 'admin-login:'.config('app.brand').':'.strtolower($credentials['email']);
+        if (RateLimiter::tooManyAttempts($key, self::MAX_FAILS)) {
+            $minutes = (int) ceil(RateLimiter::availableIn($key) / 60);
+
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => "Terlalu banyak percobaan masuk. Coba lagi dalam {$minutes} menit."]);
+        }
+
         $user = User::where('email', $credentials['email'])->first();
 
         // Fase 1 memakai satu tabel users untuk kedua brand: tolak user brand lain
         // dengan error generik agar keberadaan akun di brand lain tidak bocor.
         if ($user && $user->brand_scope !== config('app.brand')) {
+            RateLimiter::hit($key, self::LOCK_SECONDS);
+
             return back()
                 ->withInput($request->only('email'))
                 ->withErrors(['email' => 'Email atau kata sandi salah.']);
         }
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+            RateLimiter::hit($key, self::LOCK_SECONDS);
+
             return back()
                 ->withInput($request->only('email'))
                 ->withErrors(['email' => 'Email atau kata sandi salah.']);
         }
 
+        RateLimiter::clear($key);
         $request->session()->regenerate();
 
         return redirect($this->landingFor(Auth::user()->role));

@@ -34,8 +34,12 @@ final class HomeController extends Controller
         ]);
     }
 
-    public function logout()
+    public function logout(Request $request)
     {
+        RememberedCustomer::forgetDevices($request);
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         return redirect()->route('play.form')->withoutCookie(RememberedCustomer::COOKIE);
     }
 }

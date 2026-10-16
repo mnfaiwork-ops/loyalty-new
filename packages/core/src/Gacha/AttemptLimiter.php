@@ -3,95 +3,97 @@
 namespace LoyaltyNew\Core\Gacha;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Gate\AwbMatcher;
 
 /**
- * Pembatas percobaan masuk game (AWB+HP) — kunci akses 15 menit setelah 5 kali
- * salah (spec §7).
+ * Pembatas percobaan masuk: resi + HP di /play/start dan PIN (spec §7, spec PIN 2026-10-07).
  *
- * Dikunci pada DUA sumbu supaya tidak bisa dilewati dengan mengganti input:
- *  - per (awb, phone): brute-force HP untuk AWB tertentu.
- *  - per phone       : uji satu HP ke banyak AWB sekaligus.
+ * Resi + HP dikunci pada tiga sumbu supaya tidak bisa dilewati dengan mengganti input:
+ *  - per (awb, phone)      : brute-force HP untuk AWB tertentu.
+ *  - per (phone, IP)       : uji satu HP ke banyak AWB dari satu perangkat/jaringan.
+ *  - per phone, harian     : batas atas lintas IP untuk satu HP.
  *
- * - HP tidak disimpan mentah (hash).
+ * PIN dikunci per (phone, IP) dan per phone harian.
+ *
+ * Kunci pendek per IP: orang lain yang hanya tahu nomor HP tidak bisa mengunci
+ * pemiliknya dari jaringan lain. Batas harian per HP menahan tebakan yang
+ * berpindah-pindah IP; kalau tercapai, CS membukanya lewat reset PIN.
+ *
+ * - HP dan IP tidak disimpan mentah (hash).
  * - Brand-scoped: satu brand tidak memengaruhi brand lain.
  * - Counter di-reset saat berhasil masuk, setelah kunci habis, dan kalau
  *   kegagalan terakhir sudah lebih lama dari jendela kunci. Tanpa reset ini,
  *   satu salah ketik sesudah kunci habis langsung mengunci lagi.
  *
- * Default: 5 percobaan gagal → kunci 15 menit. Bisa diubah via config
- * `loyalty.lockout.*` / env.
+ * Default: 5 gagal → kunci 15 menit; 20 gagal sehari per HP → kunci 24 jam.
+ * Bisa diubah via config `loyalty.lockout.*` / env.
  */
 final class AttemptLimiter
 {
+    private const DAY_MINUTES = 1440;
+
     public function __construct(
         private string $brand,
         private int $maxFails = 5,
         private int $lockMinutes = 15,
+        private string $ip = '',
+        private int $dailyMaxFails = 20,
     ) {
     }
 
-    public static function fromConfig(string $brand): self
+    public static function fromConfig(string $brand, ?string $ip = null): self
     {
         return new self(
             $brand,
             (int) config('loyalty.lockout.max_fails', 5),
             (int) config('loyalty.lockout.minutes', 15),
+            (string) $ip,
+            (int) config('loyalty.lockout.daily_max_fails', 20),
         );
     }
 
-    /** Sisa detik kunci (maks dari kedua sumbu), atau null kalau tidak terkunci. */
+    /** Sisa detik kunci resi + HP (maks dari semua sumbu), atau null kalau tidak terkunci. */
     public function lockedFor(string $awb, string $phone): ?int
     {
-        $pair = $this->remaining($this->pairKey($awb, $phone));
-        $phoneOnly = $this->remaining($this->phoneKey($phone));
-
-        $max = max((int) $pair, (int) $phoneOnly);
-
-        return $max > 0 ? $max : null;
+        return $this->maxRemaining([$this->pairKey($awb, $phone), ...$this->scoped($this->phoneKey($phone))]);
     }
 
-    /** Catat satu kegagalan pada kedua sumbu; true kalau sekarang terkunci. */
+    /** Catat satu kegagalan resi + HP di semua sumbu; true kalau sekarang terkunci. */
     public function recordFailure(string $awb, string $phone): bool
     {
-        $pairLocked = $this->bump($this->pairKey($awb, $phone));
-        $phoneLocked = $this->bump($this->phoneKey($phone));
+        $pairLocked = $this->bump($this->pairKey($awb, $phone), $this->maxFails, $this->lockMinutes);
 
-        return $pairLocked || $phoneLocked;
+        return $this->bumpScoped($this->phoneKey($phone)) || $pairLocked;
     }
 
-    /** Reset kedua sumbu saat berhasil masuk. */
+    /** Reset sumbu resi + HP saat berhasil masuk. */
     public function clear(string $awb, string $phone): void
     {
-        DB::table('play_attempts')
-            ->where('brand', $this->brand)
-            ->whereIn('key', [$this->pairKey($awb, $phone), $this->phoneKey($phone)])
-            ->delete();
+        $this->delete([$this->pairKey($awb, $phone), ...$this->scoped($this->phoneKey($phone))]);
     }
 
-    /**
-     * PIN salah dihitung per nomor HP, terpisah dari hitungan resi, dengan
-     * batas yang sama. Dipakai di layar PIN setelah resi dan di Masuk dengan HP.
-     */
+    /** Sisa detik kunci PIN nomor ini dari perangkat/jaringan ini, atau null. */
     public function pinLockedFor(string $phone): ?int
     {
-        $remaining = $this->remaining($this->pinKey($phone));
-
-        return $remaining > 0 ? $remaining : null;
+        return $this->maxRemaining($this->scoped($this->pinKey($phone)));
     }
 
     public function recordPinFailure(string $phone): bool
     {
-        return $this->bump($this->pinKey($phone));
+        return $this->bumpScoped($this->pinKey($phone));
     }
 
     /** Sisa PIN salah yang masih boleh sebelum nomor ini dikunci. */
     public function pinFailsLeft(string $phone): int
     {
-        $fails = (int) ($this->row($this->pinKey($phone))->fails ?? 0);
+        [$short, $day] = $this->scoped($this->pinKey($phone));
 
-        return max(0, $this->maxFails - $fails);
+        return max(0, min(
+            $this->maxFails - (int) ($this->row($short)->fails ?? 0),
+            $this->dailyMaxFails - (int) ($this->row($day)->fails ?? 0),
+        ));
     }
 
     public function lockMinutes(): int
@@ -99,12 +101,30 @@ final class AttemptLimiter
         return $this->lockMinutes;
     }
 
+    /** PIN benar: hapus hitungan PIN nomor ini di semua perangkat. */
     public function clearPin(string $phone): void
     {
-        DB::table('play_attempts')
-            ->where('brand', $this->brand)
-            ->where('key', $this->pinKey($phone))
-            ->delete();
+        $this->deletePrefix($this->pinKey($phone));
+    }
+
+    /** Reset PIN oleh CS: buka semua kunci nomor ini, PIN maupun resi, di semua perangkat. */
+    public function clearPhone(string $phone): void
+    {
+        $this->deletePrefix($this->pinKey($phone));
+        $this->deletePrefix($this->phoneKey($phone));
+    }
+
+    /**
+     * Jalankan cek PIN satu per satu per nomor HP. Tanpa ini, banyak request
+     * bersamaan sama-sama lolos cek kunci sebelum ada yang mencatat gagal.
+     *
+     * @template T
+     * @param  callable(): T  $check
+     * @return T
+     */
+    public function serialize(string $phone, callable $check): mixed
+    {
+        return Cache::lock('attempt:'.$this->pinKey($phone), 15)->block(10, $check);
     }
 
     public function pinKey(string $phone): string
@@ -122,6 +142,29 @@ final class AttemptLimiter
         return hash('sha256', $this->brand.'|phone|'.AwbMatcher::normalizePhone($phone));
     }
 
+    /** @return array{0:string,1:string} key pendek per IP dan key harian untuk satu prefix nomor */
+    private function scoped(string $prefix): array
+    {
+        return [$prefix.':ip:'.substr(hash('sha256', $this->ip), 0, 32), $prefix.':day'];
+    }
+
+    private function bumpScoped(string $prefix): bool
+    {
+        [$short, $day] = $this->scoped($prefix);
+        $shortLocked = $this->bump($short, $this->maxFails, $this->lockMinutes);
+        $dayLocked = $this->bump($day, $this->dailyMaxFails, self::DAY_MINUTES);
+
+        return $shortLocked || $dayLocked;
+    }
+
+    /** @param  array<int,string>  $keys */
+    private function maxRemaining(array $keys): ?int
+    {
+        $max = max(array_map(fn (string $key) => $this->remaining($key), $keys));
+
+        return $max > 0 ? $max : null;
+    }
+
     /** Sisa detik kunci untuk satu key, atau 0. */
     private function remaining(string $key): int
     {
@@ -134,9 +177,9 @@ final class AttemptLimiter
     }
 
     /** Tambah hitungan gagal satu key; kunci kalau sudah mencapai batas. */
-    private function bump(string $key): bool
+    private function bump(string $key, int $maxFails, int $lockMinutes): bool
     {
-        $this->resetIfStale($key);
+        $this->resetIfStale($key, $lockMinutes);
 
         DB::table('play_attempts')->upsert(
             [[
@@ -155,10 +198,10 @@ final class AttemptLimiter
         $fails = (int) (DB::table('play_attempts')
             ->where('brand', $this->brand)->where('key', $key)->value('fails') ?? 0);
 
-        if ($fails >= $this->maxFails) {
+        if ($fails >= $maxFails) {
             DB::table('play_attempts')
                 ->where('brand', $this->brand)->where('key', $key)
-                ->update(['locked_until' => now()->addMinutes($this->lockMinutes)]);
+                ->update(['locked_until' => now()->addMinutes($lockMinutes)]);
 
             return true;
         }
@@ -167,7 +210,7 @@ final class AttemptLimiter
     }
 
     /** Mulai hitungan dari nol kalau kunci sudah habis atau kegagalan terakhir sudah basi. */
-    private function resetIfStale(string $key): void
+    private function resetIfStale(string $key, int $lockMinutes): void
     {
         $row = $this->row($key);
         if (! $row) {
@@ -176,13 +219,27 @@ final class AttemptLimiter
 
         $lockExpired = $row->locked_until && Carbon::parse($row->locked_until)->isPast();
         $staleFail = $row->last_fail_at
-            && Carbon::parse($row->last_fail_at)->lt(now()->subMinutes($this->lockMinutes));
+            && Carbon::parse($row->last_fail_at)->lt(now()->subMinutes($lockMinutes));
 
         if ($lockExpired || $staleFail) {
             DB::table('play_attempts')
                 ->where('brand', $this->brand)->where('key', $key)
                 ->update(['fails' => 0, 'locked_until' => null]);
         }
+    }
+
+    /** @param  array<int,string>  $keys */
+    private function delete(array $keys): void
+    {
+        DB::table('play_attempts')->where('brand', $this->brand)->whereIn('key', $keys)->delete();
+    }
+
+    private function deletePrefix(string $prefix): void
+    {
+        DB::table('play_attempts')
+            ->where('brand', $this->brand)
+            ->where(fn ($q) => $q->where('key', $prefix)->orWhere('key', 'like', $prefix.':%'))
+            ->delete();
     }
 
     private function row(string $key): ?object

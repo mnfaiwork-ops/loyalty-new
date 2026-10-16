@@ -13,6 +13,7 @@ class Customer extends Model
     protected $casts = [
         'last_seen_at' => 'datetime',
         'pin_version' => 'int',
+        'device_version' => 'int',
         'pin_must_change' => 'bool',
         'pin_set_at' => 'datetime',
         'pin_reset_at' => 'datetime',

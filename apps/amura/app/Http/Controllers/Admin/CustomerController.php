@@ -56,8 +56,9 @@ final class CustomerController extends Controller
 
         $pin = CustomerPin::issueTemporary($customer, $request->user());
 
-        // Kunci PIN salah dibuka, supaya pelanggan bisa langsung memakai PIN sementara.
-        AttemptLimiter::fromConfig((string) config('app.brand'))->clearPin($customer->phone);
+        // Semua kunci nomor ini dibuka (PIN dan resi, semua jaringan), supaya pelanggan
+        // bisa langsung memakai PIN sementara walau nomornya sempat dikunci orang lain.
+        AttemptLimiter::fromConfig((string) config('app.brand'))->clearPhone($customer->phone);
 
         return redirect()->route('admin.customers', ['q' => $customer->phone])->with('temporary_pin', [
             'customer_id' => $customer->id,

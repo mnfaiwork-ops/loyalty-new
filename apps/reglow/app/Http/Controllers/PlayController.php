@@ -49,7 +49,7 @@ final class PlayController extends Controller
 
         $data['phone'] = PhoneInput::normalize($data['phone']);
 
-        $limiter = AttemptLimiter::fromConfig((string) config('app.brand'));
+        $limiter = AttemptLimiter::fromConfig((string) config('app.brand'), $request->ip());
 
         // Kunci akses: tolak lebih awal kalau sudah 5x salah (spec §7).
         if (($remaining = $limiter->lockedFor($data['awb'], $data['phone'])) !== null) {

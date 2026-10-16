@@ -22,7 +22,7 @@ final class SuperAdminController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
+            'password' => ['required', 'string', 'min:12'],
             'role' => ['required', 'in:cs,game_admin,finance,super_admin'],
             'brand_scope' => ['required', 'in:amura,reglow'],
         ]);

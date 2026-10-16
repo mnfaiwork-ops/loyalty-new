@@ -5,6 +5,8 @@
 @php
     $clock = sprintf('%d:%02d', intdiv($remaining, 60), $remaining % 60);
     $minutes = (int) ceil($remaining / 60);
+    // Kunci harian (lintas jaringan) dihitung jam, bukan ratusan menit.
+    $wait = $minutes > 60 ? ((int) ceil($remaining / 3600)).' jam' : $minutes.' menit';
 @endphp
 
 @section('content')
@@ -27,10 +29,10 @@
                     </div>
                 </div>
                 <h1>Coba lagi sebentar, ya</h1>
-                <p>Terlalu banyak PIN salah. Coba lagi dalam {{ $minutes }} menit, atau hubungi CS.</p>
+                <p>Terlalu banyak PIN salah. Coba lagi dalam {{ $wait }}, atau hubungi CS.</p>
             </div>
             <div class="safe-card">
-                <b>Poin, hadiah, dan kesempatan Gatcha-mu tetap aman.</b> Yang dikunci hanya masuk dengan nomor {{ $customer->maskedPhone() }}.
+                <b>Poin, hadiah, dan kesempatan Gatcha-mu tetap aman.</b> Yang dikunci hanya masuk dengan nomor {{ $maskedPhone }}.
             </div>
         </div>
 

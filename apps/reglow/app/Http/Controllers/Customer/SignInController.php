@@ -13,8 +13,14 @@ use LoyaltyNew\Core\Models\Customer;
 /** Masuk lagi dengan nomor HP + PIN, tanpa resi (spec PIN 2026-10-07). */
 final class SignInController extends Controller
 {
-    /** Session: pelanggan yang nomornya dikunci saat masuk di sini, untuk layar hitung mundur. */
+    /** Session: nomor HP yang dikunci saat masuk di sini, untuk layar hitung mundur. */
     private const LOCKED = 'sign_in_locked';
+
+    /**
+     * Satu pesan untuk nomor tanpa akun, tanpa PIN, dan PIN salah, supaya form
+     * ini tidak bisa dipakai mengecek nomor mana yang terdaftar.
+     */
+    public const WRONG = 'Nomor HP atau PIN salah. Belum punya PIN? Masuk dengan nomor resi dulu.';
 
     public function show(Request $request)
     {
@@ -22,9 +28,8 @@ final class SignInController extends Controller
             return redirect()->route('home');
         }
 
-        $lockedId = $request->session()->get(self::LOCKED);
-        $locked = $lockedId ? Customer::find($lockedId) : null;
-        if ($locked && $view = PinController::lockedView($locked, route('customer.login'))) {
+        $locked = $request->session()->get(self::LOCKED);
+        if (is_string($locked) && $view = PinController::lockedView($request, $locked, route('customer.login'))) {
             return $view;
         }
         $request->session()->forget(self::LOCKED);
@@ -44,22 +49,18 @@ final class SignInController extends Controller
         ]);
 
         $phone = AwbMatcher::normalizePhone(PhoneInput::normalize($data['phone']));
-        $customer = Customer::where('phone', $phone)->first();
+        $customer = $phone === '' ? null : Customer::where('phone', $phone)->first();
 
-        if (! $customer || $customer->pin_hash === null) {
-            return back()->withInput($request->only('phone'))->withErrors([
-                'phone' => 'Nomor ini belum punya PIN. Masuk dengan nomor resi dulu, lalu buat PIN.',
-            ]);
+        $result = PinController::checkPin($request, $phone, $customer, $data['pin']);
+        if ($result === PinController::LOCKED) {
+            $request->session()->put(self::LOCKED, $phone);
+
+            return redirect()->route('customer.login');
         }
-
-        if ($error = PinController::checkPin($customer, $data['pin'])) {
-            if ($error === PinController::LOCKED) {
-                $request->session()->put(self::LOCKED, $customer->id);
-
-                return redirect()->route('customer.login');
-            }
-
-            return back()->withInput($request->only('phone'))->withErrors(['pin' => $error]);
+        if ($result !== null) {
+            return back()->withInput($request->only('phone'))->withErrors([
+                'pin' => self::WRONG.' '.PinController::leftNote((int) $result),
+            ]);
         }
 
         $customer->update(['last_seen_at' => now()]);

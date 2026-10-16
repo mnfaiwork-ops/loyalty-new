@@ -33,12 +33,18 @@ final class PrizeStock
         return max(0, (int) $item->monthly_stock - self::usedThisMonth((int) $item->id));
     }
 
-    /** Satu item aktif tier ini yang stoknya masih ada, diundi rata. Null kalau tidak ada. */
+    /**
+     * Satu item aktif tier ini yang stoknya masih ada, diundi rata. Null kalau tidak ada.
+     * Baris katalog dikunci sampai transaksi pemanggil selesai, supaya dua kado yang
+     * dibuka bersamaan tidak sama-sama mengambil unit terakhir.
+     */
     public static function pick(string $brand, string $tier): ?int
     {
         $items = PrizeCatalog::where('brand', $brand)
             ->where('tier', $tier)
             ->where('active', true)
+            ->orderBy('id')
+            ->lockForUpdate()
             ->get()
             ->filter(fn (PrizeCatalog $item) => self::remaining($item) !== 0);
 

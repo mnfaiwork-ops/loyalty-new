@@ -12,9 +12,14 @@ namespace LoyaltyNew\Core\Gate;
  *  3. AWB + HP harus COCOK (anti-fraud, AwbMatcher fail-closed).
  *
  * Fail-closed: sumber tidak bisa dibaca / order tak ada → ditolak.
+ *
+ * Order tidak ada dan HP tidak cocok memberi pesan yang sama, supaya form
+ * tidak bisa dipakai menebak resi mana yang ada.
  */
 final class MarkomApiOrderGate implements OrderGate
 {
+    public const NOT_MATCHED = 'Resi atau nomor HP tidak cocok';
+
     public function __construct(private OrderStatusSource $source)
     {
     }
@@ -31,17 +36,14 @@ final class MarkomApiOrderGate implements OrderGate
 
         $order = $this->source->find($awb, $phone);
 
-        if ($order === null) {
-            return GateResult::rejected('Order tidak ditemukan');
+        // Anti-fraud: AWB curian akan punya HP berbeda. Fail-closed. Dicek sebelum
+        // status supaya "belum diterima" hanya terlihat oleh pemilik resi + HP.
+        if ($order === null || ! AwbMatcher::matches($awb, $phone, $order->awb, (string) $order->phone)) {
+            return GateResult::rejected(self::NOT_MATCHED);
         }
 
         if (! $order->isDelivered()) {
             return GateResult::rejected('Paket belum diterima');
-        }
-
-        // Anti-fraud: AWB curian akan punya HP berbeda. Fail-closed.
-        if (! AwbMatcher::matches($awb, $phone, $order->awb, (string) $order->phone)) {
-            return GateResult::rejected('AWB tidak cocok dengan nomor HP');
         }
 
         return GateResult::delivered($order->customerName, $order->orderAmount, $order->orderedAt);

@@ -15,7 +15,7 @@ for d in app database/migrations resources/views public/css public/js; do
     rsync -a --delete "$A/$d/" "$R/$d/"
 done
 
-for f in bootstrap/app.php config/play.php routes/web.php; do
+for f in bootstrap/app.php config/play.php config/session.php config/trustedproxy.php routes/web.php; do
     cp "$A/$f" "$R/$f"
 done
 

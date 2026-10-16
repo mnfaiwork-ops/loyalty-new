@@ -29,9 +29,9 @@ Route::post('/keluar', [HomeController::class, 'logout'])->name('customer.logout
 
 // Masuk lagi dengan HP + PIN, dan layar PIN setelah resi + HP cocok.
 Route::get('/masuk', [SignInController::class, 'show'])->name('customer.login');
-Route::post('/masuk', [SignInController::class, 'store'])->middleware('throttle:20,1');
+Route::post('/masuk', [SignInController::class, 'store'])->middleware('throttle:pin');
 Route::get('/pin', [PinController::class, 'show'])->name('pin.show');
-Route::post('/pin', [PinController::class, 'verify'])->middleware('throttle:20,1');
+Route::post('/pin', [PinController::class, 'verify'])->middleware('throttle:pin');
 Route::get('/pin/buat', [PinController::class, 'create'])->name('pin.create');
 Route::post('/pin/buat', [PinController::class, 'store']);
 

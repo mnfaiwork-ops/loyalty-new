@@ -12,8 +12,9 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Pelanggan yang sudah lolos PIN diingat di perangkat ini 30 hari
  * (spec poin-redeem §7, spec PIN 2026-10-07). Cookie dienkripsi Laravel,
- * hanya berlaku untuk brand ini, dan membawa versi PIN: begitu PIN diganti
- * atau direset CS, perangkat yang diingat dengan PIN lama harus masuk lagi.
+ * hanya berlaku untuk brand ini, dan membawa versi PIN dan versi perangkat:
+ * begitu PIN diganti atau direset CS, atau pelanggan keluar, semua perangkat
+ * yang diingat sebelumnya (termasuk cookie yang tersalin) harus masuk lagi.
  */
 final class RememberedCustomer
 {
@@ -57,7 +58,19 @@ final class RememberedCustomer
 
         $data = json_decode((string) $request->cookie(self::COOKIE), true);
 
-        return ($data['pin'] ?? null) === $customer->pin_version ? $customer : null;
+        $current = ($data['pin'] ?? null) === $customer->pin_version
+            && (int) ($data['dev'] ?? 0) === (int) $customer->device_version;
+
+        return $current ? $customer : null;
+    }
+
+    /** Keluar: cabut semua perangkat yang diingat untuk pelanggan di cookie ini. */
+    public static function forgetDevices(Request $request): void
+    {
+        $customer = self::resolve($request);
+        if ($customer) {
+            $customer->increment('device_version');
+        }
     }
 
     public static function cookieFor(Customer $customer): Cookie
@@ -69,7 +82,12 @@ final class RememberedCustomer
 
     public static function payload(Customer $customer): string
     {
-        return json_encode(['id' => $customer->id, 'brand' => $customer->brand, 'pin' => $customer->pin_version]);
+        return json_encode([
+            'id' => $customer->id,
+            'brand' => $customer->brand,
+            'pin' => $customer->pin_version,
+            'dev' => (int) $customer->device_version,
+        ]);
     }
 
     private static function decode(Request $request): ?Customer

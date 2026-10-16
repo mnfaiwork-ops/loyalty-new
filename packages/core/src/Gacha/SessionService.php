@@ -119,7 +119,7 @@ final class SessionService
                 'chance_used' => 0,
                 'tier_config' => TierConfig::current(),
                 'awb' => $awb,
-                'gate_source' => (string) config('markom.gate', 'stub'),
+                'gate_source' => (string) config('markom.gate', 'markom'),
                 'expires_at' => now()->addDays(30),
                 'order_amount' => $orderAmount,
             ]);

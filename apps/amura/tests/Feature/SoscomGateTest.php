@@ -85,7 +85,7 @@ class SoscomGateTest extends TestCase
         $result = (new MarkomApiOrderGate($this->source()))->isDelivered('C1MACRQU', '08999999999');
 
         $this->assertFalse($result->delivered);
-        $this->assertSame('Order tidak ditemukan', $result->reason);
+        $this->assertSame('Resi atau nomor HP tidak cocok', $result->reason);
     }
 
     public function test_key_salah_ditolak(): void
@@ -110,7 +110,7 @@ class SoscomGateTest extends TestCase
         $result = (new MarkomApiOrderGate($this->source()))->isDelivered('C1MACRQU', '08123456789');
 
         $this->assertFalse($result->delivered);
-        $this->assertSame('AWB tidak cocok dengan nomor HP', $result->reason);
+        $this->assertSame('Resi atau nomor HP tidak cocok', $result->reason);
     }
 
     public function test_path_field_bisa_diganti_lewat_config(): void

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Customer\SignInController;
 use App\Http\Middleware\RememberedCustomer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -141,13 +142,31 @@ final class CustomerPinTest extends TestCase
             ->assertCookie(RememberedCustomer::COOKIE);
     }
 
-    public function test_masuk_nomor_tanpa_pin_diarahkan_ke_resi(): void
+    public function test_masuk_nomor_tanpa_pin_dan_pin_salah_mendapat_pesan_yang_sama(): void
     {
-        $this->post('/masuk', ['phone' => self::PHONE, 'pin' => '2580'])
-            ->assertSessionHasErrors(['phone' => 'Nomor ini belum punya PIN. Masuk dengan nomor resi dulu, lalu buat PIN.']);
+        // Nomor yang tidak terdaftar: pesan dan sisa percobaan sama dengan PIN salah,
+        // supaya form ini tidak bisa dipakai mengecek nomor mana yang punya akun.
+        $expected = SignInController::WRONG.' Sisa 4 kali sebelum dikunci 15 menit.';
+        $this->post('/masuk', ['phone' => '081299990000', 'pin' => '2580'])
+            ->assertSessionHasErrors(['pin' => $expected])
+            ->assertSessionDoesntHaveErrors('phone');
+
+        Customer::create(['phone' => '081288880000', 'brand' => config('app.brand')]);
+        $this->post('/masuk', ['phone' => '081288880000', 'pin' => '2580'])
+            ->assertSessionHasErrors(['pin' => $expected]);
 
         $this->customerWithPin();
-        $this->post('/masuk', ['phone' => self::PHONE, 'pin' => '0001'])->assertSessionHasErrors('pin');
+        $this->post('/masuk', ['phone' => self::PHONE, 'pin' => '0001'])
+            ->assertSessionHasErrors(['pin' => $expected]);
+    }
+
+    public function test_nomor_tidak_terdaftar_juga_dikunci_seperti_nomor_terdaftar(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $this->post('/masuk', ['phone' => '081299990000', 'pin' => '2580']);
+        }
+
+        $this->get('/masuk')->assertOk()->assertSee('Coba lagi sebentar, ya')->assertSee('0812••••0000', false);
     }
 
     public function test_cookie_lama_tanpa_pin_diminta_membuat_pin(): void
