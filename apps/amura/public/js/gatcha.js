@@ -33,6 +33,7 @@
         poin: { cls: 'tier-ivory', chip: 'KADO POIN', token: 'Poin', v: `Poin ${data.brand}` },
         voucher: { cls: 'tier-brand', chip: 'VOUCHER', token: 'Voucher', v: 'Voucher' },
         merch: { cls: 'tier-brand', chip: 'MERCH', token: 'Merch', v: 'Merch' },
+        produk: { cls: 'tier-brand', chip: 'PRODUK', token: 'Produk', v: 'Produk' },
         hadiah_besar: { cls: 'tier-gold', chip: 'HADIAH UTAMA', token: 'Utama', v: 'Hadiah Utama' },
     };
     const tierOf = item => TIER[item.tier] || { cls: 'tier-ivory', chip: item.label.toUpperCase(), token: item.label, v: item.label };

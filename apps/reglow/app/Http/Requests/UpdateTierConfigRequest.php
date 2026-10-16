@@ -18,6 +18,7 @@ final class UpdateTierConfigRequest extends FormRequest
             'poin' => ['required', 'integer', 'min:0'],
             'voucher' => ['required', 'integer', 'min:0'],
             'merch' => ['required', 'integer', 'min:0'],
+            'produk' => ['nullable', 'integer', 'min:0'],
         ];
     }
 
@@ -30,7 +31,7 @@ final class UpdateTierConfigRequest extends FormRequest
                     return;
                 }
 
-                $total = (int) $this->input('poin') + (int) $this->input('voucher') + (int) $this->input('merch');
+                $total = (int) $this->input('poin') + (int) $this->input('voucher') + (int) $this->input('merch') + (int) $this->input('produk');
                 if ($total <= 0) {
                     $validator->errors()->add('poin', 'Total bobot tier harus lebih dari 0.');
                 }

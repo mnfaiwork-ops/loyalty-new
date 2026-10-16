@@ -240,6 +240,62 @@ final class PrizeControlsTest extends TestCase
         $this->assertSame(['voucher', 'voucher', 'voucher'], array_column($this->openRound($session), 'tier'));
     }
 
+    // --- Hadiah produk (tier produk, 2026-10-16) ---
+
+    public function test_kado_produk_mendapat_item_produk_dan_bisa_diklaim(): void
+    {
+        $item = PrizeCatalog::create([
+            'brand' => config('app.brand'), 'name' => 'PDRN Pore Cleanser', 'tier' => 'produk', 'active' => true, 'monthly_stock' => 1,
+        ]);
+        $session = $this->start();
+        $this->forceTiers($session, [1, 2, 3], 'produk');
+
+        $revealed = $this->openRound($session);
+        $this->assertSame(['produk', 'produk', 'produk'], array_column($revealed, 'tier'));
+        $this->assertSame('PDRN Pore Cleanser', $revealed[0]['name']);
+        $this->assertSame('Produk', $revealed[0]['label']);
+
+        $this->playAs($session)->postJson("/play/{$session->session_token}/take", ['slot' => 1])->assertOk();
+        $this->assertSame('PDRN Pore Cleanser', Claim::first()->prize_name);
+
+        // Stok bulanan 1 sudah terpakai: papan berikutnya jadi poin.
+        $next = $this->start('JX2', '08222222222');
+        $this->forceTiers($next, [1, 2, 3], 'produk');
+        $this->assertSame(['poin', 'poin', 'poin'], array_column($this->openRound($next), 'tier'));
+        $this->assertSame(1, (int) $item->fresh()->monthly_stock);
+    }
+
+    public function test_bobot_produk_diundi_dan_bobot_lama_tanpa_produk_tetap_berlaku(): void
+    {
+        DB::table('settings')->insert([
+            'key' => 'tier_config:'.config('app.brand'), 'value' => json_encode(['poin' => 70, 'voucher' => 25, 'merch' => 5]),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->assertSame(['poin' => 70, 'voucher' => 25, 'merch' => 5, 'produk' => 0], \LoyaltyNew\Core\Prizes\TierConfig::current());
+
+        $this->actingAs($this->gameAdmin())->post('/admin/game/tiers', ['poin' => 0, 'voucher' => 0, 'merch' => 0, 'produk' => 10])
+            ->assertRedirect();
+        PrizeCatalog::create(['brand' => config('app.brand'), 'name' => 'PDRN Pore Cleanser', 'tier' => 'produk', 'active' => true]);
+
+        $session = $this->start();
+        $this->assertSame(24, $session->prizes()->where('tier', 'produk')->count());
+    }
+
+    public function test_admin_menambah_hadiah_produk(): void
+    {
+        $this->actingAs($this->gameAdmin())->post('/admin/game/catalog', [
+            'name' => 'PDRN Pore Cleanser', 'tier' => 'produk', 'face_value' => 89000, 'monthly_stock' => 20,
+        ])->assertRedirect();
+
+        $item = PrizeCatalog::where('name', 'PDRN Pore Cleanser')->first();
+        $this->assertSame('produk', $item->tier);
+        $this->assertSame(20, (int) $item->monthly_stock);
+        $this->assertFalse((bool) $item->is_capped);
+
+        $this->actingAs($this->gameAdmin())->get('/admin/game')->assertOk()
+            ->assertSee('PDRN Pore Cleanser')->assertSee('name="produk"', false);
+    }
+
     public function test_item_nonaktif_tidak_diundi(): void
     {
         PrizeCatalog::create(['brand' => config('app.brand'), 'name' => 'Totebag', 'tier' => 'merch', 'active' => false]);

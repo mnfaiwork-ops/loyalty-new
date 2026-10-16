@@ -64,7 +64,7 @@
     <h2>Hadiah Gatcha</h2>
     <div class="card">
         @if ($catalog->isEmpty())
-            <p class="empty">Belum ada hadiah. Tambahkan lewat formulir di bawah. Selama kosong, kado voucher dan merch berisi poin.</p>
+            <p class="empty">Belum ada hadiah. Tambahkan lewat formulir di bawah. Selama kosong, kado voucher, merch, dan produk berisi poin.</p>
         @else
             <table>
                 <thead><tr><th>Hadiah</th><th>Terpakai</th></tr></thead>
@@ -113,7 +113,7 @@
             </table>
         @endif
     </div>
-    <p class="muted hint">Stok voucher/merch dihitung per bulan kalender dan kosong berarti tanpa batas. Hadiah utama baru bisa keluar mulai tanggal "Mulai keluar". Kalau kosong, otomatis 14 hari terakhir periode. Setelah itu kuota dibuka bertahap sampai periode selesai: kuota 2 untuk 14 hari berarti unit kedua baru bisa keluar mulai hari ke-8.</p>
+    <p class="muted hint">Stok voucher, merch, dan produk dihitung per bulan kalender dan kosong berarti tanpa batas. Hadiah utama baru bisa keluar mulai tanggal "Mulai keluar". Kalau kosong, otomatis 14 hari terakhir periode. Setelah itu kuota dibuka bertahap sampai periode selesai: kuota 2 untuk 14 hari berarti unit kedua baru bisa keluar mulai hari ke-8.</p>
 
     <h2>Tambah hadiah</h2>
     <div class="card" style="padding:16px">
@@ -122,13 +122,13 @@
             <label>Nama hadiah <input type="text" name="name" value="{{ old('name') }}" required></label>
             <label>Jenis
                 <select name="tier">
-                    @foreach (['voucher' => 'Voucher', 'merch' => 'Merch', 'hadiah_besar' => 'Hadiah Utama'] as $value => $label)
+                    @foreach (['voucher' => 'Voucher', 'merch' => 'Merch', 'produk' => 'Produk', 'hadiah_besar' => 'Hadiah Utama'] as $value => $label)
                         <option value="{{ $value }}" @selected(old('tier') === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
             </label>
             <label>Nilai Rp <input type="number" name="face_value" value="{{ old('face_value') }}" min="0"></label>
-            <label>Stok bulanan (voucher/merch) <input type="number" name="monthly_stock" value="{{ old('monthly_stock') }}" min="0" placeholder="Kosong = tanpa batas"></label>
+            <label>Stok bulanan (selain hadiah utama) <input type="number" name="monthly_stock" value="{{ old('monthly_stock') }}" min="0" placeholder="Kosong = tanpa batas"></label>
             <label>Kuota unit (hadiah utama) <input type="number" name="cap_units" value="{{ old('cap_units') }}" min="1"></label>
             <label>Mulai program <input type="date" name="program_start" value="{{ old('program_start') }}"></label>
             <label>Selesai program <input type="date" name="program_end" value="{{ old('program_end') }}"></label>
@@ -144,8 +144,9 @@
             <label>Poin <input type="number" name="poin" value="{{ old('poin', $tiers['poin']) }}" min="0" required></label>
             <label>Voucher <input type="number" name="voucher" value="{{ old('voucher', $tiers['voucher']) }}" min="0" required></label>
             <label>Merch <input type="number" name="merch" value="{{ old('merch', $tiers['merch']) }}" min="0" required></label>
+            <label>Produk <input type="number" name="produk" value="{{ old('produk', $tiers['produk']) }}" min="0" required></label>
             <button class="btn" type="submit">Simpan bobot</button>
         </form>
-        <p class="muted hint" style="padding:0 16px 16px">Bobot berlaku per kotak. Pelanggan membuka 3 kotak dan mengambil yang terbaik, jadi peluang nyata per kesempatan lebih besar dari angka ini. Bobot baru berlaku untuk pelanggan yang mulai main setelah disimpan.</p>
+        <p class="muted hint" style="padding:0 16px 16px">Bobot berlaku per kotak. Pelanggan membuka 3 kotak dan mengambil yang terbaik, jadi peluang nyata per kesempatan lebih besar dari angka ini. Bobot baru berlaku untuk pelanggan yang mulai main setelah disimpan. Bobot satu jenis dibagi rata ke hadiah aktif di jenis itu. Contoh: bobot produk 4 dengan dua produk aktif berarti tiap produk berbobot 2.</p>
     </div>
 @endsection

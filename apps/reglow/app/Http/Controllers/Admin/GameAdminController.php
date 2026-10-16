@@ -25,7 +25,7 @@ final class GameAdminController extends Controller
         $brand = config('app.brand');
 
         $catalog = PrizeCatalog::where('brand', $brand)
-            ->orderByRaw("case tier when 'hadiah_besar' then 0 when 'merch' then 1 when 'voucher' then 2 else 3 end")
+            ->orderByRaw("case tier when 'hadiah_besar' then 0 when 'produk' then 1 when 'merch' then 2 when 'voucher' then 3 else 4 end")
             ->orderBy('name')
             ->get();
 
@@ -34,7 +34,7 @@ final class GameAdminController extends Controller
             ->get()
             ->keyBy('prize_name');
 
-        // Pemakaian per hadiah: stok bulan ini untuk voucher/merch, kuota periode untuk hadiah utama.
+        // Pemakaian per hadiah: stok bulan ini untuk voucher/merch/produk, kuota periode untuk hadiah utama.
         $usage = $catalog->mapWithKeys(function (PrizeCatalog $prize) use ($caps) {
             $cap = $caps->get($prize->name);
 
@@ -55,7 +55,7 @@ final class GameAdminController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'tier' => ['required', 'in:poin,voucher,merch,hadiah_besar'],
+            'tier' => ['required', 'in:poin,voucher,merch,produk,hadiah_besar'],
             'point_value' => ['nullable', 'integer', 'min:0'],
             'face_value' => ['nullable', 'integer', 'min:0'],
             'quota_total' => ['nullable', 'integer', 'min:0'],

@@ -49,7 +49,9 @@ final class GameAdminTest extends TestCase
 
     public function test_super_admin_bisa_akses(): void
     {
-        $this->actingAs($this->admin('super_admin'))->get('/admin/game')->assertOk();
+        $this->actingAs($this->admin('super_admin'))->get('/admin/game')->assertOk()
+            ->assertSee('<title>Panel Game · Loyalty Amura</title>', false)
+            ->assertSee('<b>Loyalty Amura</b>', false);
     }
 
     public function test_update_tier_config_persists(): void
@@ -60,10 +62,10 @@ final class GameAdminTest extends TestCase
             'merch' => 5,
         ])->assertRedirect();
 
-        $this->assertSame(['poin' => 70, 'voucher' => 25, 'merch' => 5], TierConfig::current());
+        $this->assertSame(['poin' => 70, 'voucher' => 25, 'merch' => 5, 'produk' => 0], TierConfig::current());
 
         $session = app(SessionService::class)->open('JX999', '081100000099');
-        $this->assertSame(['poin' => 70, 'voucher' => 25, 'merch' => 5], $session->tier_config);
+        $this->assertSame(['poin' => 70, 'voucher' => 25, 'merch' => 5, 'produk' => 0], $session->tier_config);
     }
 
     public function test_tambah_hadiah_besar_dengan_cap(): void
@@ -139,7 +141,7 @@ final class GameAdminTest extends TestCase
 
     public function test_tier_config_default_kalau_belum_diatur(): void
     {
-        $this->assertSame(['poin' => 65, 'voucher' => 32, 'merch' => 3], TierConfig::current());
+        $this->assertSame(['poin' => 65, 'voucher' => 32, 'merch' => 3, 'produk' => 0], TierConfig::current());
     }
 
     public function test_tier_config_terisolasi_per_brand(): void
@@ -151,10 +153,10 @@ final class GameAdminTest extends TestCase
         ])->assertRedirect();
 
         config(['app.brand' => 'reglow']);
-        $this->assertSame(['poin' => 65, 'voucher' => 32, 'merch' => 3], TierConfig::current());
+        $this->assertSame(['poin' => 65, 'voucher' => 32, 'merch' => 3, 'produk' => 0], TierConfig::current());
         config(['app.brand' => 'amura']);
 
-        $this->assertSame(['poin' => 70, 'voucher' => 25, 'merch' => 5], TierConfig::current());
+        $this->assertSame(['poin' => 70, 'voucher' => 25, 'merch' => 5, 'produk' => 0], TierConfig::current());
     }
 
     public function test_login_mengarahkan_sesuai_role(): void

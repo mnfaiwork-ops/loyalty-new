@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Models\PrizeCatalog;
 
 /**
- * Stok bulanan hadiah voucher/merch Gatcha (`prize_catalog.monthly_stock`).
+ * Stok bulanan hadiah voucher/merch/produk Gatcha (`prize_catalog.monthly_stock`).
  * Terpakai = kado item itu yang diambil pelanggan bulan ini (klaimnya terbit).
  *
  * Stok dicek saat kado dibuka, bukan dikunci. Dua pelanggan yang membuka item

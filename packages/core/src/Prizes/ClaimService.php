@@ -78,6 +78,7 @@ final class ClaimService
             'hadiah_besar' => 'Hadiah Utama',
             'voucher' => 'Voucher',
             'merch' => 'Merch',
+            'produk' => 'Produk',
             default => 'Poin',
         };
     }

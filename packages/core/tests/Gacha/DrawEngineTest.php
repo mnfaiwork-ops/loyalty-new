@@ -35,7 +35,7 @@ final class DrawEngineTest extends TestCase
 
     public function test_bobot_default_tepat_65_32_3(): void
     {
-        $this->assertSame(['poin' => 65, 'voucher' => 32, 'merch' => 3], TierConfig::default());
+        $this->assertSame(['poin' => 65, 'voucher' => 32, 'merch' => 3, 'produk' => 0], TierConfig::default());
     }
 
     public function test_distribusi_tepat_sesuai_bobot(): void

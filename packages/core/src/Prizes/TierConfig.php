@@ -9,10 +9,16 @@ final class TierConfig
 {
     private const KEY = 'tier_config';
 
-    /** Bobot tier default (spec §5): poin 65 / voucher 32 / merch 3. */
+    /** Tier biasa yang diundi per kotak. Hadiah utama ditaruh terpisah (GameControls). */
+    public const TIERS = ['poin', 'voucher', 'merch', 'produk'];
+
+    /**
+     * Bobot tier default (spec §5): poin 65 / voucher 32 / merch 3. Produk (hadiah
+     * produk gratis, ditambahkan 2026-10-16) mulai 0 sampai Game Admin mengisinya.
+     */
     public static function default(): array
     {
-        return ['poin' => 65, 'voucher' => 32, 'merch' => 3];
+        return ['poin' => 65, 'voucher' => 32, 'merch' => 3, 'produk' => 0];
     }
 
     /** Key settings dipisah per brand supaya override satu brand tidak bocor ke brand lain. */
@@ -51,6 +57,8 @@ final class TierConfig
             'poin' => (int) $stored['poin'],
             'voucher' => (int) $stored['voucher'],
             'merch' => (int) $stored['merch'],
+            // Bobot yang disimpan sebelum tier produk ada tidak punya kunci ini.
+            'produk' => (int) ($stored['produk'] ?? 0),
         ];
     }
 
@@ -63,6 +71,7 @@ final class TierConfig
                 'poin' => (int) $weights['poin'],
                 'voucher' => (int) $weights['voucher'],
                 'merch' => (int) $weights['merch'],
+                'produk' => (int) ($weights['produk'] ?? 0),
             ]), 'updated_at' => now(), 'created_at' => now()],
         );
     }
@@ -78,8 +87,11 @@ final class TierConfig
                 return false;
             }
         }
+        if (array_key_exists('produk', $value) && (! is_int($value['produk']) || $value['produk'] < 0)) {
+            return false;
+        }
 
         // Total 0 membuat undian tidak mungkin jalan: anggap tidak valid, pakai default.
-        return array_sum(array_map(fn ($tier) => $value[$tier], ['poin', 'voucher', 'merch'])) > 0;
+        return array_sum(array_map(fn ($tier) => $value[$tier] ?? 0, self::TIERS)) > 0;
     }
 }

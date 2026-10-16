@@ -182,7 +182,7 @@ final class SessionService
      * mengunci sesi. Hadiah besar yang baru terbuka memotong kuota di sini;
      * kalau kuota sudah diambil sesi lain, kado itu diundi ulang ke tier biasa
      * SEBELUM tampil, jadi pelanggan tidak pernah melihat hadiah besar yang
-     * lalu dibatalkan. Hal yang sama untuk voucher/merch yang stok bulanannya
+     * lalu dibatalkan. Hal yang sama untuk voucher/merch/produk yang stok bulanannya
      * habis, dan untuk semua kado non-poin saat Gatcha dijeda: kado jadi poin.
      *
      * @param  Collection<int, GamePrize>  $round
@@ -207,8 +207,8 @@ final class SessionService
                 $prize->prize_catalog_id = null;
             }
 
-            // Voucher/Merch mendapat item spesifik supaya CS tahu apa yang dikirim.
-            if (in_array($prize->tier, ['voucher', 'merch'], true) && ! $prize->prize_catalog_id) {
+            // Voucher/merch/produk mendapat item spesifik supaya CS tahu apa yang dikirim.
+            if (in_array($prize->tier, ['voucher', 'merch', 'produk'], true) && ! $prize->prize_catalog_id) {
                 $prize->prize_catalog_id = PrizeStock::pick($this->brand, $prize->tier);
                 if ($prize->prize_catalog_id === null) {
                     $prize->tier = 'poin';

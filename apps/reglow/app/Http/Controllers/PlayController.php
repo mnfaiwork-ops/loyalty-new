@@ -348,6 +348,7 @@ final class PlayController extends Controller
             'hadiah_besar' => 'Hadiah Utama',
             'voucher' => 'Voucher',
             'merch' => 'Merch',
+            'produk' => 'Produk',
             default => 'Poin',
         };
     }

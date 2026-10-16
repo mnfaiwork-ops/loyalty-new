@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Panel Admin') · Sinergi Loyalty</title>
+    <title>@yield('title', 'Panel Admin') · Loyalty {{ ucfirst((string) config('app.brand')) }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -84,8 +84,8 @@
     <div class="shell">
         <aside>
             <div class="org">
-                <b>Sinergi Loyalty</b>
-                <small>{{ $roleName }} · {{ $user?->name }} · {{ ucfirst((string) config('app.brand')) }}</small>
+                <b>Loyalty {{ ucfirst((string) config('app.brand')) }}</b>
+                <small>{{ $roleName }} · {{ $user?->name }}</small>
             </div>
             <nav class="menu" aria-label="Menu panel">
                 @if ($is('cs', 'super_admin'))
