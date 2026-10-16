@@ -84,6 +84,7 @@
                                             <input type="number" name="cap_units" value="{{ $use['cap']->cap_units }}" min="1" aria-label="Kuota unit {{ $prize->name }}" required>
                                             <input type="date" name="program_start" value="{{ \Illuminate\Support\Carbon::parse($use['cap']->program_start)->toDateString() }}" aria-label="Mulai program {{ $prize->name }}" required>
                                             <input type="date" name="program_end" value="{{ \Illuminate\Support\Carbon::parse($use['cap']->program_end)->toDateString() }}" aria-label="Selesai program {{ $prize->name }}" required>
+                                            <label class="check">Mulai keluar <input type="date" name="release_from" value="{{ $use['cap']->release_from ? \Illuminate\Support\Carbon::parse($use['cap']->release_from)->toDateString() : '' }}" aria-label="Mulai keluar {{ $prize->name }}"></label>
                                         @else
                                             <input type="number" name="monthly_stock" value="{{ $prize->monthly_stock }}" min="0" placeholder="Tanpa batas" aria-label="Stok bulanan {{ $prize->name }}">
                                         @endif
@@ -95,6 +96,7 @@
                             <td class="muted">
                                 @if (isset($use['cap']))
                                     {{ $use['cap']->used_units }} dari {{ $use['cap']->cap_units }} unit
+                                    <div class="hint">Mulai keluar {{ $use['release']->locale('id')->translatedFormat('j F Y') }}@unless ($use['cap']->release_from) (otomatis)@endunless</div>
                                     <div class="hint">Boleh keluar sampai hari ini: {{ $use['unlocked'] }}</div>
                                 @elseif ($prize->tier === 'poin')
                                     -
@@ -111,7 +113,7 @@
             </table>
         @endif
     </div>
-    <p class="muted hint">Stok voucher/merch dihitung per bulan kalender dan kosong berarti tanpa batas. Kuota hadiah utama dibuka bertahap: kuota 2 untuk 60 hari berarti unit kedua baru bisa keluar mulai hari ke-31.</p>
+    <p class="muted hint">Stok voucher/merch dihitung per bulan kalender dan kosong berarti tanpa batas. Hadiah utama baru bisa keluar mulai tanggal "Mulai keluar". Kalau kosong, otomatis 14 hari terakhir periode. Setelah itu kuota dibuka bertahap sampai periode selesai: kuota 2 untuk 14 hari berarti unit kedua baru bisa keluar mulai hari ke-8.</p>
 
     <h2>Tambah hadiah</h2>
     <div class="card" style="padding:16px">
@@ -130,6 +132,7 @@
             <label>Kuota unit (hadiah utama) <input type="number" name="cap_units" value="{{ old('cap_units') }}" min="1"></label>
             <label>Mulai program <input type="date" name="program_start" value="{{ old('program_start') }}"></label>
             <label>Selesai program <input type="date" name="program_end" value="{{ old('program_end') }}"></label>
+            <label>Mulai keluar (hadiah utama) <input type="date" name="release_from" value="{{ old('release_from') }}"></label>
             <button class="btn" type="submit">Tambah hadiah</button>
         </form>
     </div>

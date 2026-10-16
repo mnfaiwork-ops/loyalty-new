@@ -62,6 +62,7 @@ final class BugfixRegressionTest extends TestCase
             'cap_units' => $cap,
             'used_units' => 0,
             'program_start' => now(),
+            'release_from' => now(),
             'program_end' => now()->addMonth(),
         ]);
     }

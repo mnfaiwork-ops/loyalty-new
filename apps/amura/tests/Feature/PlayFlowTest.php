@@ -132,6 +132,7 @@ final class PlayFlowTest extends TestCase
         \Illuminate\Support\Facades\DB::table('quota_caps')->insert([
             'brand' => config('app.brand'), 'prize_name' => 'Emas 1 gram', 'cap_units' => 5, 'used_units' => 0,
             'program_start' => now()->subDay()->toDateString(), 'program_end' => now()->addMonth()->toDateString(),
+            'release_from' => now()->subDay()->toDateString(),
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $session = $this->start();

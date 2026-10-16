@@ -14,12 +14,16 @@ use LoyaltyNew\Core\Models\PrizeCatalog;
  * bukan saat sesi dibuat. Pelanggan hanya membuka 6 dari 24 kado, jadi memotong
  * kuota di awal sesi menghabiskan cap untuk hadiah yang tidak pernah ditemukan.
  *
- * Kuota juga dibuka bertahap sepanjang program_start..program_end, supaya tidak
- * habis di hari pertama: unit ke-n baru bisa keluar setelah (n-1)/cap periode lewat.
- * Di luar periode program, hadiah besar tidak keluar.
+ * Hadiah besar baru bisa keluar mulai release_from (diatur Game Admin; kosong =
+ * 14 hari terakhir periode), lalu dibuka bertahap sampai program_end: unit ke-n
+ * baru bisa keluar setelah (n-1)/cap jendela itu lewat. Di luar jendela, hadiah
+ * besar tidak keluar.
  */
 final class BigPrizeQuota
 {
+    /** Jendela keluar default kalau release_from kosong: 14 hari terakhir periode. */
+    public const DEFAULT_RELEASE_DAYS = 14;
+
     /** Ada sisa kuota untuk katalog ini? Cek biasa, tanpa memotong. */
     public static function available(string $brand, PrizeCatalog $catalog): bool
     {
@@ -29,14 +33,15 @@ final class BigPrizeQuota
     }
 
     /**
-     * Unit yang sudah boleh keluar sampai hari ini. Periode dibagi rata per unit:
-     * cap 2 untuk 60 hari berarti unit 1 sejak hari ke-1, unit 2 sejak hari ke-31.
+     * Unit yang sudah boleh keluar sampai hari ini. Jendela release_from..program_end
+     * dibagi rata per unit: cap 2 untuk jendela 14 hari berarti unit 1 sejak hari
+     * pertama jendela, unit 2 sejak hari ke-8.
      */
     public static function unlocked(object $cap, ?\DateTimeInterface $today = null): int
     {
         $units = (int) $cap->cap_units;
         $today = Carbon::instance($today ?? now())->startOfDay();
-        $start = Carbon::parse($cap->program_start)->startOfDay();
+        $start = self::releaseFrom($cap);
         $end = Carbon::parse($cap->program_end)->startOfDay();
 
         if ($units <= 0 || $today->lt($start) || $today->gt($end)) {
@@ -54,6 +59,17 @@ final class BigPrizeQuota
         }
 
         return $open;
+    }
+
+    /** Hari pertama hadiah besar boleh keluar, tidak pernah sebelum program_start. */
+    public static function releaseFrom(object $cap): Carbon
+    {
+        $start = Carbon::parse($cap->program_start)->startOfDay();
+        $release = ($cap->release_from ?? null)
+            ? Carbon::parse($cap->release_from)->startOfDay()
+            : Carbon::parse($cap->program_end)->startOfDay()->subDays(self::DEFAULT_RELEASE_DAYS - 1);
+
+        return $release->max($start);
     }
 
     /** Potong satu unit secara atomik. False kalau kuota sudah habis atau hadiah tanpa cap. */

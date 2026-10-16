@@ -14,6 +14,12 @@ use LoyaltyNew\Core\Prizes\TierConfig;
 
 final class GameAdminController extends Controller
 {
+    private const RELEASE_MESSAGES = [
+        'program_end.after_or_equal' => 'Tanggal selesai harus sama atau setelah tanggal mulai.',
+        'release_from.after_or_equal' => 'Tanggal mulai keluar harus di dalam periode program.',
+        'release_from.before_or_equal' => 'Tanggal mulai keluar harus di dalam periode program.',
+    ];
+
     public function index()
     {
         $brand = config('app.brand');
@@ -33,7 +39,7 @@ final class GameAdminController extends Controller
             $cap = $caps->get($prize->name);
 
             return [$prize->id => $cap
-                ? ['cap' => $cap, 'unlocked' => BigPrizeQuota::unlocked($cap)]
+                ? ['cap' => $cap, 'unlocked' => BigPrizeQuota::unlocked($cap), 'release' => BigPrizeQuota::releaseFrom($cap)]
                 : ['used' => PrizeStock::usedThisMonth((int) $prize->id)]];
         });
 
@@ -58,7 +64,8 @@ final class GameAdminController extends Controller
             'cap_units' => ['nullable', 'required_if:is_capped,1', 'required_if:tier,hadiah_besar', 'integer', 'min:1'],
             'program_start' => ['nullable', 'date'],
             'program_end' => ['nullable', 'date', 'after_or_equal:program_start'],
-        ]);
+            'release_from' => ['nullable', 'date', 'after_or_equal:program_start', 'before_or_equal:program_end'],
+        ], self::RELEASE_MESSAGES);
 
         $brand = config('app.brand');
 
@@ -88,6 +95,7 @@ final class GameAdminController extends Controller
                 'used_units' => 0,
                 'program_start' => $data['program_start'] ?? now()->toDateString(),
                 'program_end' => $data['program_end'] ?? now()->addMonth()->toDateString(),
+                'release_from' => $data['release_from'] ?? null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -112,9 +120,10 @@ final class GameAdminController extends Controller
             'cap_units' => [$cap ? 'required' : 'nullable', 'integer', 'min:'.($cap ? max(1, (int) $cap->used_units) : 1)],
             'program_start' => [$cap ? 'required' : 'nullable', 'date'],
             'program_end' => [$cap ? 'required' : 'nullable', 'date', 'after_or_equal:program_start'],
+            'release_from' => ['nullable', 'date', 'after_or_equal:program_start', 'before_or_equal:program_end'],
         ], [
             'cap_units.min' => 'Kuota tidak boleh di bawah unit yang sudah keluar.',
-            'program_end.after_or_equal' => 'Tanggal selesai harus sama atau setelah tanggal mulai.',
+            ...self::RELEASE_MESSAGES,
         ]);
 
         $prize->update([
@@ -128,6 +137,7 @@ final class GameAdminController extends Controller
                 'cap_units' => $data['cap_units'],
                 'program_start' => $data['program_start'],
                 'program_end' => $data['program_end'],
+                'release_from' => $data['release_from'] ?? null,
                 'updated_at' => now(),
             ]);
         }

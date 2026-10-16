@@ -126,6 +126,7 @@ final class SpecVerificationTest extends TestCase
             'cap_units' => 1,
             'used_units' => 0,
             'program_start' => now(),
+            'release_from' => now(),
             'program_end' => now()->addMonth(),
         ]);
 

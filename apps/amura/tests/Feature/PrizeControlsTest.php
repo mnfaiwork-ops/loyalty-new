@@ -47,14 +47,16 @@ final class PrizeControlsTest extends TestCase
         return $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk()->json('revealed');
     }
 
-    private function bigPrize(int $cap, string $start, string $end, int $used = 0): PrizeCatalog
+    /** $release '' = kolom release_from kosong (default 14 hari terakhir); null = sejak $start. */
+    private function bigPrize(int $cap, string $start, string $end, int $used = 0, ?string $release = null): PrizeCatalog
     {
         $prize = PrizeCatalog::create([
             'brand' => config('app.brand'), 'name' => 'Air Fryer', 'tier' => 'hadiah_besar', 'is_capped' => true, 'active' => true,
         ]);
         DB::table('quota_caps')->insert([
             'brand' => config('app.brand'), 'prize_name' => 'Air Fryer', 'cap_units' => $cap, 'used_units' => $used,
-            'program_start' => $start, 'program_end' => $end, 'created_at' => now(), 'updated_at' => now(),
+            'program_start' => $start, 'program_end' => $end, 'release_from' => $release === '' ? null : ($release ?? $start),
+            'created_at' => now(), 'updated_at' => now(),
         ]);
 
         return $prize;
@@ -147,7 +149,7 @@ final class PrizeControlsTest extends TestCase
 
     public function test_kuota_dibuka_bertahap_sepanjang_periode(): void
     {
-        $cap = (object) ['cap_units' => 2, 'program_start' => '2026-10-01', 'program_end' => '2026-11-29'];
+        $cap = (object) ['cap_units' => 2, 'program_start' => '2026-10-01', 'program_end' => '2026-11-29', 'release_from' => '2026-10-01'];
 
         $this->assertSame(0, BigPrizeQuota::unlocked($cap, new \DateTime('2026-09-30')));
         $this->assertSame(1, BigPrizeQuota::unlocked($cap, new \DateTime('2026-10-01')));
@@ -155,6 +157,37 @@ final class PrizeControlsTest extends TestCase
         $this->assertSame(2, BigPrizeQuota::unlocked($cap, new \DateTime('2026-10-31')));
         $this->assertSame(2, BigPrizeQuota::unlocked($cap, new \DateTime('2026-11-29')));
         $this->assertSame(0, BigPrizeQuota::unlocked($cap, new \DateTime('2026-11-30')));
+    }
+
+    public function test_tanpa_tanggal_mulai_keluar_hadiah_utama_hanya_di_14_hari_terakhir(): void
+    {
+        $cap = (object) ['cap_units' => 2, 'program_start' => '2026-10-01', 'program_end' => '2026-11-29', 'release_from' => null];
+
+        $this->assertSame('2026-11-16', BigPrizeQuota::releaseFrom($cap)->toDateString());
+        $this->assertSame(0, BigPrizeQuota::unlocked($cap, new \DateTime('2026-10-01')));
+        $this->assertSame(0, BigPrizeQuota::unlocked($cap, new \DateTime('2026-11-15')));
+        $this->assertSame(1, BigPrizeQuota::unlocked($cap, new \DateTime('2026-11-16')));
+        $this->assertSame(1, BigPrizeQuota::unlocked($cap, new \DateTime('2026-11-22')));
+        $this->assertSame(2, BigPrizeQuota::unlocked($cap, new \DateTime('2026-11-23')));
+        $this->assertSame(2, BigPrizeQuota::unlocked($cap, new \DateTime('2026-11-29')));
+    }
+
+    public function test_tanggal_mulai_keluar_tidak_pernah_sebelum_periode(): void
+    {
+        $cap = (object) ['cap_units' => 1, 'program_start' => '2026-10-10', 'program_end' => '2026-10-15', 'release_from' => '2026-09-01'];
+
+        $this->assertSame('2026-10-10', BigPrizeQuota::releaseFrom($cap)->toDateString());
+        $this->assertSame(0, BigPrizeQuota::unlocked($cap, new \DateTime('2026-10-09')));
+    }
+
+    public function test_hadiah_utama_tidak_ditaruh_sebelum_tanggal_mulai_keluar(): void
+    {
+        $this->bigPrize(1, now()->toDateString(), now()->addDays(59)->toDateString(), release: '');
+        $this->alwaysPlaceBigPrize();
+
+        $session = $this->start();
+
+        $this->assertSame(0, $session->prizes()->where('tier', 'hadiah_besar')->count());
     }
 
     public function test_unit_yang_belum_terbuka_tidak_bisa_keluar(): void
@@ -334,6 +367,24 @@ final class PrizeControlsTest extends TestCase
         $cap = DB::table('quota_caps')->where('prize_name', 'Air Fryer')->first();
         $this->assertSame(3, (int) $cap->cap_units);
         $this->assertSame('2026-12-31', substr((string) $cap->program_end, 0, 10));
+    }
+
+    public function test_admin_mengatur_tanggal_mulai_keluar_hadiah_utama(): void
+    {
+        $prize = $this->bigPrize(1, '2026-10-01', '2026-11-30', release: '');
+        $form = ['active' => '1', 'cap_units' => 1, 'program_start' => '2026-10-01', 'program_end' => '2026-11-30'];
+
+        $this->actingAs($this->gameAdmin())->post("/admin/game/catalog/{$prize->id}", $form + ['release_from' => '2026-12-01'])
+            ->assertSessionHasErrors(['release_from' => 'Tanggal mulai keluar harus di dalam periode program.']);
+
+        $this->actingAs($this->gameAdmin())->post("/admin/game/catalog/{$prize->id}", $form + ['release_from' => '2026-11-20'])
+            ->assertRedirect();
+        $this->assertSame('2026-11-20', substr((string) DB::table('quota_caps')->where('prize_name', 'Air Fryer')->value('release_from'), 0, 10));
+
+        // Dikosongkan lagi: kembali ke 14 hari terakhir.
+        $this->actingAs($this->gameAdmin())->post("/admin/game/catalog/{$prize->id}", $form + ['release_from' => ''])
+            ->assertRedirect();
+        $this->assertNull(DB::table('quota_caps')->where('prize_name', 'Air Fryer')->value('release_from'));
     }
 
     public function test_admin_brand_lain_tidak_bisa_mengubah_hadiah(): void
