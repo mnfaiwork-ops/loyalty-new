@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "44c7a0ed4be7631440ba3df2e1f76ec5",
+    "content-hash": "cba642196b5d1f489a12b1b648a344a8",
     "packages": [
         {
             "name": "brick/math",
@@ -2034,12 +2034,15 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/core",
-                "reference": "bbafac96469e1334945ad1664c1b4b8f8d15336f"
+                "reference": "bcfdfd822d4a0112ae35fca4a9791dc21f7b8106"
             },
             "require": {
                 "illuminate/database": "^12.0",
                 "illuminate/support": "^12.0",
                 "php": "^8.5"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.3"
             },
             "type": "library",
             "extra": {
@@ -5897,12 +5900,12 @@
             "version": "v5.7.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/vlucas/phpdotenv.git",
+                "url": "https://github.com/phpdotenv/phpdotenv.git",
                 "reference": "301c07936b16d88628b126b01d082ba153cf4c40"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/vlucas/phpdotenv/zipball/301c07936b16d88628b126b01d082ba153cf4c40",
+                "url": "https://api.github.com/repos/phpdotenv/phpdotenv/zipball/301c07936b16d88628b126b01d082ba153cf4c40",
                 "reference": "301c07936b16d88628b126b01d082ba153cf4c40",
                 "shasum": ""
             },
@@ -8424,7 +8427,7 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": "^8.2"
+        "php": "^8.5"
     },
     "platform-dev": {},
     "plugin-api-version": "2.9.0"

@@ -68,7 +68,7 @@
 
     <div class="entry-foot">
         <div class="home-actions">
-            <a class="btn btn-outline" href="{{ route('catalog') }}">Katalog</a>
+            <a class="btn btn-outline" href="{{ route('catalog') }}">Tukar Poin</a>
             @if ($session)
                 <a class="btn btn-brand" href="{{ route('play.board', $session->session_token) }}">Gatcha ({{ $chances }})</a>
             @else

@@ -58,8 +58,8 @@
     {{-- Pilih 3 dari 24 (2b) --}}
     <div id="pickView" hidden>
         <div class="stage-intro">
-            <h1>Pilih 3 kado</h1>
-            <p>Semua kado berisi hadiah. Isinya diacak server saat dibuka.</p>
+            <h1 id="pickTitle">Pilih 3 kado</h1>
+            <p id="pickLead">Semua kado berisi hadiah. Isinya diacak server saat dibuka.</p>
         </div>
     </div>
     <div class="board" id="board" hidden>

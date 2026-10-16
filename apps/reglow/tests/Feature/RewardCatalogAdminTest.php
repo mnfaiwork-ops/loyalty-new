@@ -44,6 +44,33 @@ final class RewardCatalogAdminTest extends TestCase
         $this->assertNotNull(RewardCatalogService::active(config('app.brand')));
     }
 
+    public function test_simpan_semua_baris_sekaligus(): void
+    {
+        $period = now()->format('Y-m');
+        $catalog = RewardCatalogService::forPeriod(config('app.brand'), $period);
+        $pouch = $catalog->items()->create(['name' => 'Pouch Exclusive', 'points_cost' => 1000, 'stock' => 100, 'active' => true]);
+        $serum = $catalog->items()->create(['name' => 'Night Cream', 'points_cost' => 2500, 'stock' => 50, 'active' => true]);
+        $other = RewardCatalogService::forPeriod('brand-lain', $period)->items()->create(['name' => 'Milik brand lain', 'points_cost' => 10]);
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->get("/admin/catalog?period={$period}")->assertOk()
+            ->assertSee('Harga (poin)')->assertSee('Stok bulan ini')->assertSee('Simpan perubahan');
+
+        $this->actingAs($admin)->post('/admin/catalog/items/bulk', ['period' => $period, 'items' => [
+            $pouch->id => ['name' => 'Pouch Exclusive', 'points_cost' => 1200, 'stock' => '', 'sort' => 2, 'active' => '0'],
+            $serum->id => ['name' => 'Night Cream', 'points_cost' => 2400, 'stock' => 40, 'sort' => 1, 'active' => '1'],
+            $other->id => ['name' => 'Diubah', 'points_cost' => 1, 'active' => '1'],
+        ]])->assertRedirect(route('admin.catalog', ['period' => $period]))->assertSessionHas('ok', '2 item disimpan.');
+
+        $this->assertSame([1200, null, false], [$pouch->fresh()->points_cost, $pouch->fresh()->stock, $pouch->fresh()->active]);
+        $this->assertSame([2400, 40, true], [$serum->fresh()->points_cost, $serum->fresh()->stock, $serum->fresh()->active]);
+        $this->assertSame('Milik brand lain', $other->fresh()->name);
+
+        $this->actingAs($admin)->post('/admin/catalog/items/bulk', ['period' => $period, 'items' => [
+            $serum->id => ['name' => 'Night Cream', 'points_cost' => 0, 'active' => '1'],
+        ]])->assertSessionHasErrors(["items.{$serum->id}.points_cost" => 'Harga poin minimal 1.']);
+    }
+
     public function test_salin_dari_bulan_lalu(): void
     {
         $prev = now()->subMonth()->format('Y-m');
@@ -58,10 +85,12 @@ final class RewardCatalogAdminTest extends TestCase
     public function test_simpan_pengaturan_poin(): void
     {
         $this->actingAs($this->admin())->post('/admin/catalog/settings', [
-            'per_gift' => 250, 'min_redeem' => 600, 'validity_months' => 6,
+            'per_gift' => 250, 'min_redeem' => 600, 'validity_months' => 6, 'per_thousand' => 2, 'min_percent' => 90,
         ])->assertRedirect();
 
-        $this->assertSame(['per_gift' => 250, 'min_redeem' => 600, 'validity_months' => 6], LoyaltySettings::current());
+        $this->assertSame([
+            'per_gift' => 250, 'min_redeem' => 600, 'validity_months' => 6, 'per_thousand' => 2, 'min_percent' => 90,
+        ], LoyaltySettings::current());
     }
 
     public function test_validasi_harga_poin(): void

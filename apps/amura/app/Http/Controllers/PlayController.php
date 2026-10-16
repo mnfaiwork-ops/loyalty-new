@@ -3,12 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Http\Middleware\RememberedCustomer;
+use App\Support\PendingCustomer;
+use App\Support\PhoneInput;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use LoyaltyNew\Core\Content\SiteContent;
 use LoyaltyNew\Core\Gacha\AttemptLimiter;
 use LoyaltyNew\Core\Gacha\Grid;
+use LoyaltyNew\Core\Gacha\OutsideProgramException;
 use LoyaltyNew\Core\Gacha\SessionExpiredException;
 use LoyaltyNew\Core\Gacha\SessionService;
 use LoyaltyNew\Core\Models\Claim;
@@ -22,13 +26,15 @@ use LoyaltyNew\Core\Prizes\PrizeAwarder;
 
 final class PlayController extends Controller
 {
+    private const NOT_OWNER = 'Papan ini hanya bisa dibuka dari HP pemiliknya. Masuk dengan nomor resi dan nomor HP.';
+
     public function __construct(private SessionService $sessions)
     {
     }
 
     public function form()
     {
-        return view('play.form');
+        return view('play.form', ['content' => SiteContent::current()]);
     }
 
     public function start(Request $request)
@@ -42,13 +48,9 @@ final class PlayController extends Controller
             'max' => 'Isian terlalu panjang. Cek lagi angkanya.',
         ]);
 
-        // Form menampilkan "+62" di depan kolom HP, jadi "812..." berarti "0812...".
-        $digits = preg_replace('/\D+/', '', $data['phone']);
-        if ($digits !== '' && ! str_starts_with($digits, '0') && ! str_starts_with($digits, '62')) {
-            $data['phone'] = '0'.$digits;
-        }
+        $data['phone'] = PhoneInput::normalize($data['phone']);
 
-        $limiter = AttemptLimiter::fromConfig((string) config('app.brand'));
+        $limiter = AttemptLimiter::fromConfig((string) config('app.brand'), $request->ip());
 
         // Kunci akses: tolak lebih awal kalau sudah 5x salah (spec §7).
         if (($remaining = $limiter->lockedFor($data['awb'], $data['phone'])) !== null) {
@@ -72,9 +74,13 @@ final class PlayController extends Controller
 
             $limiter->clear($data['awb'], $data['phone']);
 
-            return redirect()->route('home')
-                ->with('ok', 'Masa main untuk paket ini sudah berakhir. Poin dan hadiahmu tetap bisa dilihat di sini.')
-                ->withCookie(RememberedCustomer::cookieFor($customer));
+            return $this->throughPin($request, $customer, route('home'),
+                'Masa main untuk paket ini sudah berakhir. Poin dan hadiahmu tetap bisa dilihat di sini.');
+        } catch (OutsideProgramException $e) {
+            // Resi + HP benar, ordernya saja di luar periode: bukan percobaan gagal.
+            $limiter->clear($data['awb'], $data['phone']);
+
+            return back()->withErrors(['awb' => $e->getMessage()])->withInput();
         } catch (\RuntimeException $e) {
             $limiter->recordFailure($data['awb'], $data['phone']);
 
@@ -85,20 +91,48 @@ final class PlayController extends Controller
 
         $customer = Customer::findOrFail($session->customer_id);
         $target = $session->chance_used < $session->chance_total
-            ? redirect()->route('play.board', $session->session_token)
-            : redirect()->route('home');
+            ? route('play.board', $session->session_token)
+            : route('home');
 
-        return $target->withCookie(RememberedCustomer::cookieFor($customer));
+        return $this->throughPin($request, $customer, $target);
     }
 
-    public function board(string $token)
+    /**
+     * Resi + HP sudah cocok. Pelanggan baru membuat PIN, pelanggan lama
+     * memasukkan PIN-nya, lalu lanjut ke tujuan (spec PIN 2026-10-07).
+     */
+    private function throughPin(Request $request, Customer $customer, string $next, ?string $notice = null)
+    {
+        $customer->refresh();
+
+        // Perangkat ini sudah diingat untuk pelanggan yang sama, jadi PIN tidak ditanya lagi.
+        $remembered = RememberedCustomer::resolve($request);
+        if ($remembered?->id === $customer->id) {
+            return redirect($next)->with('ok', $notice)->withCookie(RememberedCustomer::cookieFor($customer));
+        }
+
+        $isNew = $customer->pin_hash === null;
+        PendingCustomer::put($request, $customer, $next, canSet: $isNew, notice: $notice);
+
+        return redirect()->route($isNew ? 'pin.create' : 'pin.show');
+    }
+
+    public function board(Request $request, string $token)
     {
         $session = $this->session($token);
+
+        if (! $this->owns($request, $session)) {
+            return redirect()->route('play.form')
+                ->withErrors(['awb' => self::NOT_OWNER]);
+        }
 
         if (SessionService::isExpired($session)) {
             return redirect()->route('play.form')
                 ->withErrors(['awb' => (new SessionExpiredException)->getMessage()]);
         }
+
+        // Sesi lama dari sebelum papan per kesempatan belum punya papan kesempatan 2.
+        DB::transaction(fn () => $this->sessions->ensureRound($this->lockedSession($token)));
 
         // Ronde yang belum selesai (mis. halaman di-refresh) ditampilkan lagi,
         // supaya pelanggan bisa melanjutkan, bukan terjebak di kotak yang terkunci.
@@ -109,7 +143,7 @@ final class PlayController extends Controller
 
         return view('play.board', [
             'session' => $session,
-            'prizes' => $session->prizes()->orderBy('slot')->get(),
+            'prizes' => $session->boardPrizes()->orderBy('slot')->get(),
             'pendingSlots' => $round->pluck('slot')->values()->all(),
             'pendingRevealed' => $revealed,
             'taken' => $this->taken($session),
@@ -124,16 +158,22 @@ final class PlayController extends Controller
         ]);
 
         // Dikunci per sesi supaya dua pick bersamaan tidak sama-sama lolos cek ronde.
-        return DB::transaction(function () use ($token, $data) {
+        return DB::transaction(function () use ($request, $token, $data) {
             $session = $this->lockedSession($token);
+
+            if (! $this->owns($request, $session)) {
+                return $this->notOwnerResponse();
+            }
 
             if ($error = $this->playableError($session)) {
                 return $error;
             }
 
+            $this->sessions->ensureRound($session);
+
             foreach ($data['slots'] as $slot) {
                 $available = $slot >= 1 && $slot <= Grid::SLOTS
-                    && $session->prizes()
+                    && $session->boardPrizes()
                         ->where('slot', $slot)
                         ->where('opened', false)
                         ->where('taken', false)
@@ -148,16 +188,20 @@ final class PlayController extends Controller
                 return response()->json(['error' => 'Sudah memilih slot ronde ini'], 422);
             }
 
-            $session->prizes()->whereIn('slot', $data['slots'])->update(['picked' => true]);
+            $session->boardPrizes()->whereIn('slot', $data['slots'])->update(['picked' => true]);
 
             return response()->json(['ok' => true]);
         });
     }
 
-    public function reveal(string $token): JsonResponse
+    public function reveal(Request $request, string $token): JsonResponse
     {
-        return DB::transaction(function () use ($token) {
+        return DB::transaction(function () use ($request, $token) {
             $session = $this->lockedSession($token);
+
+            if (! $this->owns($request, $session)) {
+                return $this->notOwnerResponse();
+            }
 
             if (SessionService::isExpired($session)) {
                 return $this->expiredResponse();
@@ -195,8 +239,12 @@ final class PlayController extends Controller
             'slot' => ['required', 'integer'],
         ]);
 
-        return DB::transaction(function () use ($token, $data) {
+        return DB::transaction(function () use ($request, $token, $data) {
             $session = $this->lockedSession($token);
+
+            if (! $this->owns($request, $session)) {
+                return $this->notOwnerResponse();
+            }
 
             if (SessionService::isExpired($session)) {
                 return $this->expiredResponse();
@@ -234,6 +282,10 @@ final class PlayController extends Controller
         $award = PrizeAwarder::award($session, $chosen);
         $claim = $award['type'] === 'claim' ? $award['claim'] : null;
 
+        // Kesempatan berikutnya langsung disiapkan dengan 24 kado baru.
+        $session = $session->fresh();
+        $this->sessions->ensureRound($session);
+
         return [
             'ok' => true,
             'revealed' => $this->revealed($round),
@@ -243,7 +295,7 @@ final class PlayController extends Controller
             'balance' => $award['type'] === 'points' ? $award['balance'] : null,
             'claim_code' => $claim?->claim_code,
             'claim_expires_at' => $claim?->expires_at->toDateString(),
-            'chance_left' => max(0, $session->chance_total - $session->fresh()->chance_used),
+            'chance_left' => max(0, $session->chance_total - $session->chance_used),
             'chance_total' => $session->chance_total,
         ];
     }
@@ -251,7 +303,7 @@ final class PlayController extends Controller
     /** Slot ronde aktif: sudah dipilih tapi belum disimpan. */
     private function round(GameSession $session): Collection
     {
-        return $session->prizes()
+        return $session->boardPrizes()
             ->where('picked', true)
             ->where('taken', false)
             ->orderBy('slot')
@@ -268,7 +320,7 @@ final class PlayController extends Controller
             'tier' => $prize->tier,
             'label' => $this->tierLabel($prize->tier),
             'name' => $prize->tier === 'poin' ? null : ClaimService::prizeName($prize),
-            'points' => $prize->tier === 'poin' ? $perGift : null,
+            'points' => $prize->tier === 'poin' ? ($prize->points ?? $perGift) : null,
         ])->values()->all();
     }
 
@@ -297,8 +349,23 @@ final class PlayController extends Controller
             'hadiah_besar' => 'Hadiah Utama',
             'voucher' => 'Voucher',
             'merch' => 'Merch',
+            'produk' => 'Produk',
             default => 'Poin',
         };
+    }
+
+    /**
+     * Papan hanya bisa dimainkan dari perangkat pemiliknya yang sudah lolos PIN,
+     * jadi link papan yang dibagikan ke orang lain tidak bisa dipakai.
+     */
+    private function owns(Request $request, GameSession $session): bool
+    {
+        return RememberedCustomer::resolve($request)?->id === (int) $session->customer_id;
+    }
+
+    private function notOwnerResponse(): JsonResponse
+    {
+        return response()->json(['error' => self::NOT_OWNER], 403);
     }
 
     private function session(string $token): GameSession

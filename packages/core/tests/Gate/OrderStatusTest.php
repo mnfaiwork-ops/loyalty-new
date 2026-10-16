@@ -31,6 +31,20 @@ final class OrderStatusTest extends TestCase
         $this->assertTrue((new OrderStatus('A', '08', 'completed', null))->isDelivered());
     }
 
+    public function test_orders_status_completed_wms_lolos(): void
+    {
+        // WMS: orders.status memakai 'completed', bukan 'complete'.
+        $this->assertTrue((new OrderStatus('A', '08', 'sent', 'completed'))->isDelivered());
+    }
+
+    public function test_retur_dan_batal_ditolak_walau_status_completed(): void
+    {
+        foreach (['request_return', 'returned', 'request_cancel', 'cancelled'] as $fulfillment) {
+            $this->assertFalse((new OrderStatus('A', '08', 'completed', $fulfillment))->isDelivered(), $fulfillment);
+        }
+        $this->assertFalse((new OrderStatus('A', '08', 'returned', null))->isDelivered());
+    }
+
     public function test_status_lain_ditolak(): void
     {
         $this->assertFalse((new OrderStatus('A', '08', 'process', 'packed'))->isDelivered());

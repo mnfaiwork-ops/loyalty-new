@@ -19,6 +19,7 @@ final class StubOrderGate implements OrderGate
             return GateResult::rejected('Nomor HP kosong');
         }
 
-        return GateResult::delivered();
+        // Stub tidak tahu tanggal order: anggap hari ini, supaya periode program tetap bisa dites di dev.
+        return GateResult::delivered(orderedAt: (new \DateTimeImmutable('now', new \DateTimeZone('Asia/Jakarta')))->format('Y-m-d'));
     }
 }

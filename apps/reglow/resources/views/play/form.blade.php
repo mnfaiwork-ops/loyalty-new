@@ -1,24 +1,80 @@
 @extends('layouts.play')
 
-@section('title', 'Reglow — Main')
+@section('title', $theme['name'].' · '.$content['play_title'])
 
 @section('content')
-    <div class="brand">Reglow</div>
-    <h1 class="headline">Buka Hadiahmu</h1>
-    <p class="sub">Masukkan nomor AWB dan nomor HP untuk mulai bermain.</p>
+    <header class="brandbar">
+        <div class="brand-tile" aria-hidden="true">{{ $theme['initial'] }}</div>
+        <div>
+            <div class="brand-name">{{ $theme['name'] }}</div>
+            <div class="brand-sub">Poin &amp; Hadiah</div>
+        </div>
+    </header>
 
-    <form method="POST" action="{{ route('play.start') }}">
+    <form class="entry" method="POST" action="{{ route('play.start') }}" id="entry" novalidate>
         @csrf
-        <label for="awb">Nomor AWB</label>
-        <input type="text" id="awb" name="awb" value="{{ old('awb') }}" placeholder="Contoh: RG123" autocomplete="off">
-        @error('awb') <div class="error">{{ $message }}</div> @enderror
+        <div class="entry-body">
+            <div>
+                <h1>{{ $content['play_title'] }}</h1>
+                <p class="lead">{{ $content['play_lead'] }}</p>
+            </div>
 
-        <label for="phone">Nomor HP</label>
-        <input type="text" id="phone" name="phone" value="{{ old('phone') }}" placeholder="Contoh: 08123456789" inputmode="numeric" autocomplete="off">
-        @error('phone') <div class="error">{{ $message }}</div> @enderror
+            @if ($errors->any())
+                <div class="alert" role="alert">
+                    <b>{{ $errors->first('awb') ?: $errors->first('phone') }}</b>
+                    @unless ($errors->has('phone') || str_contains($errors->first('awb'), 'menit') || str_contains($errors->first('awb'), 'berakhir') || str_contains($errors->first('awb'), 'wajib'))
+                        Cek lagi angka di label paket, dan pakai nomor HP yang dipakai saat memesan.
+                    @endunless
+                </div>
+            @endif
 
-        <button type="submit" class="btn">Mulai Main</button>
+            <div class="field">
+                <label for="awb">Nomor resi (AWB) atau nomor order</label>
+                <input class="input @error('awb') is-error @enderror" type="text" id="awb" name="awb"
+                       value="{{ old('awb') }}" placeholder="Contoh: {{ $theme['awb_example'] }}"
+                       autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="64" required
+                       aria-describedby="awb-hint">
+                <div class="hint" id="awb-hint">Ada di label paket, di bawah barcode.</div>
+            </div>
+
+            <div class="field">
+                <label for="phone">Nomor HP (WhatsApp)</label>
+                <div class="phone @error('phone') is-error @enderror">
+                    <span aria-hidden="true">+62</span>
+                    <input type="tel" id="phone" name="phone" value="{{ old('phone') }}" placeholder="812 3456 4471"
+                           inputmode="numeric" autocomplete="tel-national" maxlength="20" required aria-describedby="phone-hint">
+                </div>
+                <div class="hint" id="phone-hint">Harus sama dengan nomor saat memesan.</div>
+            </div>
+        </div>
+
+        <div class="entry-foot">
+            <button type="submit" class="btn btn-brand" id="entrySubmit" disabled>Cek &amp; masuk</button>
+            <a class="entry-link" href="{{ route('customer.login') }}">Sudah punya PIN? Masuk dengan nomor HP</a>
+        </div>
     </form>
-
-    <p class="note">Main berlaku 30 hari sejak paket diterima.</p>
 @endsection
+
+@push('scripts')
+<script>
+    (() => {
+        const form = document.getElementById('entry');
+        const awb = document.getElementById('awb');
+        const phone = document.getElementById('phone');
+        const submit = document.getElementById('entrySubmit');
+        const sync = () => {
+            submit.disabled = awb.value.trim().length < 4 || phone.value.replace(/\D/g, '').length < 8;
+        };
+        awb.addEventListener('input', () => {
+            awb.value = awb.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+            sync();
+        });
+        phone.addEventListener('input', sync);
+        form.addEventListener('submit', () => {
+            submit.classList.add('is-loading');
+            submit.textContent = 'Mengecek…';
+        });
+        sync();
+    })();
+</script>
+@endpush

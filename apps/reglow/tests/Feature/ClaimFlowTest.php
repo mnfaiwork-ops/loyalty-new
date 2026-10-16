@@ -192,6 +192,7 @@ final class ClaimFlowTest extends TestCase
     public function test_expire_hadiah_utama_mengembalikan_kuota(): void
     {
         $catalog = PrizeCatalog::create(['brand' => $this->brand(), 'name' => 'Emas uji', 'tier' => 'hadiah_besar', 'is_capped' => true, 'active' => true]);
+        $this->alwaysPlaceBigPrize();
         DB::table('quota_caps')->insert([
             'brand' => $this->brand(), 'prize_name' => 'Emas uji', 'cap_units' => 1, 'used_units' => 1,
             'program_start' => now(), 'program_end' => now()->addMonth(),

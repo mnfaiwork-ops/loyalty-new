@@ -22,8 +22,21 @@ class GameSession extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    /** Semua kado sesi ini, dari semua kesempatan. */
     public function prizes(): HasMany
     {
         return $this->hasMany(GamePrize::class);
+    }
+
+    /** Kesempatan yang sedang dimainkan (1-based). Setelah kesempatan habis tetap di kesempatan terakhir. */
+    public function currentRound(): int
+    {
+        return max(1, min($this->chance_used + 1, $this->chance_total));
+    }
+
+    /** 24 kado di papan kesempatan yang sedang dimainkan. */
+    public function boardPrizes(): HasMany
+    {
+        return $this->prizes()->where('round', $this->currentRound());
     }
 }

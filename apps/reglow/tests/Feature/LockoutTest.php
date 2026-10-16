@@ -73,6 +73,19 @@ class LockoutTest extends TestCase
         $this->assertStringContainsString('Terlalu banyak percobaan', session('errors')->first('awb'));
     }
 
+    public function test_resi_salah_dari_satu_jaringan_tidak_mengunci_jaringan_lain(): void
+    {
+        // Orang lain yang hanya tahu nomor HP tidak bisa mengunci pemiliknya dari jaringan lain.
+        for ($i = 0; $i < 5; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.1'])
+                ->post(route('play.start'), ['awb' => "SALAH-{$i}", 'phone' => '08111222333']);
+        }
+
+        $res = $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.2'])
+            ->post(route('play.start'), ['awb' => 'OK-1', 'phone' => '08111222333']);
+        $res->assertSessionDoesntHaveErrors('awb');
+    }
+
     public function test_kurang_dari_lima_belum_dikunci(): void
     {
         for ($i = 0; $i < 4; $i++) {

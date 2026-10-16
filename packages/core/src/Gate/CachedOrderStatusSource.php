@@ -25,7 +25,7 @@ final class CachedOrderStatusSource implements OrderStatusSource
     ) {
     }
 
-    public function find(string $awb): ?OrderStatus
+    public function find(string $awb, string $phone = ''): ?OrderStatus
     {
         $key = self::cacheKey($this->brand, $awb);
 
@@ -37,10 +37,12 @@ final class CachedOrderStatusSource implements OrderStatusSource
                 statusOrder: $cached['status_order'] ?? null,
                 statusFulfillment: $cached['status_fulfillment'] ?? null,
                 customerName: $cached['customer_name'] ?? null,
+                orderAmount: $cached['order_amount'] ?? null,
+                orderedAt: $cached['ordered_at'] ?? null,
             );
         }
 
-        $status = $this->inner->find($awb);
+        $status = $this->inner->find($awb, $phone);
 
         if ($status !== null) {
             Cache::put($key, [
@@ -49,6 +51,8 @@ final class CachedOrderStatusSource implements OrderStatusSource
                 'status_order' => $status->statusOrder,
                 'status_fulfillment' => $status->statusFulfillment,
                 'customer_name' => $status->customerName,
+                'order_amount' => $status->orderAmount,
+                'ordered_at' => $status->orderedAt,
             ], $this->ttlSeconds);
         }
 

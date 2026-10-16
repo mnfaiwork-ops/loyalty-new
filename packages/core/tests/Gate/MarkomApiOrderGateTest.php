@@ -17,7 +17,7 @@ final class MarkomApiOrderGateTest extends TestCase
             {
             }
 
-            public function find(string $awb): ?OrderStatus
+            public function find(string $awb, string $phone = ''): ?OrderStatus
             {
                 return $this->status;
             }
@@ -41,7 +41,7 @@ final class MarkomApiOrderGateTest extends TestCase
         $result = $this->gate(null)->isDelivered('JX1', '08123456789');
 
         $this->assertFalse($result->delivered);
-        $this->assertSame('Order tidak ditemukan', $result->reason);
+        $this->assertSame('Resi atau nomor HP tidak cocok', $result->reason);
     }
 
     public function test_paket_belum_diterima_ditolak(): void
@@ -59,7 +59,17 @@ final class MarkomApiOrderGateTest extends TestCase
         $result = $gate->isDelivered('JX1', '08123456789');
 
         $this->assertFalse($result->delivered);
-        $this->assertSame('AWB tidak cocok dengan nomor HP', $result->reason);
+        $this->assertSame('Resi atau nomor HP tidak cocok', $result->reason);
+    }
+
+    public function test_hp_beda_pada_paket_belum_diterima_tidak_membocorkan_status(): void
+    {
+        // Yang tidak tahu HP pemilik tidak boleh tahu resi ini ada dan belum sampai.
+        $gate = $this->gate(new OrderStatus('JX1', '628999999999', 'sent', 'problem'));
+        $result = $gate->isDelivered('JX1', '08123456789');
+
+        $this->assertFalse($result->delivered);
+        $this->assertSame('Resi atau nomor HP tidak cocok', $result->reason);
     }
 
     public function test_awb_atau_hp_kosong_ditolak(): void
@@ -77,5 +87,24 @@ final class MarkomApiOrderGateTest extends TestCase
         $result = $gate->isDelivered('JX1', '08123456789');
 
         $this->assertFalse($result->delivered);
+    }
+
+    public function test_gate_meneruskan_hp_ke_sumber(): void
+    {
+        $source = new class implements OrderStatusSource
+        {
+            public string $phone = '';
+
+            public function find(string $awb, string $phone = ''): ?OrderStatus
+            {
+                $this->phone = $phone;
+
+                return null;
+            }
+        };
+
+        (new MarkomApiOrderGate($source))->isDelivered('JX1', '08123456789');
+
+        $this->assertSame('08123456789', $source->phone);
     }
 }

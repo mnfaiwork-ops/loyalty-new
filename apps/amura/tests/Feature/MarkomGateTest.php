@@ -66,7 +66,7 @@ class MarkomGateTest extends TestCase
         $result = (new MarkomApiOrderGate($this->source()))->isDelivered('LNCH3', '08123456789');
 
         $this->assertFalse($result->delivered);
-        $this->assertSame('AWB tidak cocok dengan nomor HP', $result->reason);
+        $this->assertSame('Resi atau nomor HP tidak cocok', $result->reason);
     }
 
     public function test_404_order_tidak_ditemukan(): void
@@ -76,7 +76,7 @@ class MarkomGateTest extends TestCase
         $result = (new MarkomApiOrderGate($this->source()))->isDelivered('NOPE', '08123456789');
 
         $this->assertFalse($result->delivered);
-        $this->assertSame('Order tidak ditemukan', $result->reason);
+        $this->assertSame('Resi atau nomor HP tidak cocok', $result->reason);
     }
 
     public function test_error_server_ditolak_fail_closed(): void
@@ -86,7 +86,7 @@ class MarkomGateTest extends TestCase
         $result = (new MarkomApiOrderGate($this->source()))->isDelivered('LNCH1', '08123456789');
 
         $this->assertFalse($result->delivered);
-        $this->assertSame('Order tidak ditemukan', $result->reason);
+        $this->assertSame('Resi atau nomor HP tidak cocok', $result->reason);
     }
 
     public function test_timeout_ditolak_fail_closed(): void

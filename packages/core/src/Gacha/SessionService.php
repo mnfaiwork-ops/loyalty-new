@@ -10,7 +10,10 @@ use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
 use LoyaltyNew\Core\Models\PrizeCatalog;
+use LoyaltyNew\Core\Points\GiftPoints;
 use LoyaltyNew\Core\Prizes\BigPrizeQuota;
+use LoyaltyNew\Core\Prizes\GameControls;
+use LoyaltyNew\Core\Prizes\PrizeStock;
 use LoyaltyNew\Core\Prizes\TierConfig;
 
 final class SessionService
@@ -49,8 +52,11 @@ final class SessionService
             return self::ensureActive($existing);
         }
 
+        // Periode program hanya menyaring paket baru; sesi yang sudah ada tetap bisa dilanjutkan.
+        $this->ensureInProgram($result->orderedAt);
+
         try {
-            return $this->createSession($customer, $awb);
+            return $this->createSession($customer, $awb, $result->orderAmount);
         } catch (\Illuminate\Database\QueryException $e) {
             // Lost the race to a concurrent open(): the unique (customer_id, awb)
             // index rejected our insert, so return the winner's session.
@@ -61,6 +67,30 @@ final class SessionService
                 return self::ensureActive($raced);
             }
             throw $e;
+        }
+    }
+
+    /** Tolak order yang tanggalnya di luar periode program brand ini (Game Admin). */
+    private function ensureInProgram(?string $orderedAt): void
+    {
+        $controls = GameControls::current($this->brand);
+        $from = $controls['order_from'];
+        $until = $controls['order_until'];
+
+        if ($from === null && $until === null) {
+            return;
+        }
+
+        if ($orderedAt === null) {
+            throw OutsideProgramException::unknownDate();
+        }
+
+        if ($from !== null && $orderedAt < $from) {
+            throw OutsideProgramException::before($from);
+        }
+
+        if ($until !== null && $orderedAt > $until) {
+            throw OutsideProgramException::after($until);
         }
     }
 
@@ -78,9 +108,9 @@ final class SessionService
         return $session;
     }
 
-    private function createSession(Customer $customer, string $awb): GameSession
+    private function createSession(Customer $customer, string $awb, ?int $orderAmount): GameSession
     {
-        return DB::transaction(function () use ($customer, $awb) {
+        return DB::transaction(function () use ($customer, $awb, $orderAmount) {
             $session = GameSession::create([
                 'customer_id' => $customer->id,
                 'brand' => $this->brand,
@@ -89,23 +119,52 @@ final class SessionService
                 'chance_used' => 0,
                 'tier_config' => TierConfig::current(),
                 'awb' => $awb,
-                'gate_source' => (string) config('markom.gate', 'stub'),
+                'gate_source' => (string) config('markom.gate', 'markom'),
                 'expires_at' => now()->addDays(30),
+                'order_amount' => $orderAmount,
             ]);
 
-            $engine = new DrawEngine($session->tier_config);
-            foreach (Grid::slots() as $slot) {
-                GamePrize::create([
-                    'game_session_id' => $session->id,
-                    'slot' => $slot,
-                    'tier' => $engine->pick(random_int(1, max(1, array_sum($session->tier_config)))),
-                ]);
-            }
-
-            $this->placeBigPrize($session);
+            $this->drawRound($session, 1);
 
             return $session;
         });
+    }
+
+    /**
+     * Siapkan papan kesempatan yang sedang dimainkan kalau belum ada. Setiap
+     * kesempatan mendapat 24 kado yang diundi baru, jadi kesempatan kedua
+     * kembali penuh. Pemanggil harus sudah mengunci sesi.
+     */
+    public function ensureRound(GameSession $session): void
+    {
+        if ($session->chance_used >= $session->chance_total || $session->boardPrizes()->exists()) {
+            return;
+        }
+
+        $this->drawRound($session, $session->currentRound());
+    }
+
+    private function drawRound(GameSession $session, int $round): void
+    {
+        $paused = GameControls::paused($this->brand);
+        $weights = $paused ? ['poin' => 1] : $this->weights($session);
+
+        $engine = new DrawEngine($weights);
+        foreach (Grid::slots() as $slot) {
+            GamePrize::create([
+                'game_session_id' => $session->id,
+                'round' => $round,
+                'slot' => $slot,
+                'tier' => $engine->pick(random_int(1, array_sum($weights))),
+            ]);
+        }
+
+        // Satu sesi paling banyak satu hadiah utama: yang sudah menang di
+        // kesempatan sebelumnya tidak diberi lagi di papan berikutnya.
+        $alreadyWon = $session->prizes()->where('tier', 'hadiah_besar')->where('taken', true)->exists();
+        if (! $paused && ! $alreadyWon && GameControls::rollBigPrize($this->brand)) {
+            $this->placeBigPrize($session, $round);
+        }
     }
 
     /** Kunci chance di DB. Return false kalau sudah habis. */
@@ -123,16 +182,24 @@ final class SessionService
      * mengunci sesi. Hadiah besar yang baru terbuka memotong kuota di sini;
      * kalau kuota sudah diambil sesi lain, kado itu diundi ulang ke tier biasa
      * SEBELUM tampil, jadi pelanggan tidak pernah melihat hadiah besar yang
-     * lalu dibatalkan.
+     * lalu dibatalkan. Hal yang sama untuk voucher/merch/produk yang stok bulanannya
+     * habis, dan untuk semua kado non-poin saat Gatcha dijeda: kado jadi poin.
      *
      * @param  Collection<int, GamePrize>  $round
      * @return Collection<int, GamePrize> ronde dengan tier terbaru
      */
     public function openRound(GameSession $session, Collection $round): Collection
     {
+        $paused = GameControls::paused($this->brand);
+
         foreach ($round as $prize) {
             if ($prize->opened) {
                 continue;
+            }
+
+            if ($paused && $prize->tier !== 'poin') {
+                $prize->tier = 'poin';
+                $prize->prize_catalog_id = null;
             }
 
             if ($prize->tier === 'hadiah_besar' && ! BigPrizeQuota::reserve($this->brand, $prize)) {
@@ -140,13 +207,16 @@ final class SessionService
                 $prize->prize_catalog_id = null;
             }
 
-            // Voucher/Merch mendapat item spesifik supaya CS tahu apa yang dikirim.
-            if (in_array($prize->tier, ['voucher', 'merch'], true) && ! $prize->prize_catalog_id) {
-                $prize->prize_catalog_id = PrizeCatalog::where('brand', $this->brand)
-                    ->where('tier', $prize->tier)
-                    ->where('active', true)
-                    ->inRandomOrder()
-                    ->value('id');
+            // Voucher/merch/produk mendapat item spesifik supaya CS tahu apa yang dikirim.
+            if (in_array($prize->tier, ['voucher', 'merch', 'produk'], true) && ! $prize->prize_catalog_id) {
+                $prize->prize_catalog_id = PrizeStock::pick($this->brand, $prize->tier);
+                if ($prize->prize_catalog_id === null) {
+                    $prize->tier = 'poin';
+                }
+            }
+
+            if ($prize->tier === 'poin' && $prize->points === null) {
+                $prize->points = GiftPoints::roll($session->order_amount, $this->brand, (int) $session->chance_total);
             }
 
             $prize->opened = true;
@@ -158,19 +228,23 @@ final class SessionService
 
     private function drawRegularTier(GameSession $session): string
     {
-        $weights = $session->tier_config ?: TierConfig::default();
-        if (array_sum($weights) <= 0) {
-            $weights = TierConfig::default();
-        }
+        $weights = $this->weights($session);
 
         return (new DrawEngine($weights))->pick(random_int(1, array_sum($weights)));
+    }
+
+    private function weights(GameSession $session): array
+    {
+        $weights = $session->tier_config ?: TierConfig::default();
+
+        return array_sum($weights) > 0 ? $weights : TierConfig::default();
     }
 
     /**
      * Taruh satu hadiah besar di slot acak kalau katalog masih punya kuota.
      * Kuota BELUM dipotong di sini (lihat openRound).
      */
-    private function placeBigPrize(GameSession $session): ?GamePrize
+    private function placeBigPrize(GameSession $session, int $round): ?GamePrize
     {
         $catalogs = PrizeCatalog::where('brand', $this->brand)
             ->where('tier', 'hadiah_besar')
@@ -183,7 +257,7 @@ final class SessionService
                 continue;
             }
 
-            $slot = $session->prizes()->inRandomOrder()->first();
+            $slot = $session->prizes()->where('round', $round)->inRandomOrder()->first();
             $slot->update([
                 'tier' => 'hadiah_besar',
                 'prize_catalog_id' => $catalog->id,

@@ -19,7 +19,8 @@ final class PrizeAwarder
             $settings = LoyaltySettings::current($session->brand);
             $customer = Customer::withoutGlobalScopes()->findOrFail($session->customer_id);
             $wallet = new PointWallet($customer);
-            $lot = $wallet->credit($prize, $settings['per_gift'], $settings['validity_months']);
+            // Nilai sudah dikunci saat kado dibuka. Kado lama tanpa nilai memakai poin per kado.
+            $lot = $wallet->credit($prize, $prize->points ?? $settings['per_gift'], $settings['validity_months']);
 
             return ['type' => 'points', 'points' => $lot->points, 'balance' => $wallet->balance()];
         }

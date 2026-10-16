@@ -11,7 +11,7 @@
             @csrf
             <input type="text" name="name" value="{{ old('name') }}" placeholder="Nama" aria-label="Nama" required>
             <input type="email" name="email" value="{{ old('email') }}" placeholder="Email" aria-label="Email" required>
-            <input type="password" name="password" placeholder="Kata sandi (min. 8)" aria-label="Kata sandi" required>
+            <input type="password" name="password" placeholder="Kata sandi (min. 12)" aria-label="Kata sandi" required>
             <select name="role" aria-label="Peran">
                 @foreach (['cs', 'game_admin', 'finance', 'super_admin'] as $role)
                     <option value="{{ $role }}" @selected(old('role') === $role)>{{ $role }}</option>

@@ -4,7 +4,7 @@
 
 @section('content')
     <div class="page">
-        <a class="back" href="{{ route('home') }}"><span aria-hidden="true">‹</span> Beranda</a>
+        <a class="back" href="{{ route('home') }}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Beranda</a>
         <h1>Hadiahku</h1>
 
         <nav class="tabs" aria-label="Status hadiah">
@@ -19,7 +19,7 @@
             @empty
                 <p class="empty-card">
                     @if ($tab === 'belum')
-                        Tidak ada hadiah yang menunggu redeem. Main Gatcha atau tukar poin di <a href="{{ route('catalog') }}">Katalog</a>.
+                        Tidak ada hadiah yang menunggu redeem. Main Gatcha atau <a href="{{ route('catalog') }}">tukar poin</a>.
                     @elseif ($tab === 'proses')
                         Belum ada hadiah yang sedang diproses CS.
                     @else

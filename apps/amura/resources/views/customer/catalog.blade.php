@@ -1,10 +1,10 @@
 @extends('layouts.play')
 
-@section('title', 'Katalog · '.$theme['name'])
+@section('title', 'Tukar Poin · '.$theme['name'])
 
 @section('content')
     <div class="page">
-        <a class="back" href="{{ route('home') }}"><span aria-hidden="true">‹</span> Beranda</a>
+        <a class="back" href="{{ route('home') }}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Beranda</a>
         <div class="catalog-head">
             <h1>Tukar poin</h1>
             <span class="balance-chip">Saldo <b>{{ number_format($balance, 0, ',', '.') }}</b> poin</span>

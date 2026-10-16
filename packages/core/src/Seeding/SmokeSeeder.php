@@ -11,7 +11,6 @@ use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
 use LoyaltyNew\Core\Models\PrizeCatalog;
 use LoyaltyNew\Core\Points\PointWallet;
-use LoyaltyNew\Core\Prizes\RewardCatalogService;
 use LoyaltyNew\Core\Prizes\TierConfig;
 
 /**
@@ -31,20 +30,6 @@ final class SmokeSeeder
 {
     /** Kredensial dummy — password seragam biar gampang dites. */
     public const PASSWORD = 'smoke12345';
-
-    /** Katalog tukar poin bulan pertama dari workbook final 2026-09-24 (hanya jalur Poin). */
-    public const POINT_CATALOG = [
-        'amura' => [
-            ['Pouch Exclusive', 500], ['Voucher Diskon Ongkir 15rb', 600], ['Exclusive ToteBag', 700],
-            ['Voucher Free Ongkir', 1000], ['Voucher Diskon 25rb', 1000], ['Voucher Diskon 50rb', 2000],
-            ['Darkspot Serum', 2000], ['Gold Serum', 2500], ['Voucher Diskon 100rb', 3500],
-        ],
-        'reglow' => [
-            ['Pouch Exclusive', 500], ['Voucher Diskon Ongkir 15rb', 600], ['Exclusive ToteBag', 700],
-            ['Voucher Free Ongkir', 1000], ['Voucher Diskon 25rb', 1000], ['Voucher Diskon 50rb', 2000],
-            ['Night Cream', 2000], ['Sunscreen Glow', 2500], ['Rice PDRN Serum', 3000], ['Voucher Diskon 100rb', 3500],
-        ],
-    ];
 
     /** AWB + HP dummy yang PASTI lolos gate (StubOrderGate) untuk main game sendiri. */
     public static function playableOrders(): array
@@ -106,7 +91,7 @@ final class SmokeSeeder
             ['amura', 'Poin 50.000', 'poin', 50000, 0, 0, false],
             ['amura', 'Poin 25.000', 'poin', 25000, 0, 0, false],
             ['amura', 'Voucher Belanja Rp100.000', 'voucher', 0, 100000, 0, false],
-            ['amura', 'Voucher Gratis Ongkir', 'voucher', 0, 20000, 0, false],
+            ['amura', 'Voucher Gratis Ongkir maks Rp8.000', 'voucher', 0, 8000, 0, false],
             ['amura', 'Totebag Amura', 'merch', 0, 75000, 0, false],
             ['amura', 'Emas 0,5 gram', 'hadiah_besar', 0, 800000, 1, true],
             ['amura', 'Philips Air Fryer', 'hadiah_besar', 0, 1500000, 2, true],
@@ -114,7 +99,7 @@ final class SmokeSeeder
             ['reglow', 'Poin 50.000', 'poin', 50000, 0, 0, false],
             ['reglow', 'Poin 25.000', 'poin', 25000, 0, 0, false],
             ['reglow', 'Voucher Belanja Rp100.000', 'voucher', 0, 100000, 0, false],
-            ['reglow', 'Voucher Gratis Ongkir', 'voucher', 0, 20000, 0, false],
+            ['reglow', 'Voucher Gratis Ongkir maks Rp8.000', 'voucher', 0, 8000, 0, false],
             ['reglow', 'Pouch Reglow', 'merch', 0, 75000, 0, false],
             ['reglow', 'Emas 0,5 gram', 'hadiah_besar', 0, 800000, 1, true],
             ['reglow', 'Philips Air Fryer', 'hadiah_besar', 0, 1500000, 2, true],
@@ -288,7 +273,7 @@ final class SmokeSeeder
 
         $prizeName = $bigPrize
             ? (PrizeCatalog::withoutGlobalScopes()->whereKey($prizeTaken->fresh()->prize_catalog_id)->value('name') ?? 'Hadiah Utama')
-            : 'Voucher Gratis Ongkir';
+            : 'Voucher Gratis Ongkir maks Rp8.000';
 
         DB::table('claims')->updateOrInsert(
             ['claim_code' => 'SMOKE-'.$brand.'-'.($bigPrize ? 'BIG' : 'STD')],
@@ -344,15 +329,11 @@ final class SmokeSeeder
             ->increment('used_units');
     }
 
-    /** Katalog tukar poin bulan berjalan per brand, langsung terbit. Tidak menduplikasi item. */
+    /** Katalog tukar poin bulan berjalan per brand dari LaunchCatalog, langsung terbit. */
     private function seedPointCatalogs(): void
     {
         foreach ($this->brands() as $brand) {
-            $catalog = RewardCatalogService::forPeriod($brand, now()->format('Y-m'));
-            foreach (self::POINT_CATALOG[$brand] as $i => [$name, $points]) {
-                $catalog->items()->firstOrCreate(['name' => $name], ['points_cost' => $points, 'sort' => $i + 1, 'active' => true]);
-            }
-            RewardCatalogService::publish($brand, now()->format('Y-m'));
+            LaunchCatalog::apply($brand, now()->format('Y-m'));
         }
     }
 

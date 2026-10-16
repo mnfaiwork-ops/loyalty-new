@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use LoyaltyNew\Core\Models\RewardCatalog;
 use LoyaltyNew\Core\Models\RewardCatalogItem;
 use LoyaltyNew\Core\Points\LoyaltySettings;
@@ -85,6 +86,45 @@ final class RewardCatalogController extends Controller
 
         return redirect()->route('admin.catalog', ['period' => $data['period']])->with('ok', "Katalog {$data['period']} diterbitkan.");
     }
+    /** Simpan semua baris tabel katalog sekaligus (satu tombol "Simpan perubahan"). */
+    public function updateItems(Request $request)
+    {
+        $data = $request->validate([
+            'period' => self::PERIOD,
+            'items' => ['required', 'array'],
+            'items.*.name' => ['required', 'string', 'max:120'],
+            'items.*.points_cost' => ['required', 'integer', 'min:1', 'max:10000000'],
+            'items.*.stock' => ['nullable', 'integer', 'min:0'],
+            'items.*.sort' => ['nullable', 'integer', 'min:0'],
+            'items.*.active' => ['nullable', 'boolean'],
+        ], [
+            'items.*.name.required' => 'Nama item tidak boleh kosong.',
+            'items.*.points_cost.required' => 'Harga poin wajib diisi.',
+            'items.*.points_cost.min' => 'Harga poin minimal 1.',
+            'items.*.points_cost.integer' => 'Harga poin harus angka bulat.',
+            'items.*.stock.min' => 'Stok tidak boleh minus.',
+            'items.*.stock.integer' => 'Stok harus angka bulat.',
+        ]);
+
+        $models = RewardCatalogItem::whereIn('id', array_map('intval', array_keys($data['items'])))
+            ->whereHas('catalog', fn ($q) => $q->where('brand', config('app.brand')))
+            ->get()
+            ->keyBy('id');
+
+        DB::transaction(function () use ($data, $models) {
+            foreach ($data['items'] as $id => $row) {
+                $models->get((int) $id)?->update([
+                    'name' => $row['name'],
+                    'points_cost' => $row['points_cost'],
+                    'stock' => $row['stock'] ?? null,
+                    'sort' => $row['sort'] ?? 0,
+                    'active' => (bool) ($row['active'] ?? false),
+                ]);
+            }
+        });
+
+        return redirect()->route('admin.catalog', ['period' => $data['period']])->with('ok', "{$models->count()} item disimpan.");
+    }
 
     public function settings(Request $request)
     {
@@ -92,6 +132,8 @@ final class RewardCatalogController extends Controller
             'per_gift' => ['required', 'integer', 'min:1', 'max:100000'],
             'min_redeem' => ['required', 'integer', 'min:1', 'max:1000000'],
             'validity_months' => ['required', 'integer', 'min:1', 'max:60'],
+            'per_thousand' => ['required', 'integer', 'min:1', 'max:1000'],
+            'min_percent' => ['required', 'integer', 'min:1', 'max:100'],
         ]);
 
         LoyaltySettings::store($data);

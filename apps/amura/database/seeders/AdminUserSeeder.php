@@ -9,6 +9,11 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
+        // Password cadangan hanya untuk dev. Di produksi wajib ADMIN_PASSWORD sendiri.
+        if (app()->environment('production') && ! env('ADMIN_PASSWORD')) {
+            throw new \RuntimeException('Isi ADMIN_PASSWORD di .env sebelum membuat admin produksi.');
+        }
+
         User::firstOrCreate(
             ['email' => 'admin@amura.local'],
             [

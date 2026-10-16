@@ -9,6 +9,7 @@ use LoyaltyNew\Core\Models\GameSession;
 use LoyaltyNew\Core\Models\PrizeCatalog;
 use LoyaltyNew\Core\Points\PointWallet;
 use LoyaltyNew\Core\Prizes\RewardCatalogService;
+use LoyaltyNew\Core\Seeding\LaunchCatalog;
 use LoyaltyNew\Core\Seeding\SmokeSeeder;
 use Tests\TestCase;
 
@@ -67,7 +68,7 @@ class SmokeSeederTest extends TestCase
 
         $catalog = RewardCatalogService::active('amura');
         $this->assertNotNull($catalog);
-        $this->assertSame(count(SmokeSeeder::POINT_CATALOG['amura']), $catalog->items()->count());
+        $this->assertSame(count(LaunchCatalog::items('amura')), $catalog->items()->count());
 
         $this->assertSame(1200, (new PointWallet($this->demoCustomer()))->balance());
     }
@@ -102,6 +103,6 @@ class SmokeSeederTest extends TestCase
         $this->assertSame(1, PrizeCatalog::withoutGlobalScopes()
             ->where('brand', 'amura')->where('name', 'Emas 0,5 gram')->count());
         $this->assertSame(1200, (new PointWallet($this->demoCustomer()))->balance());
-        $this->assertSame(count(SmokeSeeder::POINT_CATALOG['amura']), RewardCatalogService::active('amura')->items()->count());
+        $this->assertSame(count(LaunchCatalog::items('amura')), RewardCatalogService::active('amura')->items()->count());
     }
 }

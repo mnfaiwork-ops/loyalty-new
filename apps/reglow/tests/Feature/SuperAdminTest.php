@@ -18,7 +18,7 @@ final class SuperAdminTest extends TestCase
 
     private function otherBrand(): string
     {
-        return $this->brand() === 'amura' ? 'reglow' : 'amura';
+        return $this->brand() === 'reglow' ? 'amura' : 'reglow';
     }
 
     private function user(string $role, ?string $brand = null): User
@@ -43,7 +43,7 @@ final class SuperAdminTest extends TestCase
         $this->actingAs($sa)->post('/admin/users', [
             'name' => 'CS Baru',
             'email' => 'cs2@x.id',
-            'password' => 'rahasia123',
+            'password' => 'rahasia12345',
             'role' => 'cs',
             'brand_scope' => $this->brand(),
         ])->assertRedirect();
@@ -72,14 +72,14 @@ final class SuperAdminTest extends TestCase
         $this->actingAs($sa)->post('/admin/users', [
             'name' => 'CS Baru',
             'email' => 'cs2@x.id',
-            'password' => 'rahasia123',
+            'password' => 'rahasia12345',
             'role' => 'cs',
             'brand_scope' => $this->brand(),
         ])->assertRedirect();
 
         Auth::logout();
 
-        $this->assertTrue(Auth::attempt(['email' => 'cs2@x.id', 'password' => 'rahasia123']));
+        $this->assertTrue(Auth::attempt(['email' => 'cs2@x.id', 'password' => 'rahasia12345']));
     }
 
     public function test_ubah_peran_user(): void
@@ -102,7 +102,7 @@ final class SuperAdminTest extends TestCase
         $this->actingAs($sa)->post('/admin/users', [
             'name' => 'CS Baru',
             'email' => 'cs2@x.id',
-            'password' => 'rahasia123',
+            'password' => 'rahasia12345',
             'role' => 'cs',
             'brand_scope' => $this->otherBrand(),
         ])->assertRedirect();
@@ -143,7 +143,7 @@ final class SuperAdminTest extends TestCase
             ->post('/admin/users', [
                 'name' => 'Admin Nakal',
                 'email' => 'nakal@x.id',
-                'password' => 'rahasia123',
+                'password' => 'rahasia12345',
                 'role' => 'admin',
                 'brand_scope' => $this->brand(),
             ])

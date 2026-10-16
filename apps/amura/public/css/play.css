@@ -69,10 +69,10 @@ button { font-family: inherit; }
 .entry .lead { margin: 6px 0 0; font-size: 15px; line-height: 1.5; color: var(--muted); }
 .field { display: flex; flex-direction: column; gap: 8px; }
 .field label { font-size: 13px; font-weight: 800; }
-.field .hint { font-size: 12px; color: var(--muted); }
+.field .hint { font-size: 12px; line-height: 1.45; color: var(--muted); }
 .input {
     width: 100%; height: 56px; border-radius: 14px; border: 1.5px solid var(--line); background: #fff;
-    padding: 0 14px; font: 700 16px/1 inherit; font-family: inherit; color: var(--ink); letter-spacing: .02em;
+    padding: 0 14px; font-family: inherit; font-size: 16px; font-weight: 700; line-height: 1; color: var(--ink); letter-spacing: .02em;
 }
 .input::placeholder { color: #A89A8E; font-weight: 600; }
 .input:focus { outline: none; border-color: var(--ink); }
@@ -81,7 +81,7 @@ button { font-family: inherit; }
 .phone:focus-within { border-color: var(--ink); }
 .phone.is-error { border-color: var(--danger); }
 .phone span { padding: 0 12px; display: grid; place-items: center; font-size: 16px; font-weight: 700; background: var(--soft); border-right: 1px solid var(--line); }
-.phone input { flex: 1; min-width: 0; border: 0; padding: 0 14px; font: 700 16px/1 inherit; font-family: inherit; color: var(--ink); background: transparent; }
+.phone input { flex: 1; min-width: 0; border: 0; padding: 0 14px; font-family: inherit; font-size: 16px; font-weight: 700; line-height: 1; color: var(--ink); background: transparent; }
 .phone input:focus { outline: none; }
 .alert {
     border-radius: 12px; padding: 12px 14px; background: #FBE9E6; color: #7A2419;
@@ -90,6 +90,65 @@ button { font-family: inherit; }
 .alert b { color: var(--danger); }
 .entry-foot { flex: none; padding: 16px 16px 22px; padding-bottom: max(22px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; }
 .entry-foot small { font-size: 12px; color: var(--muted); text-align: center; }
+/* Tautan sekunder di bawah tombol utama (4d, 4e). Tautan CS memakai brand gelap,
+   tautan pindah cara masuk memakai ink, supaya dua tautan bertumpuk bisa dibedakan. */
+.entry-link { min-height: 44px; display: grid; place-items: center; text-align: center; color: var(--d); font-size: 14px; font-weight: 700; line-height: 1.45; text-decoration: underline; text-underline-offset: 3px; }
+.entry-link.is-ink { color: var(--ink); }
+.entry-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
+/* Pengganti tautan saat WhatsApp CS belum diatur (4g): teks biasa, tinggi sama dengan tautan. */
+.entry-note { margin: 0; min-height: 44px; display: grid; place-items: center; text-align: center; color: var(--muted); font-size: 14px; font-weight: 500; line-height: 1.45; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Galat milik satu kolom (4b, 4d, 4e): di atas kolomnya, terbaca sebelum jari menyentuh keyboard. */
+.field-alert { display: flex; gap: 8px; padding: 12px 14px; border-radius: 12px; background: #F8E3E0; color: #8E1D17; font-size: 13px; line-height: 1.45; }
+.field-alert b { flex: none; }
+
+/* Kolom PIN (4a): satu input asli transparan di atas 4 kotak hiasan. Tanpa JS,
+   input biasa yang tampil (kelas is-enhanced dipasang oleh skrip). */
+.pin-head { display: flex; align-items: center; justify-content: space-between; margin: -8px 0; }
+.pin-toggle { height: 44px; padding: 0 2px; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 700; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.pin-toggle:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+.pin-wrap { position: relative; }
+.pin-input { font-size: 24px; letter-spacing: .6em; text-align: center; padding-left: calc(14px + .6em); }
+.pin-boxes { display: none; gap: 10px; }
+.pin-box {
+    flex: 1; height: 56px; border-radius: 14px; border: 1.5px solid var(--line); background: #fff;
+    display: grid; place-items: center; font-size: 22px; font-weight: 800; color: var(--ink);
+}
+.pin-box.is-dot::after { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--ink); }
+/* Kotak aktif: garis ink 2 px + cincin tint brand 3 px, tetap terlihat di brand mana pun. */
+.pin-box.is-active { border: 2px solid var(--ink); box-shadow: 0 0 0 3px var(--t); }
+.pin-box.is-active:empty::after { content: ''; width: 2px; height: 24px; background: var(--ink); animation: caret 1s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+.pin-field.is-error .pin-box { border: 2px solid var(--danger); background: #FFF8F7; }
+.pin-field.is-enhanced .pin-boxes { display: flex; }
+.pin-field.is-enhanced .pin-input {
+    position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0;
+    color: transparent; caret-color: transparent; background: transparent; font-size: 16px; letter-spacing: 0;
+}
+.pin-field.is-error .hint { display: none; }
+
+/* Catatan netral (4a, 4c): kebiasaan aman, bukan peringatan, jadi tidak merah. */
+.note-box { display: flex; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--soft); font-size: 13px; line-height: 1.5; color: var(--ink); }
+.note-box .ico { flex: none; width: 20px; height: 20px; border-radius: 6px; background: var(--p); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 800; }
+/* Strip tint brand (4c): "sudah berhasil masuk lewat CS", jadi layar ini terasa lanjutan. */
+.ok-strip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--t); color: var(--d); font-size: 13px; font-weight: 700; line-height: 1.35; }
+.ok-strip .ico { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--p); color: #fff; display: grid; place-items: center; font-size: 12px; }
+
+/* PIN terkunci (4f): cincin hitung mundur, sisa waktu terbaca dari jauh. */
+.lock { margin-top: 22px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.lock-ring {
+    --left: 1; width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center;
+    background: conic-gradient(var(--p) 0 calc(var(--left) * 100%), #EFE4D8 0 100%);
+}
+.lock-face { width: 112px; height: 112px; border-radius: 50%; background: var(--ivory); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.lock-time { font-family: 'DM Serif Display', serif; font-size: 36px; line-height: 1; font-variant-numeric: tabular-nums; }
+.lock-unit { font-size: 11px; font-weight: 700; color: var(--muted); }
+.lock h1 { margin: 0; font-size: 24px; font-weight: 800; line-height: 1.25; }
+.lock p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--muted); max-width: 310px; }
+.safe-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 14px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.safe-card b { color: var(--ink); }
 
 .btn {
     height: 56px; border: 0; border-radius: 16px; font-size: 17px; font-weight: 800; cursor: pointer;
@@ -97,7 +156,8 @@ button { font-family: inherit; }
 }
 .btn-brand { background: var(--p); color: #fff; box-shadow: 0 5px 0 var(--d); }
 .btn-brand:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--d); }
-.btn-brand[disabled] { background: #EFE7DC; color: #A89A8E; box-shadow: none; cursor: not-allowed; }
+/* #8C7E72 di #EFE7DC = 4,6:1, tetap terbaca walau nonaktif. */
+.btn-brand[disabled] { background: #EFE7DC; color: #8C7E72; box-shadow: none; cursor: not-allowed; }
 .btn-brand.is-loading { pointer-events: none; opacity: .8; }
 
 /* Tombol emas tebal: satu-satunya aksen emas di layar, dipakai untuk aksi main. */
@@ -142,11 +202,11 @@ button { font-family: inherit; }
 
 .stage-head { position: relative; z-index: 6; flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px 4px; padding-top: max(10px, env(safe-area-inset-top)); }
 .icon-btn {
-    width: 44px; height: 44px; flex: none; border: 0; border-radius: 12px; background: transparent; color: var(--cream);
+    width: 48px; height: 48px; flex: none; border: 0; border-radius: 14px; background: rgba(255, 255, 255, .1); color: var(--cream);
     display: grid; place-items: center; cursor: pointer; text-decoration: none;
 }
-.icon-btn svg { width: 22px; height: 22px; }
-.icon-btn:hover { background: rgba(255, 255, 255, .06); }
+.icon-btn svg { width: 24px; height: 24px; }
+.icon-btn:hover { background: rgba(255, 255, 255, .18); }
 .stage-brand { width: 30px; height: 30px; border-radius: 9px; background: var(--p); border: 1.5px solid #E8C170; color: #fff; display: grid; place-items: center; font-family: 'DM Serif Display', serif; font-size: 17px; }
 .stage-title { flex: 1; min-width: 0; font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chance-pill { display: flex; align-items: center; gap: 5px; height: 36px; padding: 0 10px 0 6px; border-radius: 999px; background: rgba(0, 0, 0, .35); border: 1px solid rgba(240, 208, 138, .3); }
@@ -156,6 +216,8 @@ button { font-family: inherit; }
 
 .stage-intro { position: relative; z-index: 6; flex: none; padding: 8px 16px 4px; }
 .stage-intro h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
+/* Judul emas hanya selama papan diacak (4h), lalu kembali ke warna biasa di "Pilih 3 kado". */
+.stage-intro h1.is-shuffling { color: #F5DA9A; }
 .stage-intro p { margin: 3px 0 0; font-size: 13px; color: var(--sand); }
 
 /* Grid 4×6 dimiringkan ke belakang seperti meja (kanvas: Kado 3D yang hidup). */
@@ -186,6 +248,10 @@ button { font-family: inherit; }
 .rcard.is-dimmed { opacity: .3; transition: opacity .8s var(--ease-out); }
 .cell.is-used { opacity: .4; }
 .cell.is-used .num { text-decoration: line-through; }
+/* Saat papan dikocok, nomor kotak disembunyikan supaya tumpukan kado jadi satu-satunya fokus. */
+.board .num { transition: opacity .18s; }
+.board.is-shuffling .num { opacity: 0; }
+.board.is-shuffling .cell { pointer-events: none; }
 /* Kado bekas ronde lalu: tutup sudah dibuang, kotak kosong tetap di tempatnya. */
 .cell.is-used .gift-lid { display: none; }
 
@@ -316,6 +382,16 @@ button { font-family: inherit; }
 .won-item .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .won-item .sub b { color: var(--ink); letter-spacing: .06em; }
 
+/* Hasil ronde saat kesempatan masih ada (4h): petunjuk papan akan diisi ulang. */
+.next-card { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 16px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); font-size: 13px; line-height: 1.45; }
+.next-card b { display: block; font-size: 14px; }
+.next-card .next-sub { color: var(--sand); }
+.next-gifts { flex: none; display: flex; }
+.next-gift { position: relative; width: 26px; height: 30px; margin-right: -6px; }
+.next-gift:nth-child(2) { transform: translateY(-4px); z-index: 1; }
+.next-gift .gift-float { animation: none; }
+.next-gift .gift-bow { border-width: 2px; }
+.btn-chip { display: inline-block; margin-left: 4px; padding: 3px 8px; border-radius: 999px; background: rgba(43, 22, 8, .12); font-size: 13px; font-weight: 800; vertical-align: 2px; }
 .empty-note { padding: 16px; border-radius: 16px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); font-size: 14px; line-height: 1.5; color: var(--sand); }
 
 /* Pesan error di panggung (koneksi putus, sesi habis). */
@@ -350,11 +426,18 @@ button { font-family: inherit; }
 /* HP lemah atau "kurangi gerakan": melayang, sinar, dan getar layar dimatikan (kanvas: Tetap ringan). */
 /* ── Area pelanggan: Beranda, Hadiahku, Voucher, Katalog (desain 3c, 3d, 2d, 1f) ── */
 .brandbar-text { flex: 1; min-width: 0; }
-.link-btn { border: 0; background: transparent; color: var(--muted); font: 700 13px/1 inherit; font-family: inherit; min-height: 44px; padding: 0 4px; cursor: pointer; text-decoration: underline; }
+.link-btn { border: 0; background: transparent; color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 700; line-height: 1; min-height: 44px; padding: 0 4px; cursor: pointer; text-decoration: underline; }
 .page { flex: 1; padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 18px; }
 .page h1 { margin: 0; font-size: 22px; font-weight: 800; }
 .page h2 { margin: 0; font-size: 16px; font-weight: 800; }
-.back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--ink); font-weight: 800; text-decoration: none; }
+/* Tombol kembali: jalan keluar utama di sub-halaman, jadi diberi bidang sentuh yang terlihat (feedback 2026-10-15). */
+.back {
+    align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 18px 0 12px;
+    border: 1.5px solid var(--line); border-radius: 14px; background: #fff; color: var(--ink);
+    font-size: 15px; font-weight: 800; text-decoration: none;
+}
+.back svg { width: 22px; height: 22px; flex: none; }
+.back:hover { background: var(--soft); }
 .notice { border-radius: 12px; padding: 12px 14px; background: var(--t); color: var(--d); font-size: 13px; font-weight: 700; }
 
 .wallet { border-radius: 20px; padding: 18px; color: #fff; background: linear-gradient(160deg, var(--p), var(--d)); box-shadow: 0 10px 24px -12px rgba(15, 65, 60, .6); }
@@ -387,6 +470,7 @@ button { font-family: inherit; }
 .status-selesai { background: #E2F1E7; color: var(--ok); }
 .status-hangus { background: #F3E3E1; color: var(--danger); }
 .empty-card { margin: 0; padding: 16px; border-radius: 16px; background: #fff; border: 1px dashed var(--line); font-size: 14px; line-height: 1.5; color: var(--muted); }
+.empty-card a { color: var(--d); font-weight: 700; text-underline-offset: 3px; }
 
 .home-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .btn-outline { display: grid; place-items: center; text-decoration: none; background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
@@ -412,7 +496,7 @@ button { font-family: inherit; }
 .fallback summary { min-height: 32px; font-weight: 800; cursor: pointer; }
 .fallback ol { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; }
 .wa-text { margin: 6px 0; white-space: pre-wrap; font-family: inherit; font-size: 13px; background: var(--soft); border-radius: 10px; padding: 10px; }
-.copy-btn { min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1.5px solid var(--ink); background: #fff; color: var(--ink); font: 800 13px/1 inherit; font-family: inherit; cursor: pointer; }
+.copy-btn { min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1.5px solid var(--ink); background: #fff; color: var(--ink); font-family: inherit; font-size: 13px; font-weight: 800; line-height: 1; cursor: pointer; }
 .timeline { list-style: none; margin: 10px 0 0; padding: 0 0 0 18px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
 .timeline li { position: relative; }
 .timeline li::before { content: ""; position: absolute; left: -25px; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--p); }
@@ -427,7 +511,7 @@ button { font-family: inherit; }
 .reward-body b { display: block; font-size: 15px; overflow-wrap: anywhere; }
 .reward-cost { font-size: 13px; font-weight: 800; color: var(--p); }
 .reward-body small { display: block; font-size: 12px; color: var(--muted); }
-.btn-sm { min-height: 44px; padding: 0 14px; border-radius: 12px; border: 0; background: var(--p); color: #fff; font: 800 14px/1 inherit; font-family: inherit; cursor: pointer; display: grid; place-items: center; text-align: center; }
+.btn-sm { min-height: 44px; padding: 0 14px; border-radius: 12px; border: 0; background: var(--p); color: #fff; font-family: inherit; font-size: 14px; font-weight: 800; line-height: 1; cursor: pointer; display: grid; place-items: center; text-align: center; }
 .btn-sm.is-off { background: #EFE7DC; color: #6F6259; font-size: 12px; cursor: default; }
 .btn-sm.is-ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
 .btn-sm[disabled] { opacity: .6; }
@@ -436,6 +520,43 @@ button { font-family: inherit; }
 .reward-confirm-actions { display: flex; gap: 8px; }
 
 @media (prefers-reduced-motion: reduce) {
-    .gift-float, .stage-rays, .rcard.is-open .rcard-rays, .win-rays { animation: none !important; }
+    .gift-float, .stage-rays, .rcard.is-open .rcard-rays, .win-rays, .pin-box.is-active:empty::after { animation: none !important; }
     .fx { display: none; }
 }
+
+/* ── Pop up promo (diatur di /admin/tampilan) ────────────────────────────
+   Gambar promo jadi satu-satunya fokus: tanpa bingkai atau animasi tambahan.
+   Tombol tutup di atas kanan gambar, di luar area gambar supaya tidak menutupi isi promo. */
+.promo {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    width: min(360px, calc(100vw - 48px));
+    max-height: calc(100dvh - 32px);
+    overflow: visible;
+    display: none;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+}
+.promo[open] { display: flex; }
+.promo::backdrop { background: rgba(43, 34, 29, .72); }
+.promo-close {
+    width: 44px; height: 44px; flex: none;
+    display: grid; place-items: center;
+    border: 0; border-radius: 50%;
+    background: var(--ivory); color: var(--ink);
+    cursor: pointer;
+}
+.promo-media {
+    display: block; width: 100%;
+    padding: 0; border: 0; background: none;
+    border-radius: 16px; overflow: hidden;
+    cursor: pointer;
+}
+.promo-media img {
+    display: block; width: 100%; height: auto;
+    max-height: calc(100dvh - 120px);
+    object-fit: contain;
+}
+.promo :focus-visible { outline: 3px solid var(--gold-light); outline-offset: 3px; }

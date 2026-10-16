@@ -1,6 +1,6 @@
 @extends('layouts.play')
 
-@section('title', $theme['name'].' · Paketmu sudah sampai?')
+@section('title', $theme['name'].' · '.$content['play_title'])
 
 @section('content')
     <header class="brandbar">
@@ -15,8 +15,8 @@
         @csrf
         <div class="entry-body">
             <div>
-                <h1>Paketmu sudah sampai?</h1>
-                <p class="lead">Masukkan nomor resi dan nomor HP untuk membuka Gatcha-mu.</p>
+                <h1>{{ $content['play_title'] }}</h1>
+                <p class="lead">{{ $content['play_lead'] }}</p>
             </div>
 
             @if ($errors->any())
@@ -50,7 +50,7 @@
 
         <div class="entry-foot">
             <button type="submit" class="btn btn-brand" id="entrySubmit" disabled>Cek &amp; masuk</button>
-            <small>Tanpa daftar, tanpa kata sandi.</small>
+            <a class="entry-link" href="{{ route('customer.login') }}">Sudah punya PIN? Masuk dengan nomor HP</a>
         </div>
     </form>
 @endsection

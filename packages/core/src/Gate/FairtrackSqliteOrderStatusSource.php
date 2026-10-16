@@ -19,7 +19,7 @@ final class FairtrackSqliteOrderStatusSource implements OrderStatusSource
     ) {
     }
 
-    public function find(string $awb): ?OrderStatus
+    public function find(string $awb, string $phone = ''): ?OrderStatus
     {
         $awb = trim($awb);
         if ($awb === '' || trim($this->database) === '' || ! is_file($this->database)) {

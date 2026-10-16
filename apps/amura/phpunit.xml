@@ -26,6 +26,10 @@
         <env name="DB_CONNECTION" value="pgsql"/>
         <env name="DB_DATABASE" value="loyalty_new_test"/>
         <env name="DB_URL" value=""/>
+        <!-- Tes tidak boleh memanggil Soscom sungguhan, apa pun isi .env. -->
+        <env name="MARKOM_GATE" value="stub" force="true"/>
+        <env name="SOSCOM_API_KEY" value="" force="true"/>
+        <env name="CS_WHATSAPP" value="" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
