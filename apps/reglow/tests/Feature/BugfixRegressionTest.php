@@ -65,6 +65,7 @@ final class BugfixRegressionTest extends TestCase
             'release_from' => now(),
             'program_end' => now()->addMonth(),
         ]);
+        $this->previousOrder('08123456789');
     }
 
     private function usedUnits(): int
@@ -161,7 +162,8 @@ final class BugfixRegressionTest extends TestCase
         $this->playAs($session)->postJson("/play/{$session->session_token}/reveal")->assertOk();
         $this->assertSame(1, $this->usedUnits());
 
-        // Kuota habis: sesi baru tidak mendapat hadiah utama.
+        // Kuota habis: sesi baru (pesanan kedua) tidak mendapat hadiah utama.
+        $this->previousOrder('081200000091');
         $this->assertSame(0, $this->start('JX-NEXT1', '081200000091')->prizes()->where('tier', 'hadiah_besar')->count());
 
         Claim::firstOrFail()->update(['expires_at' => now()->subDay()]);
@@ -173,6 +175,7 @@ final class BugfixRegressionTest extends TestCase
         $this->assertSame(0, $this->usedUnits());
 
         // Emas boleh muncul lagi untuk pelanggan berikutnya.
+        $this->previousOrder('081200000092');
         $this->assertSame(1, $this->start('JX-NEXT2', '081200000092')->prizes()->where('tier', 'hadiah_besar')->count());
     }
 

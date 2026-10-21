@@ -162,9 +162,22 @@ final class SessionService
         // Satu sesi paling banyak satu hadiah utama: yang sudah menang di
         // kesempatan sebelumnya tidak diberi lagi di papan berikutnya.
         $alreadyWon = $session->prizes()->where('tier', 'hadiah_besar')->where('taken', true)->exists();
-        if (! $paused && ! $alreadyWon && GameControls::rollBigPrize($this->brand)) {
+        if (! $paused && ! $alreadyWon && self::isRepeatOrder($session) && GameControls::rollBigPrize($this->brand)) {
             $this->placeBigPrize($session, $round);
         }
+    }
+
+    /**
+     * Hadiah utama hanya untuk pesanan kedua dan seterusnya (keputusan Fai 2026-10-21):
+     * nomor HP ini sudah punya sesi Gatcha dari paket lain sebelum sesi ini. Pembeli lama
+     * yang baru pertama kali main di program dihitung pesanan pertama.
+     */
+    public static function isRepeatOrder(GameSession $session): bool
+    {
+        return GameSession::where('customer_id', $session->customer_id)
+            ->where('brand', $session->brand)
+            ->where('id', '<', $session->id)
+            ->exists();
     }
 
     /** Kunci chance di DB. Return false kalau sudah habis. */

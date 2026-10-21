@@ -136,10 +136,27 @@ final class PrizeControlsTest extends TestCase
     {
         $this->bigPrize(5, now()->toDateString(), now()->addMonth()->toDateString());
         $this->alwaysPlaceBigPrize();
+        $this->previousOrder('08123456789');
 
         $session = $this->start();
 
         $this->assertSame(1, $session->prizes()->where('tier', 'hadiah_besar')->count());
+    }
+
+    public function test_hadiah_utama_hanya_mulai_pesanan_kedua(): void
+    {
+        $this->bigPrize(5, now()->toDateString(), now()->addMonth()->toDateString());
+        $this->alwaysPlaceBigPrize();
+
+        $first = $this->start('JX-PERTAMA');
+        $this->assertSame(0, $first->prizes()->where('tier', 'hadiah_besar')->count());
+        $first->update(['chance_used' => $first->chance_total]);
+
+        $second = $this->start('JX-KEDUA');
+        $this->assertSame(1, $second->prizes()->where('tier', 'hadiah_besar')->count());
+
+        // Nomor lain tetap dihitung pesanan pertama.
+        $this->assertSame(0, $this->start('JX-LAIN', '081299990000')->prizes()->where('tier', 'hadiah_besar')->count());
     }
 
     public function test_peluang_default_dua_puluh_persen(): void
