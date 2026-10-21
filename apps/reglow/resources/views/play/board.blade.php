@@ -38,8 +38,7 @@
         <a class="icon-btn" href="{{ route('home') }}" aria-label="Kembali ke Beranda">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
         </a>
-        <div class="stage-brand" aria-hidden="true">{{ $theme['initial'] }}</div>
-        <div class="stage-title">Gatcha {{ $theme['name'] }}</div>
+        <div class="stage-title">@include('partials.logo', ['dark' => true, 'class' => 'stage-logo'])</div>
         <button type="button" class="icon-btn" id="sound" aria-pressed="false" aria-label="Suara dan musik mati. Ketuk untuk menyalakan">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" stroke="none"/>

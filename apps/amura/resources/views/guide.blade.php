@@ -19,8 +19,8 @@
     <div class="wrap">
         <header class="top">
             <span class="brand">
-                <span class="tile" aria-hidden="true">{{ $theme['initial'] }}</span>
-                <span><b>Kejutan Kado {{ $theme['name'] }}</b><span>Poin &amp; Hadiah</span></span>
+                @include('partials.logo', ['class' => 'logo'])
+                <span><b>Kejutan Kado</b><span>Poin &amp; Hadiah</span></span>
             </span>
             <a class="signin" href="{{ route('customer.login') }}">Sudah punya PIN? Masuk</a>
         </header>

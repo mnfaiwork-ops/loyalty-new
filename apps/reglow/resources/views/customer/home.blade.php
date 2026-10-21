@@ -4,11 +4,8 @@
 
 @section('content')
     <header class="brandbar">
-        <div class="brand-tile" aria-hidden="true">{{ $theme['initial'] }}</div>
-        <div class="brandbar-text">
-            <div class="brand-name">{{ $theme['name'] }}</div>
-            <div class="brand-sub">Poin &amp; Hadiah</div>
-        </div>
+        @include('partials.logo')
+        <div class="brandbar-text brand-sub">Poin &amp; Hadiah</div>
         <form method="POST" action="{{ route('customer.logout') }}">
             @csrf
             <button type="submit" class="link-btn">Bukan kamu? Keluar</button>

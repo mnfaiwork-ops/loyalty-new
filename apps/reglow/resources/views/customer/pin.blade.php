@@ -4,11 +4,8 @@
 
 @section('content')
     <header class="brandbar">
-        <div class="brand-tile" aria-hidden="true">{{ $theme['initial'] }}</div>
-        <div>
-            <div class="brand-name">{{ $theme['name'] }}</div>
-            <div class="brand-sub">Poin &amp; Hadiah</div>
-        </div>
+        @include('partials.logo')
+        <div class="brand-sub">Poin &amp; Hadiah</div>
     </header>
 
     <form class="entry" method="POST" action="{{ route('pin.show') }}" data-pin-form novalidate>
