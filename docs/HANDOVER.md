@@ -160,6 +160,8 @@ Semua perintah berlaku untuk brand app tempat perintah dijalankan.
 - **Kuota bersama hadiah utama**: `prize_catalog.quota_name` menunjuk baris `quota_caps` yang dipakai bersama, mis. lima jenis Philips ke kuota "Philips" (2 unit Nov-Des = 1 per bulan). Jenis yang keluar diacak. Migration `2026_10_21_000003_add_prize_quota_name`.
 - **Share ke story**: setelah ambil hadiah, tombol "Bagikan ke Story" membuat gambar 1080x1920 di HP pelanggan (`public/js/share-story.js`) lalu membuka menu share HP (Instagram/WhatsApp). Cadangan: simpan gambar + kirim teks ke WhatsApp. Foto hadiah: unggahan Game Admin (`prize_catalog.image`, disk public `hadiah/<brand>/`) atau bawaan `public/img/hadiah/<brand>/<slug nama>.webp`. Foto unggahan tidak ikut Backup setting. Migration `2026_10_22_000001_add_prize_image`; butuh `php artisan storage:link` (sudah dipakai pop up).
 
+Panduan deploy rilis 22 Okt 2026 untuk tim IT: `docs/deploy/2026-10-22/PANDUAN-DEPLOY.md` (file setting hadiah di folder yang sama).
+
 ## 10. Kontak
 
 - Produk dan keputusan bisnis: Fai (CRM).

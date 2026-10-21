@@ -1,5 +1,8 @@
 # Deploy Loyalty New — Langkah Ops (B1/B2/B3)
 
+> **Rilis 22 Okt 2026 (Kejutan Kado, PR #5-#11):** ikuti `docs/deploy/2026-10-22/PANDUAN-DEPLOY.md`.
+> Isinya langkah deploy dari versi `a7b9580`, 4 migration, import setting hadiah, cek, dan rollback.
+
 Panduan operasional untuk hal-hal yang TIDAK bisa dilakukan dari kode: pisah DB,
 aktifkan gate Soscom, dan jalankan scheduler. Sesuai catatan
 `05 Handoff Prompts/loyalty/2026-09-25-loyalty-new-belum-dikerjakan.md` §B.
