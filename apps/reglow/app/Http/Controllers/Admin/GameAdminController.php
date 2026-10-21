@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateTierConfigRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use LoyaltyNew\Core\Models\PrizeCatalog;
 use LoyaltyNew\Core\Prizes\BigPrizeQuota;
 use LoyaltyNew\Core\Prizes\GameControls;
@@ -137,7 +138,10 @@ final class GameAdminController extends Controller
             'program_end' => [$cap ? 'required' : 'nullable', 'date', 'after_or_equal:program_start'],
             'release_from' => ['nullable', 'date', 'after_or_equal:program_start', 'before_or_equal:program_end'],
             'segment' => ['nullable', 'in:'.implode(',', Segment::PRIZE)],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_image' => ['boolean'],
         ], [
+            'image.*' => 'Foto harus JPG, PNG, atau WEBP, maksimal 2 MB.',
             'cap_units.min' => 'Kuota tidak boleh di bawah unit yang sudah keluar.',
             ...self::RELEASE_MESSAGES,
         ]);
@@ -148,6 +152,16 @@ final class GameAdminController extends Controller
             'monthly_stock' => $prize->is_capped ? null : ($data['monthly_stock'] ?? null),
             'segment' => $data['segment'] ?? Segment::ofPrize($prize),
         ]);
+
+        // Foto untuk gambar share story. Hapus = kembali ke foto bawaan (kalau ada).
+        if ($request->hasFile('image') || ($data['remove_image'] ?? false)) {
+            if ($prize->image) {
+                Storage::disk('public')->delete($prize->image);
+            }
+            $prize->update(['image' => $request->hasFile('image')
+                ? $request->file('image')->store('hadiah/'.config('app.brand'), 'public')
+                : null]);
+        }
 
         if ($cap) {
             DB::table('quota_caps')->where('id', $cap->id)->update([

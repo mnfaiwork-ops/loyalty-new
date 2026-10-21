@@ -15,6 +15,9 @@
     .paused-note { margin: 0; padding: 12px 16px 0; color: #b42318; font-weight: 800; }
     .hint { font-size: 12px; margin: 4px 0 0; }
     td .name { font-weight: 800; }
+    .photo { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .photo img { width: 44px; height: 44px; object-fit: contain; border-radius: 8px; background: #fff; border: 1px solid var(--line); }
+    .photo input[type=file] { max-width: 210px; font-size: 12px; }
 </style>
 @endpush
 
@@ -80,7 +83,7 @@
                                 @if ($prize->tier === 'poin')
                                     <p class="muted hint">Nilai kado poin diatur di Katalog poin, bagian Aturan poin.</p>
                                 @else
-                                    <form method="post" action="{{ route('admin.game.catalog.update', $prize->id) }}" class="row-form">
+                                    <form method="post" action="{{ route('admin.game.catalog.update', $prize->id) }}" class="row-form" enctype="multipart/form-data">
                                         @csrf
                                         <input type="number" name="face_value" value="{{ $prize->face_value }}" min="0" placeholder="Nilai Rp" aria-label="Nilai rupiah {{ $prize->name }}">
                                         @if (isset($use['cap']))
@@ -98,6 +101,16 @@
                                                 @endforeach
                                             </select>
                                         </label>
+                                        @php($photo = \App\Support\PrizeImage::url($prize))
+                                        <span class="photo">
+                                            @if ($photo)
+                                                <img src="{{ $photo }}" alt="Foto {{ $prize->name }}" width="44" height="44">
+                                            @endif
+                                            <label class="check">Foto story <input type="file" name="image" accept="image/jpeg,image/png,image/webp" aria-label="Foto {{ $prize->name }}"></label>
+                                            @if ($prize->image)
+                                                <label class="check"><input type="checkbox" name="remove_image" value="1"> Pakai foto bawaan</label>
+                                            @endif
+                                        </span>
                                         <label class="check"><input type="checkbox" name="active" value="1" @checked($prize->active)> Aktif</label>
                                         <button class="btn light" type="submit">Simpan</button>
                                     </form>
@@ -123,7 +136,7 @@
             </table>
         @endif
     </div>
-    <p class="muted hint">Stok voucher, merch, dan produk dihitung per bulan kalender dan kosong berarti tanpa batas. Hadiah utama baru bisa keluar mulai tanggal "Mulai keluar". Kalau kosong, otomatis 14 hari terakhir periode. Setelah itu kuota dibuka bertahap sampai periode selesai: kuota 2 untuk 14 hari berarti unit kedua baru bisa keluar mulai hari ke-8. Hadiah dengan Kuota bersama yang sama (mis. lima jenis Philips dengan kuota "Philips") berbagi satu kuota: mengubah kuota di salah satunya berlaku untuk semuanya, dan jenis yang keluar diacak.</p>
+    <p class="muted hint">Stok voucher, merch, dan produk dihitung per bulan kalender dan kosong berarti tanpa batas. Hadiah utama baru bisa keluar mulai tanggal "Mulai keluar". Kalau kosong, otomatis 14 hari terakhir periode. Setelah itu kuota dibuka bertahap sampai periode selesai: kuota 2 untuk 14 hari berarti unit kedua baru bisa keluar mulai hari ke-8. Hadiah dengan Kuota bersama yang sama (mis. lima jenis Philips dengan kuota "Philips") berbagi satu kuota: mengubah kuota di salah satunya berlaku untuk semuanya, dan jenis yang keluar diacak. Foto story dipakai di gambar yang dibagikan pelanggan ke Instagram/WhatsApp (JPG/PNG/WEBP, maks 2 MB, sebaiknya latar putih atau polos). Tanpa foto, gambar story memakai ilustrasi kado.</p>
 
     <h2>Tambah hadiah</h2>
     <div class="card" style="padding:16px">

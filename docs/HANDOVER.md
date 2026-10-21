@@ -158,6 +158,7 @@ Semua perintah berlaku untuk brand app tempat perintah dijalankan.
 - **Kontrol hadiah per jenis pelanggan** (Panel Game): bobot tier terpisah untuk pelanggan baru dan lama, dan tiap hadiah punya isian "Untuk" (semua/baru/lama). Pelanggan baru = nomor HP yang belum pernah main di brand itu. Kolom `segment` kosong = bawaan (hadiah utama: pelanggan lama, lainnya: semua). Aturan ini tidak tampil ke pelanggan.
 - Deploy: `php artisan migrate --force` juga menambah kolom `segment` di `prize_catalog` dan `game_sessions`.
 - **Kuota bersama hadiah utama**: `prize_catalog.quota_name` menunjuk baris `quota_caps` yang dipakai bersama, mis. lima jenis Philips ke kuota "Philips" (2 unit Nov-Des = 1 per bulan). Jenis yang keluar diacak. Migration `2026_10_21_000003_add_prize_quota_name`.
+- **Share ke story**: setelah ambil hadiah, tombol "Bagikan ke Story" membuat gambar 1080x1920 di HP pelanggan (`public/js/share-story.js`) lalu membuka menu share HP (Instagram/WhatsApp). Cadangan: simpan gambar + kirim teks ke WhatsApp. Foto hadiah: unggahan Game Admin (`prize_catalog.image`, disk public `hadiah/<brand>/`) atau bawaan `public/img/hadiah/<brand>/<slug nama>.webp`. Foto unggahan tidak ikut Backup setting. Migration `2026_10_22_000001_add_prize_image`; butuh `php artisan storage:link` (sudah dipakai pop up).
 
 ## 10. Kontak
 

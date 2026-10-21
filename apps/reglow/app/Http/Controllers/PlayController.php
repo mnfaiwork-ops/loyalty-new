@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Middleware\RememberedCustomer;
 use App\Support\PendingCustomer;
 use App\Support\PhoneInput;
+use App\Support\PrizeImage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -20,6 +21,7 @@ use LoyaltyNew\Core\Models\Customer;
 use LoyaltyNew\Core\Models\GamePrize;
 use LoyaltyNew\Core\Models\GameSession;
 use LoyaltyNew\Core\Models\PointLot;
+use LoyaltyNew\Core\Models\PrizeCatalog;
 use LoyaltyNew\Core\Points\LoyaltySettings;
 use LoyaltyNew\Core\Prizes\ClaimService;
 use LoyaltyNew\Core\Prizes\PrizeAwarder;
@@ -310,7 +312,7 @@ final class PlayController extends Controller
             ->get();
     }
 
-    /** @return array<int, array{slot:int, tier:string, label:string, name:?string, points:?int}> */
+    /** @return array<int, array{slot:int, tier:string, label:string, name:?string, points:?int, image:?string}> */
     private function revealed(Collection $round): array
     {
         $perGift = LoyaltySettings::current()['per_gift'];
@@ -321,6 +323,8 @@ final class PlayController extends Controller
             'label' => $this->tierLabel($prize->tier),
             'name' => $prize->tier === 'poin' ? null : ClaimService::prizeName($prize),
             'points' => $prize->tier === 'poin' ? ($prize->points ?? $perGift) : null,
+            // Foto untuk gambar share story; poin dan hadiah tanpa foto memakai ilustrasi kado.
+            'image' => $prize->tier === 'poin' ? null : PrizeImage::url(PrizeCatalog::find($prize->prize_catalog_id)),
         ])->values()->all();
     }
 

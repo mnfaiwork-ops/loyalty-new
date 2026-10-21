@@ -22,8 +22,8 @@ use LoyaltyNew\Core\Prizes\TierConfig;
  * kuota "Philips"). File lama tanpa isian ini tetap bisa di-import.
  *
  * Yang sengaja TIDAK ikut dan tidak pernah ditimpa: data pelanggan, saldo poin, klaim,
- * pemakaian kuota (used_units/quota_used), stok terpakai (stock_used), gambar pop up dan
- * gambar item katalog. Hadiah atau item yang tidak ada di file dinonaktifkan, tidak
+ * pemakaian kuota (used_units/quota_used), stok terpakai (stock_used), gambar pop up,
+ * gambar item katalog, dan foto hadiah untuk share story (diunggah per server di Panel Game). Hadiah atau item yang tidak ada di file dinonaktifkan, tidak
  * dihapus, karena klaim lama masih menunjuk ke sana.
  */
 final class SettingsTransfer
