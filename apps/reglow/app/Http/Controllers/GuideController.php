@@ -60,7 +60,7 @@ final class GuideController extends Controller
             }
             foreach ($items->unique('name') as $item) {
                 $main = $tier === 'hadiah_besar';
-                $rows[] = ['name' => $item->name, 'note' => $main ? 'Hadiah utama' : '', 'main' => $main];
+                $rows[] = ['name' => $item->name, 'note' => $main ? 'Hadiah utama, mulai pesanan kedua' : '', 'main' => $main];
             }
         }
 

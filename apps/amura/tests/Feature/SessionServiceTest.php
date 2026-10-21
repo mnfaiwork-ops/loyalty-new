@@ -68,6 +68,8 @@ final class SessionServiceTest extends TestCase
         ]);
 
         $service = app(SessionService::class);
+        $this->previousOrder('081200000041');
+        $this->previousOrder('081200000042');
         $first = $service->open('JX1', '081200000041');
         $second = $service->open('JX2', '081200000042');
 

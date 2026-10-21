@@ -131,6 +131,8 @@ final class SpecVerificationTest extends TestCase
         ]);
 
         $service = app(SessionService::class);
+        $this->previousOrder('081200000041');
+        $this->previousOrder('081200000042');
         $first = $service->open('JX-04A', '081200000041');
         $second = $service->open('JX-04B', '081200000042');
 

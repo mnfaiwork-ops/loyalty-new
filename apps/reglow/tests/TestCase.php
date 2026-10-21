@@ -24,6 +24,18 @@ abstract class TestCase extends BaseTestCase
             ->withCookie(RememberedCustomer::COOKIE, RememberedCustomer::payload($customer->refresh()));
     }
 
+    /**
+     * Hadiah utama hanya untuk pesanan kedua dst. (2026-10-21): beri nomor ini satu
+     * pesanan sebelumnya yang sudah selesai dimainkan.
+     */
+    protected function previousOrder(string $phone): void
+    {
+        $session = app(\LoyaltyNew\Core\Gacha\SessionService::class)
+            ->open('JX-SEBELUMNYA-'.substr(md5($phone), 0, 6), \App\Support\PhoneInput::normalize($phone));
+        $session->update(['chance_used' => $session->chance_total]);
+        $session->prizes()->delete();
+    }
+
     /** Tes hadiah utama: taruh hadiah utama di setiap papan selama kuota ada. */
     protected function alwaysPlaceBigPrize(): void
     {
