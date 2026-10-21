@@ -74,7 +74,7 @@ final class WhatsAppLink
         return config('play.themes.'.config('app.brand').'.name', 'Amura');
     }
 
-    private static function international(string $phone): string
+    public static function international(string $phone): string
     {
         $digits = preg_replace('/\D+/', '', $phone);
 

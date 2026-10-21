@@ -148,6 +148,13 @@ Semua perintah berlaku untuk brand app tempat perintah dijalankan.
 - **Belum dikerjakan:** `claim_code` bisa bentrok tanpa retry, email staf unik secara global
   (bukan per brand), super admin bisa mengunci akunnya sendiri.
 
+## 9a. Tambahan 21 Okt 2026
+
+- **Landing page `/cara-main`** (publik). Angka, periode, hadiah, dan katalog dibaca dari setting game, jadi tidak perlu diedit saat Game Admin mengubah setting. Gambar di `public/img/cara-main/<brand>/`.
+- **Backup setting `/admin/setting`** (hanya Super Admin): export/import setting game per brand sebagai JSON, lewat pratinjau dulu. Setiap import menyimpan setting sebelumnya di `storage/app/private/setting-backups/<brand>/` dan mencatat siapa/kapan di tabel `setting_imports`. Folder itu ikut di-backup server. Tidak menyentuh data pelanggan, saldo, klaim, dan pemakaian kuota/stok.
+- **Daftar harian BA `/admin/daftar-harian`** (CS + Super Admin): CSV belum main, hadiah hampir hangus (4 hari), saldo cukup ditukar.
+- Deploy: jalankan `php artisan migrate --force` (tabel baru `setting_imports`).
+
 ## 10. Kontak
 
 - Produk dan keputusan bisnis: Fai (CRM).
