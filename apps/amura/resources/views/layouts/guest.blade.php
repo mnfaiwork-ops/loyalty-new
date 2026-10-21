@@ -35,6 +35,7 @@
             box-shadow: 0 8px 24px rgba(14, 74, 67, .08);
             padding: 28px 22px;
         }
+        .brand-logo { display: block; width: auto; height: calc(28px * var(--ls, 1)); margin-bottom: 18px; }
         h1 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 24px; margin: 0 0 4px; color: var(--deep); }
         .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
         label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
@@ -66,6 +67,7 @@
 </head>
 <body>
     <main class="card">
+        @include('partials.logo', ['theme' => config('play.themes.'.config('app.brand'))])
         @yield('content')
     </main>
 </body>

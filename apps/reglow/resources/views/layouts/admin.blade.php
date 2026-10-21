@@ -18,6 +18,7 @@
         :focus-visible { outline: 3px solid var(--amura); outline-offset: 2px; }
         .shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
         aside { background: var(--panel); border-right: 1px solid var(--line); padding: 22px 14px; display: flex; flex-direction: column; gap: 18px; }
+        .org .brand-logo { display: block; width: auto; height: calc(24px * var(--ls, 1)); margin-bottom: 8px; }
         .org b { display: block; font-size: 16px; font-weight: 800; }
         .org small { font-size: 12px; color: var(--muted); }
         .menu { display: flex; flex-direction: column; gap: 4px; }
@@ -84,7 +85,8 @@
     <div class="shell">
         <aside>
             <div class="org">
-                <b>Loyalty {{ ucfirst((string) config('app.brand')) }}</b>
+                @include('partials.logo', ['theme' => config('play.themes.'.config('app.brand'))])
+                <b>Loyalty</b>
                 <small>{{ $roleName }} · {{ $user?->name }}</small>
             </div>
             <nav class="menu" aria-label="Menu panel">

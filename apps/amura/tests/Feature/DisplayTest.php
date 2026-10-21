@@ -43,6 +43,18 @@ final class DisplayTest extends TestCase
             ->assertDontSee('<dialog', false);
     }
 
+    public function test_logo_resmi_brand_di_halaman_resi(): void
+    {
+        $logo = config('play.themes.amura.logo');
+
+        $this->get('/play')->assertOk()
+            ->assertSee('src="'.asset($logo['src']).'"', false)
+            ->assertSee('alt="Amura"', false)
+            ->assertSee('class="brand-logo"', false);
+        $this->assertFileExists(public_path($logo['src']));
+        $this->assertFileExists(public_path(config('play.themes.amura.logo_dark.src')));
+    }
+
     public function test_admin_mengganti_teks_halaman_resi(): void
     {
         $this->actingAs($this->staff())->post('/admin/tampilan/teks', [

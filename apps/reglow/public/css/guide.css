@@ -8,7 +8,8 @@ body{margin:0;background:#FBF7F1}
 .stage a:focus-visible,.end a:focus-visible{outline-color:#F3D48A}
 .top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0}
 .brand{display:flex;align-items:center;gap:12px}
-.tile{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--p);color:#fff;font-family:'DM Serif Display',Georgia,serif;font-size:22px}
+.brand .logo{display:block;flex:none;width:auto;height:calc(30px * var(--ls,1))}
+.brand>span{padding-left:12px;border-left:1px solid #E7DDD0}
 .brand b{display:block;font-size:16px;font-weight:800;line-height:1.2}
 .brand span span{display:block;font-size:12px;color:#6F6259}
 .signin{font-size:14px;font-weight:700;color:#2B221D;text-decoration:underline;text-underline-offset:4px;padding:12px 4px;min-height:44px;display:inline-flex;align-items:center}
@@ -87,6 +88,12 @@ body{margin:0;background:#FBF7F1}
 @media (max-width:640px){
   .wrap{padding:0 20px}
   .top{padding:14px 0}
+  .brand{gap:10px}
+  .brand .logo{height:calc(24px * var(--ls,1))}
+  .brand>span{padding-left:10px}
+  .brand b{font-size:14px;white-space:nowrap}
+  .brand span span{display:none}
+  .signin{font-size:13px;text-align:right}
   .hero{padding:16px 0 56px;gap:32px}
   .hero h1{font-size:34px}
   .lead{font-size:17px;margin-bottom:24px}

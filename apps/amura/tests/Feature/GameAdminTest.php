@@ -51,7 +51,8 @@ final class GameAdminTest extends TestCase
     {
         $this->actingAs($this->admin('super_admin'))->get('/admin/game')->assertOk()
             ->assertSee('<title>Panel Game · Loyalty Amura</title>', false)
-            ->assertSee('<b>Loyalty Amura</b>', false);
+            ->assertSee(config('play.themes.amura.logo.src'), false)
+            ->assertSee('alt="Amura"', false);
     }
 
     public function test_update_tier_config_persists(): void

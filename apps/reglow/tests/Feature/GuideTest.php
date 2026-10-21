@@ -29,7 +29,8 @@ final class GuideTest extends TestCase
         $this->get('/cara-main')->assertOk()
             ->assertSee('Cara buka Kejutan Kado')
             ->assertSee('href="'.route('play.form').'"', false)
-            ->assertSee('img/cara-main/'.$this->brand().'/papan.webp', false);
+            ->assertSee('img/cara-main/'.$this->brand().'/papan.webp', false)
+            ->assertSee(config('play.themes.'.$this->brand().'.logo.src'), false);
     }
 
     public function test_angka_poin_ikut_setting(): void

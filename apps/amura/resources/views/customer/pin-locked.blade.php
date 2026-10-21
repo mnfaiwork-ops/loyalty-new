@@ -11,11 +11,8 @@
 
 @section('content')
     <header class="brandbar">
-        <div class="brand-tile" aria-hidden="true">{{ $theme['initial'] }}</div>
-        <div>
-            <div class="brand-name">{{ $theme['name'] }}</div>
-            <div class="brand-sub">Poin &amp; Hadiah</div>
-        </div>
+        @include('partials.logo')
+        <div class="brand-sub">Poin &amp; Hadiah</div>
     </header>
 
     {{-- Desain 4f, bentuk sama dengan 3a: cincin hitung mundur dan tombol abu dengan sisa waktu. --}}
