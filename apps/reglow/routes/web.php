@@ -2,10 +2,12 @@
 
 use App\Http\Controllers\Admin\CsClaimController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\DailyListController;
 use App\Http\Controllers\Admin\DisplayController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GameAdminController;
 use App\Http\Controllers\Admin\RewardCatalogController;
+use App\Http\Controllers\Admin\SettingTransferController;
 use App\Http\Controllers\Admin\ShippingController;
 use App\Http\Controllers\Admin\SuperAdminController;
 use App\Http\Controllers\Auth\LoginController;
@@ -65,6 +67,8 @@ Route::middleware(['auth', 'role:cs,super_admin'])->prefix('admin')->group(funct
     Route::post('/shipping/{code}/deliver', [ShippingController::class, 'deliver'])->name('admin.shipping.deliver');
     Route::get('/customers', [CustomerController::class, 'index'])->name('admin.customers');
     Route::post('/customers/{id}/reset-pin', [CustomerController::class, 'resetPin'])->whereNumber('id')->name('admin.customers.reset-pin');
+    Route::get('/daftar-harian', [DailyListController::class, 'index'])->name('admin.daily');
+    Route::get('/daftar-harian/{list}.csv', [DailyListController::class, 'download'])->name('admin.daily.download');
 });
 
 Route::middleware(['auth', 'role:game_admin,super_admin'])->prefix('admin')->group(function () {
@@ -94,4 +98,10 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('admin')->group(function
     Route::get('/users', [SuperAdminController::class, 'index'])->name('admin.users');
     Route::post('/users', [SuperAdminController::class, 'store'])->name('admin.users.store');
     Route::post('/users/{id}/role', [SuperAdminController::class, 'role'])->name('admin.users.role');
+    // Backup setting: export/import setting game (hanya Super Admin, keputusan Fai 2026-10-21).
+    Route::get('/setting', [SettingTransferController::class, 'index'])->name('admin.setting');
+    Route::get('/setting/export', [SettingTransferController::class, 'export'])->name('admin.setting.export');
+    Route::post('/setting/import', [SettingTransferController::class, 'preview'])->middleware('throttle:20,1')->name('admin.setting.preview');
+    Route::post('/setting/import/terapkan', [SettingTransferController::class, 'apply'])->name('admin.setting.apply');
+    Route::get('/setting/backup/{id}', [SettingTransferController::class, 'backup'])->whereNumber('id')->name('admin.setting.backup');
 });

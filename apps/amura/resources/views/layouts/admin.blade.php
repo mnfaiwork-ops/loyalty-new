@@ -92,6 +92,7 @@
                     <a href="{{ route('admin.claims') }}" @if (request()->routeIs('admin.claims*')) aria-current="page" @endif>Klaim WhatsApp <span>{{ $counts['diajukan'] }}</span></a>
                     <a href="{{ route('admin.shipping') }}" @if (request()->routeIs('admin.shipping*')) aria-current="page" @endif>Pengiriman <span>{{ $counts['diproses'] + $counts['dikirim'] }}</span></a>
                     <a href="{{ route('admin.customers') }}" @if (request()->routeIs('admin.customers*')) aria-current="page" @endif>Pelanggan &amp; PIN</a>
+                    <a href="{{ route('admin.daily') }}" @if (request()->routeIs('admin.daily*')) aria-current="page" @endif>Daftar harian BA</a>
                 @endif
                 @if ($is('finance', 'super_admin'))
                     <a href="{{ route('admin.finance') }}" @if (request()->routeIs('admin.finance*')) aria-current="page" @endif>Finance <span>{{ $counts['perlu_finance'] }}</span></a>
@@ -105,6 +106,7 @@
                 @endif
                 @if ($is('super_admin'))
                     <a href="{{ route('admin.users') }}" @if (request()->routeIs('admin.users*')) aria-current="page" @endif>Pengguna</a>
+                    <a href="{{ route('admin.setting') }}" @if (request()->routeIs('admin.setting*')) aria-current="page" @endif>Backup setting</a>
                 @endif
             </nav>
             <form class="logout" method="POST" action="{{ route('logout') }}">
