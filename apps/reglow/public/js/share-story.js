@@ -1,6 +1,7 @@
 // Gambar share story 1080x1920 untuk hadiah Kejutan Kado (permintaan Fai 2026-10-21).
 // Digambar di HP pelanggan dengan canvas, lalu dibagikan lewat menu share bawaan HP
 // (Instagram Story, WhatsApp Status, dll). Tidak memuat nama, nomor HP, atau kode klaim.
+// Isi penting di antara y 300 dan 1650: atas dan bawah tertutup tombol Instagram/WhatsApp.
 // Kalau HP tidak bisa share file, sheet cadangan menawarkan simpan gambar dan WhatsApp.
 (() => {
     const W = 1080;
@@ -115,21 +116,21 @@
         if (logo) {
             const h = 96 * (o.logoScale || 1);
             const w = h * (logo.naturalWidth / logo.naturalHeight);
-            ctx.drawImage(logo, (W - w) / 2, 290 - h / 2, w, h);
+            ctx.drawImage(logo, (W - w) / 2, 350 - h / 2, w, h);
         }
 
         ctx.fillStyle = goldLight;
         ctx.font = '800 34px "Plus Jakarta Sans", system-ui, sans-serif';
         if ('letterSpacing' in ctx) ctx.letterSpacing = '6px';
-        ctx.fillText(`KEJUTAN KADO ${o.brand.toUpperCase()}`, W / 2, 440);
+        ctx.fillText(`KEJUTAN KADO ${o.brand.toUpperCase()}`, W / 2, 490);
         if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
 
         ctx.fillStyle = cream;
         ctx.font = '700 58px "Plus Jakarta Sans", system-ui, sans-serif';
-        ctx.fillText('Aku dapat hadiah!', W / 2, 540);
+        ctx.fillText('Aku dapat hadiah!', W / 2, 585);
 
         // Kartu hadiah.
-        const card = { x: 150, y: 610, w: 780, h: 860 };
+        const card = { x: 150, y: 650, w: 780, h: 830 };
         ctx.save();
         ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
         ctx.shadowBlur = 60;
@@ -155,7 +156,7 @@
         ctx.fillStyle = o.isMain ? '#6B4A10' : brand;
         ctx.fillText(chip, W / 2, card.y + 78);
 
-        const area = { x: card.x + 110, y: card.y + 130, w: card.w - 220, h: 470 };
+        const area = { x: card.x + 110, y: card.y + 125, w: card.w - 220, h: 450 };
         if (o.isPoin) {
             ctx.fillStyle = brand;
             ctx.font = '400 210px "DM Serif Display", Georgia, serif';
@@ -188,10 +189,10 @@
 
         ctx.fillStyle = cream;
         ctx.font = '500 40px "Plus Jakarta Sans", system-ui, sans-serif';
-        ctx.fillText(`Tiap paket ${o.brand} bawa 2 Kejutan Kado.`, W / 2, 1560);
+        ctx.fillText(`Tiap paket ${o.brand} bawa 2 Kejutan Kado.`, W / 2, 1570);
         ctx.fillStyle = goldLight;
         ctx.font = '800 40px "Plus Jakarta Sans", system-ui, sans-serif';
-        ctx.fillText(o.label, W / 2, 1630);
+        ctx.fillText(o.label, W / 2, 1636);
 
         return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     }
