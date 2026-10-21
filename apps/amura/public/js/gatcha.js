@@ -817,6 +817,8 @@
             view.appendChild(win);
         }
 
+        if (window.KadoShare) view.appendChild(shareButton(chosen));
+
         if (burned.length) {
             view.appendChild(el('div', 'section-label', 'KADO YANG HANGUS'));
             const grid = el('div', 'burned');
@@ -858,6 +860,29 @@
         view.scrollTop = 0;
         if (t.cls === 'tier-gold' && !reduced) confetti();
         $('nextBtn').focus({ preventScroll: true });
+    }
+
+    // Tombol share story. Gambar langsung digambar saat hasil tampil, supaya menu share HP
+    // bisa dibuka seketika saat tombol ditekan (Safari menolak share yang tertunda).
+    function shareButton(chosen) {
+        const points = state.result.points ?? chosen.points;
+        const opts = {
+            brand: data.brand,
+            prizeName: prizeName({ ...chosen, points }),
+            tierLabel: chosen.label,
+            isPoin: chosen.tier === 'poin',
+            isMain: chosen.tier === 'hadiah_besar',
+            points,
+            image: chosen.image || null,
+            ...data.share,
+        };
+        const pending = window.KadoShare.render(opts).catch(() => null);
+        const btn = el('button', 'share-btn');
+        btn.type = 'button';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+        btn.append('Bagikan ke Story');
+        btn.addEventListener('click', () => window.KadoShare.share(pending, opts));
+        return btn;
     }
 
     // Angka saldo bergulir 0,9 s (spesifikasi Poin).

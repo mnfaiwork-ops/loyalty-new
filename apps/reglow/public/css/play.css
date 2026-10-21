@@ -556,3 +556,27 @@ button { font-family: inherit; }
     object-fit: contain;
 }
 .promo :focus-visible { outline: 3px solid var(--gold-light); outline-offset: 3px; }
+
+/* ── Share story (2026-10-21): tombol garis emas di bawah kartu hadiah, tidak bersaing dengan tombol Lanjut ── */
+.share-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    align-self: center; min-height: 48px; padding: 0 20px; margin: 4px auto 0;
+    border: 1.5px solid var(--gold-light); border-radius: 999px;
+    background: rgba(0, 0, 0, .25); color: var(--gold-light);
+    font: inherit; font-size: 15px; font-weight: 800; cursor: pointer;
+}
+.share-btn svg { width: 20px; height: 20px; }
+.share-btn:active { transform: translateY(2px); }
+.share-sheet {
+    width: min(380px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto;
+    padding: 20px 16px 16px; border: 0; border-radius: 20px;
+    background: var(--ivory); color: var(--ink);
+}
+.share-sheet[open] { display: flex; flex-direction: column; gap: 12px; }
+.share-sheet::backdrop { background: rgba(43, 34, 29, .72); }
+.share-sheet h2 { margin: 0; font-size: 18px; font-weight: 800; }
+.share-sheet p { margin: 0; font-size: 14px; color: var(--muted); }
+.share-sheet img { display: block; width: 100%; max-width: 220px; height: auto; margin: 0 auto; border-radius: 12px; }
+.share-sheet .btn { display: grid; place-items: center; text-decoration: none; }
+.share-close { position: absolute; top: 8px; right: 8px; margin: 0; }
+.share-close button { width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--ink); font-size: 26px; cursor: pointer; }

@@ -24,6 +24,13 @@
         'homeUrl' => route('home'),
         'rewardsUrl' => route('rewards'),
         'rewardUrl' => url('/hadiah').'/',
+        // Gambar share story: logo untuk latar gelap dan link cara main dengan penanda sumber.
+        'share' => [
+            'logo' => asset($theme['logo_dark']['src']),
+            'url' => route('guide', ['ref' => 'story']),
+            'label' => preg_replace('#^https?://#', '', route('guide')),
+            'logoScale' => $theme['logo_scale'],
+        ],
     ];
 @endphp
 
@@ -110,9 +117,20 @@
 
 <template id="giftTpl">{!! $gift !!}</template>
 
+{{-- Cadangan kalau HP tidak bisa membagikan gambar langsung dari browser. --}}
+<dialog class="share-sheet" id="shareSheet" aria-labelledby="shareTitle">
+    <form method="dialog" class="share-close"><button type="submit" aria-label="Tutup">&times;</button></form>
+    <h2 id="shareTitle">Bagikan hadiahmu</h2>
+    <img alt="Gambar story hadiah Kejutan Kado {{ $theme['name'] }}" width="1080" height="1920">
+    <p>Simpan gambarnya, lalu pasang di Instagram Story atau Status WhatsApp.</p>
+    <a class="btn btn-gold" data-share-save>Simpan gambar</a>
+    <a class="btn btn-wa" data-share-wa target="_blank" rel="noopener">Kirim ke WhatsApp</a>
+</dialog>
+
 <script type="application/json" id="gatchaData">@json($payload)</script>
 @endsection
 
 @push('scripts')
+<script src="{{ asset('js/share-story.js') }}?v={{ filemtime(public_path('js/share-story.js')) }}"></script>
 <script src="{{ asset('js/gatcha.js') }}?v={{ filemtime(public_path('js/gatcha.js')) }}"></script>
 @endpush

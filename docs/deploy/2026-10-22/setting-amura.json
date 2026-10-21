@@ -1,0 +1,523 @@
+{
+  "format": "loyalty-setting",
+  "version": 1,
+  "brand": "amura",
+  "exported_at": "2026-10-21T08:00:46+00:00",
+  "points": {
+    "per_gift": 200,
+    "min_redeem": 800,
+    "validity_months": 12,
+    "per_thousand": 1,
+    "min_percent": 95
+  },
+  "tiers": {
+    "poin": 91,
+    "voucher": 5,
+    "merch": 0,
+    "produk": 4
+  },
+  "tiers_baru": {
+    "poin": 89,
+    "voucher": 5,
+    "merch": 2,
+    "produk": 4
+  },
+  "game_controls": {
+    "paused": false,
+    "big_prize_chance": 20,
+    "order_from": "2026-10-27",
+    "order_until": "2026-12-31"
+  },
+  "texts": {
+    "play_title": "Paketmu sudah sampai?",
+    "play_lead": "Masukkan nomor resi dan nomor HP untuk membuka Gatcha-mu."
+  },
+  "prizes": [
+    {
+      "name": "Poin 50.000",
+      "tier": "poin",
+      "point_value": 50000,
+      "face_value": 0,
+      "monthly_stock": null,
+      "is_capped": false,
+      "active": true,
+      "segment": "semua",
+      "quota_name": null
+    },
+    {
+      "name": "Poin 25.000",
+      "tier": "poin",
+      "point_value": 25000,
+      "face_value": 0,
+      "monthly_stock": null,
+      "is_capped": false,
+      "active": true,
+      "segment": "semua",
+      "quota_name": null
+    },
+    {
+      "name": "Totebag Amura",
+      "tier": "merch",
+      "point_value": 0,
+      "face_value": 7500,
+      "monthly_stock": 380,
+      "is_capped": false,
+      "active": true,
+      "segment": "baru",
+      "quota_name": null
+    },
+    {
+      "name": "Philips Air Fryer",
+      "tier": "hadiah_besar",
+      "point_value": null,
+      "face_value": 1054000,
+      "monthly_stock": null,
+      "is_capped": true,
+      "active": true,
+      "segment": "lama",
+      "quota_name": "Philips"
+    },
+    {
+      "name": "Voucher Gratis Ongkir maks Rp25.000",
+      "tier": "voucher",
+      "point_value": 0,
+      "face_value": 25000,
+      "monthly_stock": 360,
+      "is_capped": false,
+      "active": true,
+      "segment": "semua",
+      "quota_name": null
+    },
+    {
+      "name": "Voucher Diskon Ongkir Rp15.000",
+      "tier": "voucher",
+      "point_value": 0,
+      "face_value": 15000,
+      "monthly_stock": 430,
+      "is_capped": false,
+      "active": true,
+      "segment": "semua",
+      "quota_name": null
+    },
+    {
+      "name": "Voucher Diskon Rp50.000",
+      "tier": "voucher",
+      "point_value": 0,
+      "face_value": 50000,
+      "monthly_stock": 15,
+      "is_capped": false,
+      "active": true,
+      "segment": "lama",
+      "quota_name": null
+    },
+    {
+      "name": "Voucher Diskon Rp100.000",
+      "tier": "voucher",
+      "point_value": 0,
+      "face_value": 100000,
+      "monthly_stock": 10,
+      "is_capped": false,
+      "active": true,
+      "segment": "lama",
+      "quota_name": null
+    },
+    {
+      "name": "Amura New Gold Serum",
+      "tier": "produk",
+      "point_value": 0,
+      "face_value": 16345,
+      "monthly_stock": 50,
+      "is_capped": false,
+      "active": true,
+      "segment": "semua",
+      "quota_name": null
+    },
+    {
+      "name": "Amura Dark Spot Treatment (Spotless Radiance)",
+      "tier": "produk",
+      "point_value": 0,
+      "face_value": 15286,
+      "monthly_stock": 50,
+      "is_capped": false,
+      "active": true,
+      "segment": "semua",
+      "quota_name": null
+    },
+    {
+      "name": "Amura Day Cream",
+      "tier": "produk",
+      "point_value": 0,
+      "face_value": 14055,
+      "monthly_stock": 50,
+      "is_capped": false,
+      "active": true,
+      "segment": "semua",
+      "quota_name": null
+    },
+    {
+      "name": "Amura Night Cream",
+      "tier": "produk",
+      "point_value": 0,
+      "face_value": 14055,
+      "monthly_stock": 50,
+      "is_capped": false,
+      "active": true,
+      "segment": "semua",
+      "quota_name": null
+    },
+    {
+      "name": "Amura Cerabright Sunscreen SPF 50",
+      "tier": "produk",
+      "point_value": 0,
+      "face_value": 36555,
+      "monthly_stock": 50,
+      "is_capped": false,
+      "active": true,
+      "segment": "semua",
+      "quota_name": null
+    },
+    {
+      "name": "Emas Antam 1 gram",
+      "tier": "hadiah_besar",
+      "point_value": 0,
+      "face_value": 2868000,
+      "monthly_stock": null,
+      "is_capped": true,
+      "active": true,
+      "segment": "lama",
+      "quota_name": null
+    },
+    {
+      "name": "Philips Hairdryer",
+      "tier": "hadiah_besar",
+      "point_value": null,
+      "face_value": 212000,
+      "monthly_stock": null,
+      "is_capped": true,
+      "active": true,
+      "segment": "lama",
+      "quota_name": "Philips"
+    },
+    {
+      "name": "Philips Setrika",
+      "tier": "hadiah_besar",
+      "point_value": null,
+      "face_value": 220000,
+      "monthly_stock": null,
+      "is_capped": true,
+      "active": true,
+      "segment": "lama",
+      "quota_name": "Philips"
+    },
+    {
+      "name": "Philips Mixer",
+      "tier": "hadiah_besar",
+      "point_value": null,
+      "face_value": 629000,
+      "monthly_stock": null,
+      "is_capped": true,
+      "active": true,
+      "segment": "lama",
+      "quota_name": "Philips"
+    },
+    {
+      "name": "Philips Rice Cooker",
+      "tier": "hadiah_besar",
+      "point_value": null,
+      "face_value": 823000,
+      "monthly_stock": null,
+      "is_capped": true,
+      "active": true,
+      "segment": "lama",
+      "quota_name": "Philips"
+    }
+  ],
+  "quota_caps": [
+    {
+      "prize_name": "Emas Antam 1 gram",
+      "cap_units": 1,
+      "program_start": "2026-11-01",
+      "program_end": "2026-12-31",
+      "release_from": "2026-12-25"
+    },
+    {
+      "prize_name": "Philips",
+      "cap_units": 2,
+      "program_start": "2026-11-01",
+      "program_end": "2026-12-31",
+      "release_from": "2026-11-01"
+    }
+  ],
+  "reward_catalogs": [
+    {
+      "period": "2026-10",
+      "published": true,
+      "items": [
+        {
+          "name": "Pouch Exclusive",
+          "points_cost": 500,
+          "stock": null,
+          "active": true,
+          "sort": 1
+        },
+        {
+          "name": "Voucher Diskon Ongkir Rp15.000",
+          "points_cost": 600,
+          "stock": null,
+          "active": true,
+          "sort": 2
+        },
+        {
+          "name": "Exclusive Totebag",
+          "points_cost": 700,
+          "stock": null,
+          "active": true,
+          "sort": 3
+        },
+        {
+          "name": "Voucher Gratis Ongkir maks Rp25.000",
+          "points_cost": 1000,
+          "stock": null,
+          "active": true,
+          "sort": 4
+        },
+        {
+          "name": "Voucher Diskon Rp25.000",
+          "points_cost": 1000,
+          "stock": null,
+          "active": true,
+          "sort": 5
+        },
+        {
+          "name": "Voucher Diskon Rp50.000",
+          "points_cost": 2000,
+          "stock": null,
+          "active": true,
+          "sort": 6
+        },
+        {
+          "name": "Amura Dark Spot Treatment (Spotless Radiance)",
+          "points_cost": 2000,
+          "stock": null,
+          "active": true,
+          "sort": 7
+        },
+        {
+          "name": "Amura New Gold Serum",
+          "points_cost": 2500,
+          "stock": null,
+          "active": true,
+          "sort": 8
+        },
+        {
+          "name": "Voucher Diskon Rp100.000",
+          "points_cost": 3500,
+          "stock": null,
+          "active": true,
+          "sort": 9
+        },
+        {
+          "name": "Philips Hairdryer",
+          "points_cost": 5000,
+          "stock": 1,
+          "active": true,
+          "sort": 10
+        },
+        {
+          "name": "Philips Air Fryer",
+          "points_cost": 19000,
+          "stock": 1,
+          "active": true,
+          "sort": 11
+        },
+        {
+          "name": "Emas Antam 1 gram",
+          "points_cost": 500000,
+          "stock": 1,
+          "active": true,
+          "sort": 12
+        }
+      ]
+    },
+    {
+      "period": "2026-11",
+      "published": true,
+      "items": [
+        {
+          "name": "Pouch Exclusive",
+          "points_cost": 500,
+          "stock": null,
+          "active": true,
+          "sort": 1
+        },
+        {
+          "name": "Voucher Diskon Ongkir Rp15.000",
+          "points_cost": 600,
+          "stock": null,
+          "active": true,
+          "sort": 2
+        },
+        {
+          "name": "Exclusive Totebag",
+          "points_cost": 700,
+          "stock": null,
+          "active": true,
+          "sort": 3
+        },
+        {
+          "name": "Voucher Gratis Ongkir maks Rp25.000",
+          "points_cost": 1000,
+          "stock": null,
+          "active": true,
+          "sort": 4
+        },
+        {
+          "name": "Voucher Diskon Rp25.000",
+          "points_cost": 1000,
+          "stock": null,
+          "active": true,
+          "sort": 5
+        },
+        {
+          "name": "Voucher Diskon Rp50.000",
+          "points_cost": 2000,
+          "stock": null,
+          "active": true,
+          "sort": 6
+        },
+        {
+          "name": "Amura Dark Spot Treatment (Spotless Radiance)",
+          "points_cost": 2000,
+          "stock": null,
+          "active": true,
+          "sort": 7
+        },
+        {
+          "name": "Amura New Gold Serum",
+          "points_cost": 2500,
+          "stock": null,
+          "active": true,
+          "sort": 8
+        },
+        {
+          "name": "Voucher Diskon Rp100.000",
+          "points_cost": 3500,
+          "stock": null,
+          "active": true,
+          "sort": 9
+        },
+        {
+          "name": "Philips Hairdryer",
+          "points_cost": 5000,
+          "stock": 1,
+          "active": true,
+          "sort": 10
+        },
+        {
+          "name": "Philips Air Fryer",
+          "points_cost": 19000,
+          "stock": 1,
+          "active": true,
+          "sort": 11
+        },
+        {
+          "name": "Emas Antam 1 gram",
+          "points_cost": 500000,
+          "stock": 1,
+          "active": true,
+          "sort": 12
+        }
+      ]
+    },
+    {
+      "period": "2026-12",
+      "published": true,
+      "items": [
+        {
+          "name": "Pouch Exclusive",
+          "points_cost": 500,
+          "stock": null,
+          "active": true,
+          "sort": 1
+        },
+        {
+          "name": "Voucher Diskon Ongkir Rp15.000",
+          "points_cost": 600,
+          "stock": null,
+          "active": true,
+          "sort": 2
+        },
+        {
+          "name": "Exclusive Totebag",
+          "points_cost": 700,
+          "stock": null,
+          "active": true,
+          "sort": 3
+        },
+        {
+          "name": "Voucher Gratis Ongkir maks Rp25.000",
+          "points_cost": 1000,
+          "stock": null,
+          "active": true,
+          "sort": 4
+        },
+        {
+          "name": "Voucher Diskon Rp25.000",
+          "points_cost": 1000,
+          "stock": null,
+          "active": true,
+          "sort": 5
+        },
+        {
+          "name": "Voucher Diskon Rp50.000",
+          "points_cost": 2000,
+          "stock": null,
+          "active": true,
+          "sort": 6
+        },
+        {
+          "name": "Amura Dark Spot Treatment (Spotless Radiance)",
+          "points_cost": 2000,
+          "stock": null,
+          "active": true,
+          "sort": 7
+        },
+        {
+          "name": "Amura New Gold Serum",
+          "points_cost": 2500,
+          "stock": null,
+          "active": true,
+          "sort": 8
+        },
+        {
+          "name": "Voucher Diskon Rp100.000",
+          "points_cost": 3500,
+          "stock": null,
+          "active": true,
+          "sort": 9
+        },
+        {
+          "name": "Philips Hairdryer",
+          "points_cost": 5000,
+          "stock": 1,
+          "active": true,
+          "sort": 10
+        },
+        {
+          "name": "Philips Air Fryer",
+          "points_cost": 19000,
+          "stock": 1,
+          "active": true,
+          "sort": 11
+        },
+        {
+          "name": "Emas Antam 1 gram",
+          "points_cost": 500000,
+          "stock": 1,
+          "active": true,
+          "sort": 12
+        }
+      ]
+    }
+  ]
+}
