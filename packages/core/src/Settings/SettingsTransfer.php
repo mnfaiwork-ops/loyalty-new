@@ -10,12 +10,15 @@ use LoyaltyNew\Core\Models\RewardCatalog;
 use LoyaltyNew\Core\Points\LoyaltySettings;
 use LoyaltyNew\Core\Prizes\GameControls;
 use LoyaltyNew\Core\Prizes\RewardCatalogService;
+use LoyaltyNew\Core\Prizes\Segment;
 use LoyaltyNew\Core\Prizes\TierConfig;
 
 /**
  * Export/import setting game satu brand sebagai file JSON (permintaan Fai 2026-10-21,
  * hanya Super Admin). Yang ikut: aturan poin, bobot tier, kendali Gatcha, teks halaman
  * resi, hadiah Gatcha + kuota hadiah utama, dan katalog tukar poin bulan berjalan ke depan.
+ * Sejak kontrol jenis pelanggan: bobot pelanggan baru (`tiers_baru`, null = ikut pelanggan
+ * lama) dan `segment` per hadiah. File lama tanpa isian ini tetap bisa di-import.
  *
  * Yang sengaja TIDAK ikut dan tidak pernah ditimpa: data pelanggan, saldo poin, klaim,
  * pemakaian kuota (used_units/quota_used), stok terpakai (stock_used), gambar pop up dan
@@ -47,6 +50,7 @@ final class SettingsTransfer
             'exported_at' => now()->toIso8601String(),
             'points' => LoyaltySettings::current($brand),
             'tiers' => self::tiers($brand),
+            'tiers_baru' => TierConfig::hasOwn(Segment::BARU, $brand) ? TierConfig::current(Segment::BARU, $brand) : null,
             'game_controls' => GameControls::current($brand),
             'texts' => array_intersect_key(SiteContent::current($brand), array_flip(['play_title', 'play_lead'])),
             'prizes' => PrizeCatalog::where('brand', $brand)->orderBy('id')->get()->map(fn (PrizeCatalog $p) => [
@@ -57,6 +61,7 @@ final class SettingsTransfer
                 'monthly_stock' => $p->monthly_stock,
                 'is_capped' => (bool) $p->is_capped,
                 'active' => (bool) $p->active,
+                'segment' => Segment::ofPrize($p),
             ])->values()->all(),
             'quota_caps' => $caps->map(fn ($c) => [
                 'prize_name' => $c->prize_name,
@@ -104,6 +109,11 @@ final class SettingsTransfer
         DB::transaction(function () use ($data, $brand) {
             LoyaltySettings::store($data['points'], $brand);
             TierConfig::store($data['tiers'], $brand);
+            if ($data['tiers_baru'] !== null) {
+                TierConfig::store($data['tiers_baru'], $brand, Segment::BARU);
+            } elseif ($data['has_tiers_baru']) {
+                DB::table('settings')->where('key', 'tier_config:'.$brand.':'.Segment::BARU)->delete();
+            }
             GameControls::store($data['game_controls'], $brand);
             SiteContent::storeTexts($data['texts']['play_title'], $data['texts']['play_lead'], $brand);
 
@@ -137,6 +147,7 @@ final class SettingsTransfer
                 'monthly_stock' => $row['monthly_stock'],
                 'is_capped' => $row['is_capped'],
                 'active' => $row['active'],
+                'segment' => $row['segment'],
             ];
 
             if ($prize) {
@@ -258,6 +269,21 @@ final class SettingsTransfer
             $fail('Total bobot tier harus lebih dari 0.');
         }
 
+        // Tidak ada isian = file sebelum fitur jenis pelanggan: bobot pelanggan baru dibiarkan.
+        $hasTiersBaru = array_key_exists('has_tiers_baru', $file) ? $file['has_tiers_baru'] === true : array_key_exists('tiers_baru', $file);
+        $tiersBaru = null;
+        if (is_array($file['tiers_baru'] ?? null)) {
+            $tiersBaru = [];
+            foreach (['poin', 'voucher', 'merch', 'produk'] as $tier) {
+                $tiersBaru[$tier] = $int($file['tiers_baru'][$tier] ?? 0, "Bobot tier {$tier} pelanggan baru", 0, 1000);
+            }
+            if (array_sum($tiersBaru) <= 0) {
+                $fail('Total bobot tier pelanggan baru harus lebih dari 0.');
+            }
+        } elseif ($hasTiersBaru && $file['tiers_baru'] !== null) {
+            $fail('Bobot pelanggan baru tidak terbaca.');
+        }
+
         $g = is_array($file['game_controls'] ?? null) ? $file['game_controls'] : [];
         if (! is_bool($g['paused'] ?? null)) {
             $fail('Kendali Gatcha: isian "paused" harus true atau false.');
@@ -304,6 +330,11 @@ final class SettingsTransfer
             if (! is_bool($row['active'] ?? null)) {
                 $fail("{$label}: isian \"active\" harus true atau false.");
             }
+            $segment = $row['segment'] ?? Segment::defaultFor(is_string($tier) ? $tier : null);
+            if (! in_array($segment, Segment::PRIZE, true)) {
+                $fail("{$label}: isian \"segment\" harus salah satu dari ".implode(', ', Segment::PRIZE).'.');
+                $segment = Segment::SEMUA;
+            }
             $prizes[$prizeName] = [
                 'name' => $prizeName,
                 'tier' => $tier,
@@ -312,6 +343,7 @@ final class SettingsTransfer
                 'monthly_stock' => $int($row['monthly_stock'] ?? null, "{$label}: stok bulanan", 0, 1000000, true),
                 'is_capped' => $tier === 'hadiah_besar' || ($row['is_capped'] ?? false) === true,
                 'active' => (bool) ($row['active'] ?? false),
+                'segment' => $segment,
             ];
         }
 
@@ -410,6 +442,8 @@ final class SettingsTransfer
             'brand' => $brand,
             'points' => $points,
             'tiers' => $tiers,
+            'tiers_baru' => $tiersBaru,
+            'has_tiers_baru' => $hasTiersBaru,
             'game_controls' => $controls,
             'texts' => $texts,
             'prizes' => array_values($prizes),
@@ -439,7 +473,12 @@ final class SettingsTransfer
         };
 
         $compare('points', ['per_gift' => 'Poin per kado (tanpa nominal order)', 'min_redeem' => 'Minimal tukar poin', 'validity_months' => 'Masa berlaku poin (bulan)', 'per_thousand' => 'Poin per Rp1.000', 'min_percent' => 'Persen minimal kado poin']);
-        $compare('tiers', ['poin' => 'Bobot tier poin', 'voucher' => 'Bobot tier voucher', 'merch' => 'Bobot tier merch', 'produk' => 'Bobot tier produk']);
+        $compare('tiers', ['poin' => 'Bobot tier poin (pelanggan lama)', 'voucher' => 'Bobot tier voucher (pelanggan lama)', 'merch' => 'Bobot tier merch (pelanggan lama)', 'produk' => 'Bobot tier produk (pelanggan lama)']);
+        if ($new['has_tiers_baru'] && $old['tiers_baru'] !== $new['tiers_baru']) {
+            $lines[] = $new['tiers_baru'] === null
+                ? 'Bobot pelanggan baru: ikut pelanggan lama'
+                : 'Bobot pelanggan baru: '.collect($new['tiers_baru'])->map(fn ($v, $k) => "{$k} {$v}")->implode(', ');
+        }
         $compare('game_controls', ['paused' => 'Gatcha dijeda', 'big_prize_chance' => 'Peluang hadiah utama (%)', 'order_from' => 'Periode mulai', 'order_until' => 'Periode selesai']);
         $compare('texts', ['play_title' => 'Judul halaman resi', 'play_lead' => 'Keterangan halaman resi']);
 
@@ -452,7 +491,7 @@ final class SettingsTransfer
 
                 continue;
             }
-            foreach (['point_value' => 'nilai poin', 'face_value' => 'nilai rupiah', 'monthly_stock' => 'stok bulanan', 'active' => 'aktif'] as $key => $label) {
+            foreach (['point_value' => 'nilai poin', 'face_value' => 'nilai rupiah', 'monthly_stock' => 'stok bulanan', 'active' => 'aktif', 'segment' => 'untuk'] as $key => $label) {
                 if ($before[$key] !== $prize[$key]) {
                     $lines[] = "Hadiah {$prizeName}, {$label}: {$show($before[$key])} jadi {$show($prize[$key])}";
                 }

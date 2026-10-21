@@ -19,6 +19,7 @@ final class UpdateTierConfigRequest extends FormRequest
             'voucher' => ['required', 'integer', 'min:0'],
             'merch' => ['required', 'integer', 'min:0'],
             'produk' => ['nullable', 'integer', 'min:0'],
+            'segment' => ['nullable', 'in:baru,lama'],
         ];
     }
 
