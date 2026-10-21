@@ -10,7 +10,7 @@ A=apps/amura
 R=apps/reglow
 
 # Folder bersama: isi Reglow disamakan persis, termasuk menghapus file yang tidak ada di Amura.
-for d in app database/migrations resources/views public/css public/js; do
+for d in app database/migrations resources/views public/css public/js public/img; do
     mkdir -p "$R/$d"
     rsync -a --delete "$A/$d/" "$R/$d/"
 done
