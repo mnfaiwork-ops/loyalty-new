@@ -18,6 +18,10 @@ use LoyaltyNew\Core\Models\PrizeCatalog;
  * 14 hari terakhir periode), lalu dibuka bertahap sampai program_end: unit ke-n
  * baru bisa keluar setelah (n-1)/cap jendela itu lewat. Di luar jendela, hadiah
  * besar tidak keluar.
+ *
+ * Beberapa hadiah bisa berbagi satu kuota lewat prize_catalog.quota_name (permintaan Fai
+ * 2026-10-21): lima jenis Philips tampil dan bisa keluar, tapi totalnya ikut satu baris
+ * quota_caps "Philips".
  */
 final class BigPrizeQuota
 {
@@ -27,7 +31,7 @@ final class BigPrizeQuota
     /** Ada sisa kuota untuk katalog ini? Cek biasa, tanpa memotong. */
     public static function available(string $brand, PrizeCatalog $catalog): bool
     {
-        $cap = self::cap($brand, $catalog->name);
+        $cap = self::cap($brand, self::quotaName($catalog));
 
         return $cap !== null && (int) $cap->used_units < self::unlocked($cap);
     }
@@ -107,6 +111,12 @@ final class BigPrizeQuota
             ->decrement('used_units');
     }
 
+    /** Nama baris quota_caps yang dipakai hadiah ini: kuota bersama kalau diisi, kalau tidak nama hadiahnya. */
+    public static function quotaName(PrizeCatalog $catalog): string
+    {
+        return $catalog->quota_name ?: $catalog->name;
+    }
+
     public static function cap(string $brand, string $name): ?object
     {
         return DB::table('quota_caps')
@@ -121,6 +131,8 @@ final class BigPrizeQuota
             return null;
         }
 
-        return PrizeCatalog::whereKey($prize->prize_catalog_id)->value('name');
+        $catalog = PrizeCatalog::whereKey($prize->prize_catalog_id)->first(['name', 'quota_name']);
+
+        return $catalog ? self::quotaName($catalog) : null;
     }
 }

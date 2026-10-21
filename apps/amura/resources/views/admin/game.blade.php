@@ -75,7 +75,8 @@
                         <tr>
                             <td>
                                 @php($segment = \LoyaltyNew\Core\Prizes\Segment::ofPrize($prize))
-                                <p class="name" style="margin:0 0 6px">{{ $prize->name }} <span class="badge">{{ \App\Http\Controllers\PlayController::tierLabel($prize->tier) }}</span>@if ($prize->tier !== 'poin' && $segment !== 'semua') <span class="badge">Hanya {{ strtolower(\LoyaltyNew\Core\Prizes\Segment::label($segment)) }}</span>@endif</p>
+                                <p class="name" style="margin:0 0 6px">{{ $prize->name }} <span class="badge">{{ \App\Http\Controllers\PlayController::tierLabel($prize->tier) }}</span>@if ($prize->tier !== 'poin' && $segment !== 'semua') <span class="badge">Hanya {{ strtolower(\LoyaltyNew\Core\Prizes\Segment::label($segment)) }}</span>@endif
+                                    @if ($prize->quota_name) <span class="badge">Kuota bersama: {{ $prize->quota_name }}</span>@endif</p>
                                 @if ($prize->tier === 'poin')
                                     <p class="muted hint">Nilai kado poin diatur di Katalog poin, bagian Aturan poin.</p>
                                 @else
@@ -122,7 +123,7 @@
             </table>
         @endif
     </div>
-    <p class="muted hint">Stok voucher, merch, dan produk dihitung per bulan kalender dan kosong berarti tanpa batas. Hadiah utama baru bisa keluar mulai tanggal "Mulai keluar". Kalau kosong, otomatis 14 hari terakhir periode. Setelah itu kuota dibuka bertahap sampai periode selesai: kuota 2 untuk 14 hari berarti unit kedua baru bisa keluar mulai hari ke-8.</p>
+    <p class="muted hint">Stok voucher, merch, dan produk dihitung per bulan kalender dan kosong berarti tanpa batas. Hadiah utama baru bisa keluar mulai tanggal "Mulai keluar". Kalau kosong, otomatis 14 hari terakhir periode. Setelah itu kuota dibuka bertahap sampai periode selesai: kuota 2 untuk 14 hari berarti unit kedua baru bisa keluar mulai hari ke-8. Hadiah dengan Kuota bersama yang sama (mis. lima jenis Philips dengan kuota "Philips") berbagi satu kuota: mengubah kuota di salah satunya berlaku untuk semuanya, dan jenis yang keluar diacak.</p>
 
     <h2>Tambah hadiah</h2>
     <div class="card" style="padding:16px">
@@ -147,6 +148,7 @@
             <label>Nilai Rp <input type="number" name="face_value" value="{{ old('face_value') }}" min="0"></label>
             <label>Stok bulanan (selain hadiah utama) <input type="number" name="monthly_stock" value="{{ old('monthly_stock') }}" min="0" placeholder="Kosong = tanpa batas"></label>
             <label>Kuota unit (hadiah utama) <input type="number" name="cap_units" value="{{ old('cap_units') }}" min="1"></label>
+            <label>Kuota bersama (hadiah utama, opsional) <input type="text" name="quota_name" value="{{ old('quota_name') }}" maxlength="120" placeholder="mis. Philips"></label>
             <label>Mulai program <input type="date" name="program_start" value="{{ old('program_start') }}"></label>
             <label>Selesai program <input type="date" name="program_end" value="{{ old('program_end') }}"></label>
             <label>Mulai keluar (hadiah utama) <input type="date" name="release_from" value="{{ old('release_from') }}"></label>
