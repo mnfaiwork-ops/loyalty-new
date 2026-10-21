@@ -37,7 +37,7 @@ final class GameAdminController extends Controller
 
         // Pemakaian per hadiah: stok bulan ini untuk voucher/merch/produk, kuota periode untuk hadiah utama.
         $usage = $catalog->mapWithKeys(function (PrizeCatalog $prize) use ($caps) {
-            $cap = $caps->get($prize->name);
+            $cap = $caps->get(BigPrizeQuota::quotaName($prize));
 
             return [$prize->id => $cap
                 ? ['cap' => $cap, 'unlocked' => BigPrizeQuota::unlocked($cap), 'release' => BigPrizeQuota::releaseFrom($cap)]
@@ -66,7 +66,8 @@ final class GameAdminController extends Controller
             'quota_total' => ['nullable', 'integer', 'min:0'],
             'monthly_stock' => ['nullable', 'integer', 'min:0'],
             'is_capped' => ['boolean'],
-            'cap_units' => ['nullable', 'required_if:is_capped,1', 'required_if:tier,hadiah_besar', 'integer', 'min:1'],
+            'cap_units' => ['nullable', 'integer', 'min:1'],
+            'quota_name' => ['nullable', 'string', 'max:120'],
             'program_start' => ['nullable', 'date'],
             'program_end' => ['nullable', 'date', 'after_or_equal:program_start'],
             'release_from' => ['nullable', 'date', 'after_or_equal:program_start', 'before_or_equal:program_end'],
@@ -80,6 +81,12 @@ final class GameAdminController extends Controller
         }
 
         $isCapped = (bool) ($data['is_capped'] ?? false);
+        // Kuota bersama: hadiah ikut baris quota_caps yang sudah ada (mis. semua jenis Philips ke "Philips").
+        $quotaName = $isCapped ? (trim((string) ($data['quota_name'] ?? '')) ?: $data['name']) : null;
+        $sharedCap = $quotaName !== null && $quotaName !== $data['name'] ? BigPrizeQuota::cap($brand, $quotaName) : null;
+        if ($isCapped && ! $sharedCap && empty($data['cap_units'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['cap_units' => 'Isi kuota unit, atau isi Kuota bersama dengan nama kuota yang sudah ada.']);
+        }
 
         $catalog = PrizeCatalog::create([
             'brand' => $brand,
@@ -92,12 +99,13 @@ final class GameAdminController extends Controller
             'is_capped' => $isCapped,
             'active' => true,
             'segment' => $data['segment'] ?? Segment::defaultFor($data['tier']),
+            'quota_name' => $quotaName !== null && $quotaName !== $data['name'] ? $quotaName : null,
         ]);
 
-        if ($isCapped) {
+        if ($isCapped && ! $sharedCap) {
             DB::table('quota_caps')->insert([
                 'brand' => $brand,
-                'prize_name' => $catalog->name,
+                'prize_name' => $quotaName,
                 'cap_units' => $data['cap_units'],
                 'used_units' => 0,
                 'program_start' => $data['program_start'] ?? now()->toDateString(),
@@ -118,7 +126,7 @@ final class GameAdminController extends Controller
     public function updateCatalog(Request $request, int $id)
     {
         $prize = PrizeCatalog::where('brand', config('app.brand'))->findOrFail($id);
-        $cap = $prize->is_capped ? BigPrizeQuota::cap((string) $prize->brand, $prize->name) : null;
+        $cap = $prize->is_capped ? BigPrizeQuota::cap((string) $prize->brand, BigPrizeQuota::quotaName($prize)) : null;
 
         $data = $request->validate([
             'active' => ['boolean'],

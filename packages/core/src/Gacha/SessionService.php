@@ -257,7 +257,9 @@ final class SessionService
             ->where('is_capped', true)
             ->where('active', true)
             ->get()
-            ->filter(fn (PrizeCatalog $catalog) => Segment::allows($catalog, $segment));
+            ->filter(fn (PrizeCatalog $catalog) => Segment::allows($catalog, $segment))
+            // Diacak supaya hadiah yang berbagi kuota (jenis Philips) keluar bergantian, bukan selalu yang pertama.
+            ->shuffle();
 
         foreach ($catalogs as $catalog) {
             if (! BigPrizeQuota::available($this->brand, $catalog)) {

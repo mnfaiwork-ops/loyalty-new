@@ -18,7 +18,8 @@ use LoyaltyNew\Core\Prizes\TierConfig;
  * hanya Super Admin). Yang ikut: aturan poin, bobot tier, kendali Gatcha, teks halaman
  * resi, hadiah Gatcha + kuota hadiah utama, dan katalog tukar poin bulan berjalan ke depan.
  * Sejak kontrol jenis pelanggan: bobot pelanggan baru (`tiers_baru`, null = ikut pelanggan
- * lama) dan `segment` per hadiah. File lama tanpa isian ini tetap bisa di-import.
+ * lama), `segment` per hadiah, dan `quota_name` (kuota bersama, mis. semua jenis Philips ke
+ * kuota "Philips"). File lama tanpa isian ini tetap bisa di-import.
  *
  * Yang sengaja TIDAK ikut dan tidak pernah ditimpa: data pelanggan, saldo poin, klaim,
  * pemakaian kuota (used_units/quota_used), stok terpakai (stock_used), gambar pop up dan
@@ -62,6 +63,7 @@ final class SettingsTransfer
                 'is_capped' => (bool) $p->is_capped,
                 'active' => (bool) $p->active,
                 'segment' => Segment::ofPrize($p),
+                'quota_name' => $p->quota_name,
             ])->values()->all(),
             'quota_caps' => $caps->map(fn ($c) => [
                 'prize_name' => $c->prize_name,
@@ -148,6 +150,7 @@ final class SettingsTransfer
                 'is_capped' => $row['is_capped'],
                 'active' => $row['active'],
                 'segment' => $row['segment'],
+                'quota_name' => $row['quota_name'],
             ];
 
             if ($prize) {
@@ -157,21 +160,22 @@ final class SettingsTransfer
             } else {
                 PrizeCatalog::create(['brand' => $brand, 'name' => $row['name'], 'quota_total' => 0, 'quota_used' => 0] + $values);
             }
+        }
 
-            if ($cap = $caps->get($row['name'])) {
-                $existing = DB::table('quota_caps')->where('brand', $brand)->where('prize_name', $row['name'])->first();
-                $fields = [
-                    'cap_units' => $cap['cap_units'],
-                    'program_start' => $cap['program_start'],
-                    'program_end' => $cap['program_end'],
-                    'release_from' => $cap['release_from'],
-                    'updated_at' => now(),
-                ];
-                if ($existing) {
-                    DB::table('quota_caps')->where('id', $existing->id)->update($fields);
-                } else {
-                    DB::table('quota_caps')->insert($fields + ['brand' => $brand, 'prize_name' => $row['name'], 'used_units' => 0, 'created_at' => now()]);
-                }
+        // Kuota per baris quota_caps (bisa dipakai beberapa hadiah lewat quota_name).
+        foreach ($caps as $capName => $cap) {
+            $existing = DB::table('quota_caps')->where('brand', $brand)->where('prize_name', $capName)->first();
+            $fields = [
+                'cap_units' => $cap['cap_units'],
+                'program_start' => $cap['program_start'],
+                'program_end' => $cap['program_end'],
+                'release_from' => $cap['release_from'],
+                'updated_at' => now(),
+            ];
+            if ($existing) {
+                DB::table('quota_caps')->where('id', $existing->id)->update($fields);
+            } else {
+                DB::table('quota_caps')->insert($fields + ['brand' => $brand, 'prize_name' => $capName, 'used_units' => 0, 'created_at' => now()]);
             }
         }
 
@@ -335,6 +339,12 @@ final class SettingsTransfer
                 $fail("{$label}: isian \"segment\" harus salah satu dari ".implode(', ', Segment::PRIZE).'.');
                 $segment = Segment::SEMUA;
             }
+            $quotaName = $row['quota_name'] ?? null;
+            if ($quotaName !== null && (! is_string($quotaName) || trim($quotaName) === '' || mb_strlen($quotaName) > 120)) {
+                $fail("{$label}: kuota bersama harus teks, maksimal 120 huruf.");
+                $quotaName = null;
+            }
+            $quotaName = $quotaName !== null && trim($quotaName) !== $prizeName ? trim($quotaName) : null;
             $prizes[$prizeName] = [
                 'name' => $prizeName,
                 'tier' => $tier,
@@ -344,8 +354,11 @@ final class SettingsTransfer
                 'is_capped' => $tier === 'hadiah_besar' || ($row['is_capped'] ?? false) === true,
                 'active' => (bool) ($row['active'] ?? false),
                 'segment' => $segment,
+                'quota_name' => $quotaName,
             ];
         }
+        $quotaOf = fn (array $prize) => $prize['quota_name'] ?? $prize['name'];
+        $quotaNames = array_map($quotaOf, $prizes);
 
         $caps = [];
         $rawCaps = is_array($file['quota_caps'] ?? null) ? array_values($file['quota_caps']) : [];
@@ -353,8 +366,8 @@ final class SettingsTransfer
             $row = is_array($row) ? $row : [];
             $capName = $name($row['prize_name'] ?? null, 'Kuota #'.($i + 1));
             $label = "Kuota \"{$capName}\"";
-            if (! isset($prizes[$capName])) {
-                $fail("{$label}: tidak ada hadiah dengan nama itu di file.");
+            if (! in_array($capName, $quotaNames, true)) {
+                $fail("{$label}: tidak ada hadiah dengan nama atau kuota bersama itu di file.");
             }
             $cap = [
                 'prize_name' => $capName,
@@ -377,8 +390,8 @@ final class SettingsTransfer
             $caps[$capName] = $cap;
         }
         foreach ($prizes as $prize) {
-            if ($prize['is_capped'] && ! isset($caps[$prize['name']])) {
-                $fail("Hadiah \"{$prize['name']}\" (hadiah utama) butuh baris kuota di quota_caps.");
+            if ($prize['is_capped'] && ! isset($caps[$quotaOf($prize)])) {
+                $fail("Hadiah \"{$prize['name']}\" (hadiah utama) butuh baris kuota \"{$quotaOf($prize)}\" di quota_caps.");
             }
         }
 
@@ -491,8 +504,8 @@ final class SettingsTransfer
 
                 continue;
             }
-            foreach (['point_value' => 'nilai poin', 'face_value' => 'nilai rupiah', 'monthly_stock' => 'stok bulanan', 'active' => 'aktif', 'segment' => 'untuk'] as $key => $label) {
-                if ($before[$key] !== $prize[$key]) {
+            foreach (['point_value' => 'nilai poin', 'face_value' => 'nilai rupiah', 'monthly_stock' => 'stok bulanan', 'active' => 'aktif', 'segment' => 'untuk', 'quota_name' => 'kuota bersama'] as $key => $label) {
+                if (($before[$key] ?? null) !== $prize[$key]) {
                     $lines[] = "Hadiah {$prizeName}, {$label}: {$show($before[$key])} jadi {$show($prize[$key])}";
                 }
             }

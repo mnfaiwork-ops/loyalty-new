@@ -157,6 +157,7 @@ Semua perintah berlaku untuk brand app tempat perintah dijalankan.
 - **Logo resmi** brand di `public/img/brand/`, diatur di `config/play.php` (`logo`, `logo_dark`, `logo_scale`).
 - **Kontrol hadiah per jenis pelanggan** (Panel Game): bobot tier terpisah untuk pelanggan baru dan lama, dan tiap hadiah punya isian "Untuk" (semua/baru/lama). Pelanggan baru = nomor HP yang belum pernah main di brand itu. Kolom `segment` kosong = bawaan (hadiah utama: pelanggan lama, lainnya: semua). Aturan ini tidak tampil ke pelanggan.
 - Deploy: `php artisan migrate --force` juga menambah kolom `segment` di `prize_catalog` dan `game_sessions`.
+- **Kuota bersama hadiah utama**: `prize_catalog.quota_name` menunjuk baris `quota_caps` yang dipakai bersama, mis. lima jenis Philips ke kuota "Philips" (2 unit Nov-Des = 1 per bulan). Jenis yang keluar diacak. Migration `2026_10_21_000003_add_prize_quota_name`.
 
 ## 10. Kontak
 

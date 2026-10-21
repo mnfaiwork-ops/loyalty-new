@@ -56,10 +56,14 @@ final class GuideController extends Controller
     private function prizes(string $brand): array
     {
         $rows = [];
-        $active = PrizeCatalog::where('brand', $brand)->where('active', true)->orderBy('id')->get(['name', 'tier', 'segment']);
+        $active = PrizeCatalog::where('brand', $brand)->where('active', true)->orderBy('id')->get(['name', 'tier', 'segment', 'face_value']);
 
         foreach (self::TIER_ORDER as $tier) {
             $items = $active->where('tier', $tier);
+            // Hadiah utama dari nilai terkecil, jadi Philips berurutan dan Emas di akhir.
+            if ($tier === 'hadiah_besar') {
+                $items = $items->sortBy(fn (PrizeCatalog $item) => (int) $item->face_value);
+            }
             if ($items->isEmpty()) {
                 continue;
             }
@@ -72,7 +76,9 @@ final class GuideController extends Controller
                 // Aturan jenis pelanggan tidak ditampilkan, kecuali hadiah utama untuk pelanggan
                 // lama yang memang disebut di copy ("mulai pesanan kedua").
                 $main = $tier === 'hadiah_besar';
-                $note = $main ? (Segment::ofPrize($item) === Segment::LAMA ? 'Hadiah utama, mulai pesanan kedua' : 'Hadiah utama') : '';
+                // Kalau semua hadiah utama untuk pelanggan lama, kalimat di atas daftar sudah menyebutnya.
+                $repeatOnly = Segment::ofPrize($item) === Segment::LAMA && ! $this->bigPrizeRepeatOnly($brand);
+                $note = $main ? ($repeatOnly ? 'Hadiah utama, mulai pesanan kedua' : 'Hadiah utama') : '';
                 $rows[] = ['name' => $item->name, 'note' => $note, 'main' => $main];
             }
         }
