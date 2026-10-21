@@ -21,8 +21,12 @@ final class TierConfig
         return ['poin' => 65, 'voucher' => 32, 'merch' => 3, 'produk' => 0];
     }
 
-    /** Key settings dipisah per brand supaya override satu brand tidak bocor ke brand lain. */
-    private static function key(?string $brand = null): string
+    /**
+     * Key settings dipisah per brand supaya override satu brand tidak bocor ke brand lain.
+     * Bobot pelanggan lama memakai key lama (tier_config:<brand>), pelanggan baru punya
+     * key sendiri (tier_config:<brand>:baru).
+     */
+    private static function key(?string $brand = null, ?string $segment = null): string
     {
         if ($brand === null) {
             try {
@@ -32,17 +36,24 @@ final class TierConfig
             }
         }
 
-        return self::KEY.':'.$brand;
+        return self::KEY.':'.$brand.($segment === Segment::BARU ? ':'.Segment::BARU : '');
     }
 
-    /** Bobot aktif: override admin dari tabel settings, kalau tidak ada pakai default. */
-    public static function current(): array
+    /**
+     * Bobot aktif untuk satu jenis pelanggan: override admin dari tabel settings, kalau
+     * tidak ada pakai default. Pelanggan baru yang belum diatur ikut bobot pelanggan lama.
+     */
+    public static function current(?string $segment = null, ?string $brand = null): array
     {
+        if ($segment === Segment::BARU && ! self::hasOwn(Segment::BARU, $brand)) {
+            $segment = Segment::LAMA;
+        }
+
         try {
             if (! Schema::hasTable('settings')) {
                 return self::default();
             }
-            $raw = DB::table('settings')->where('key', self::key())->value('value');
+            $raw = DB::table('settings')->where('key', self::key($brand, $segment))->value('value');
         } catch (\Throwable) {
             return self::default();
         }
@@ -62,11 +73,22 @@ final class TierConfig
         ];
     }
 
-    /** Simpan bobot hasil edit admin ke tabel settings, ter-scope brand. */
-    public static function store(array $weights, ?string $brand = null): void
+    /** Apakah jenis pelanggan ini punya bobot sendiri (bukan ikut bawaan). */
+    public static function hasOwn(string $segment, ?string $brand = null): bool
+    {
+        try {
+            return Schema::hasTable('settings')
+                && self::valid(json_decode((string) DB::table('settings')->where('key', self::key($brand, $segment))->value('value'), true));
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /** Simpan bobot hasil edit admin ke tabel settings, ter-scope brand dan jenis pelanggan. */
+    public static function store(array $weights, ?string $brand = null, ?string $segment = null): void
     {
         DB::table('settings')->updateOrInsert(
-            ['key' => self::key($brand)],
+            ['key' => self::key($brand, $segment)],
             ['value' => json_encode([
                 'poin' => (int) $weights['poin'],
                 'voucher' => (int) $weights['voucher'],

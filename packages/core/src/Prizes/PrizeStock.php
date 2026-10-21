@@ -34,11 +34,12 @@ final class PrizeStock
     }
 
     /**
-     * Satu item aktif tier ini yang stoknya masih ada, diundi rata. Null kalau tidak ada.
-     * Baris katalog dikunci sampai transaksi pemanggil selesai, supaya dua kado yang
-     * dibuka bersamaan tidak sama-sama mengambil unit terakhir.
+     * Satu item aktif tier ini yang stoknya masih ada dan boleh untuk jenis pelanggan
+     * ini, diundi rata. Null kalau tidak ada. Baris katalog dikunci sampai transaksi
+     * pemanggil selesai, supaya dua kado yang dibuka bersamaan tidak sama-sama mengambil
+     * unit terakhir.
      */
-    public static function pick(string $brand, string $tier): ?int
+    public static function pick(string $brand, string $tier, ?string $segment = null): ?int
     {
         $items = PrizeCatalog::where('brand', $brand)
             ->where('tier', $tier)
@@ -46,7 +47,7 @@ final class PrizeStock
             ->orderBy('id')
             ->lockForUpdate()
             ->get()
-            ->filter(fn (PrizeCatalog $item) => self::remaining($item) !== 0);
+            ->filter(fn (PrizeCatalog $item) => Segment::allows($item, $segment) && self::remaining($item) !== 0);
 
         return $items->isEmpty() ? null : (int) $items->random()->id;
     }

@@ -154,6 +154,9 @@ Semua perintah berlaku untuk brand app tempat perintah dijalankan.
 - **Backup setting `/admin/setting`** (hanya Super Admin): export/import setting game per brand sebagai JSON, lewat pratinjau dulu. Setiap import menyimpan setting sebelumnya di `storage/app/private/setting-backups/<brand>/` dan mencatat siapa/kapan di tabel `setting_imports`. Folder itu ikut di-backup server. Tidak menyentuh data pelanggan, saldo, klaim, dan pemakaian kuota/stok.
 - **Daftar harian BA `/admin/daftar-harian`** (CS + Super Admin): CSV belum main, hadiah hampir hangus (4 hari), saldo cukup ditukar.
 - Deploy: jalankan `php artisan migrate --force` (tabel baru `setting_imports`).
+- **Logo resmi** brand di `public/img/brand/`, diatur di `config/play.php` (`logo`, `logo_dark`, `logo_scale`).
+- **Kontrol hadiah per jenis pelanggan** (Panel Game): bobot tier terpisah untuk pelanggan baru dan lama, dan tiap hadiah punya isian "Untuk" (semua/baru/lama). Pelanggan baru = nomor HP yang belum pernah main di brand itu. Kolom `segment` kosong = bawaan (hadiah utama: pelanggan lama, lainnya: semua). Aturan ini tidak tampil ke pelanggan.
+- Deploy: `php artisan migrate --force` juga menambah kolom `segment` di `prize_catalog` dan `game_sessions`.
 
 ## 10. Kontak
 

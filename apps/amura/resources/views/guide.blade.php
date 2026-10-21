@@ -155,7 +155,9 @@
                 <div>
                     <h2 class="list-title">Yang bisa keluar dari kado</h2>
                     @if ($prizes)
-                        <p class="sub">Hadiah utama bisa keluar mulai pesanan kedua {{ $theme['call'] }}, jumlahnya terbatas tiap bulan.</p>
+                        @if ($bigPrizeRepeatOnly)
+                            <p class="sub">Hadiah utama bisa keluar mulai pesanan kedua {{ $theme['call'] }}, jumlahnya terbatas tiap bulan.</p>
+                        @endif
                         <ul class="rows">
                             @foreach ($prizes as $prize)
                                 <li @class(['main' => $prize['main']])>{{ $prize['name'] }}<span>{{ $prize['note'] }}</span></li>
@@ -195,7 +197,7 @@
                     <div><dt>Periode</dt><dd>Pesanan yang dibuat {{ $period }}. Pesanan di luar periode itu tidak ikut.</dd></div>
                 @endif
                 <div><dt>Kapan bisa main</dt><dd>Setelah paket tercatat diterima. Kurir kadang butuh beberapa jam untuk memperbarui status.</dd></div>
-                <div><dt>Kesempatan</dt><dd>2 per pesanan. Tiap kesempatan: pilih 3 kado, ambil 1. Hadiah utama bisa keluar mulai pesanan kedua.</dd></div>
+                <div><dt>Kesempatan</dt><dd>2 per pesanan. Tiap kesempatan: pilih 3 kado, ambil 1.@if ($bigPrizeRepeatOnly) Hadiah utama bisa keluar mulai pesanan kedua.@endif</dd></div>
                 <div><dt>Batas redeem</dt><dd>{{ $redeemDays }} hari sejak didapat, hadiah utama {{ $bigPrizeDays }} hari.</dd></div>
                 <div><dt>Poin</dt><dd>Berlaku {{ $validityMonths }} bulan. Minimal tukar {{ number_format($minRedeem, 0, ',', '.') }} poin.</dd></div>
             </dl>

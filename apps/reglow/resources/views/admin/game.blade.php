@@ -8,7 +8,8 @@
     .row-form input[type=number] { width: 110px; }
     .row-form input[type=date] { width: 150px; }
     .grid-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; padding: 16px; }
-    .grid-settings label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 800; }
+    .grid-settings label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 800; min-width: 0; }
+    .grid-settings select { width: 100%; min-width: 0; }
     .check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; min-height: 44px; }
     .paused { border: 2px solid #b42318; }
     .paused-note { margin: 0; padding: 12px 16px 0; color: #b42318; font-weight: 800; }
@@ -73,7 +74,8 @@
                         @php($use = $usage[$prize->id])
                         <tr>
                             <td>
-                                <p class="name" style="margin:0 0 6px">{{ $prize->name }} <span class="badge">{{ \App\Http\Controllers\PlayController::tierLabel($prize->tier) }}</span></p>
+                                @php($segment = \LoyaltyNew\Core\Prizes\Segment::ofPrize($prize))
+                                <p class="name" style="margin:0 0 6px">{{ $prize->name }} <span class="badge">{{ \App\Http\Controllers\PlayController::tierLabel($prize->tier) }}</span>@if ($prize->tier !== 'poin' && $segment !== 'semua') <span class="badge">Hanya {{ strtolower(\LoyaltyNew\Core\Prizes\Segment::label($segment)) }}</span>@endif</p>
                                 @if ($prize->tier === 'poin')
                                     <p class="muted hint">Nilai kado poin diatur di Katalog poin, bagian Aturan poin.</p>
                                 @else
@@ -88,6 +90,13 @@
                                         @else
                                             <input type="number" name="monthly_stock" value="{{ $prize->monthly_stock }}" min="0" placeholder="Tanpa batas" aria-label="Stok bulanan {{ $prize->name }}">
                                         @endif
+                                        <label class="check">Untuk
+                                            <select name="segment" aria-label="Untuk siapa {{ $prize->name }}">
+                                                @foreach (\LoyaltyNew\Core\Prizes\Segment::PRIZE as $value)
+                                                    <option value="{{ $value }}" @selected($segment === $value)>{{ \LoyaltyNew\Core\Prizes\Segment::label($value) }}</option>
+                                                @endforeach
+                                            </select>
+                                        </label>
                                         <label class="check"><input type="checkbox" name="active" value="1" @checked($prize->active)> Aktif</label>
                                         <button class="btn light" type="submit">Simpan</button>
                                     </form>
@@ -127,6 +136,14 @@
                     @endforeach
                 </select>
             </label>
+            <label>Untuk
+                <select name="segment">
+                    <option value="">Bawaan</option>
+                    @foreach (\LoyaltyNew\Core\Prizes\Segment::PRIZE as $value)
+                        <option value="{{ $value }}" @selected(old('segment') === $value)>{{ \LoyaltyNew\Core\Prizes\Segment::label($value) }}</option>
+                    @endforeach
+                </select>
+            </label>
             <label>Nilai Rp <input type="number" name="face_value" value="{{ old('face_value') }}" min="0"></label>
             <label>Stok bulanan (selain hadiah utama) <input type="number" name="monthly_stock" value="{{ old('monthly_stock') }}" min="0" placeholder="Kosong = tanpa batas"></label>
             <label>Kuota unit (hadiah utama) <input type="number" name="cap_units" value="{{ old('cap_units') }}" min="1"></label>
@@ -135,18 +152,25 @@
             <label>Mulai keluar (hadiah utama) <input type="date" name="release_from" value="{{ old('release_from') }}"></label>
             <button class="btn" type="submit">Tambah hadiah</button>
         </form>
+        <p class="muted hint" style="padding:12px 16px 0;margin:0">Bawaan: hadiah utama untuk pelanggan lama, jenis lain untuk semua pelanggan.</p>
     </div>
 
-    <h2>Bobot tier</h2>
-    <div class="card">
-        <form method="post" action="{{ route('admin.game.tiers') }}" class="grid-settings">
-            @csrf
-            <label>Poin <input type="number" name="poin" value="{{ old('poin', $tiers['poin']) }}" min="0" required></label>
-            <label>Voucher <input type="number" name="voucher" value="{{ old('voucher', $tiers['voucher']) }}" min="0" required></label>
-            <label>Merch <input type="number" name="merch" value="{{ old('merch', $tiers['merch']) }}" min="0" required></label>
-            <label>Produk <input type="number" name="produk" value="{{ old('produk', $tiers['produk']) }}" min="0" required></label>
-            <button class="btn" type="submit">Simpan bobot</button>
-        </form>
-        <p class="muted hint" style="padding:0 16px 16px">Bobot berlaku per kotak. Pelanggan membuka 3 kotak dan mengambil yang terbaik, jadi peluang nyata per kesempatan lebih besar dari angka ini. Bobot baru berlaku untuk pelanggan yang mulai main setelah disimpan. Bobot satu jenis dibagi rata ke hadiah aktif di jenis itu. Contoh: bobot produk 4 dengan dua produk aktif berarti tiap produk berbobot 2.</p>
-    </div>
+    <h2>Bobot tier per jenis pelanggan</h2>
+    <p class="muted hint">Pelanggan baru: nomor HP yang belum pernah main Kejutan Kado brand ini. Pelanggan lama: sudah pernah main dari paket sebelumnya. Pembeli lama yang baru pertama kali main dihitung pelanggan baru. Aturan ini hanya terlihat di panel admin.</p>
+    @foreach (['baru' => 'Pelanggan baru', 'lama' => 'Pelanggan lama'] as $segment => $label)
+        @php($weights = $tiers[$segment])
+        <div class="card">
+            <form method="post" action="{{ route('admin.game.tiers') }}" class="grid-settings">
+                @csrf
+                <input type="hidden" name="segment" value="{{ $segment }}">
+                <p class="name" style="margin:0;grid-column:1/-1">{{ $label }}@if ($segment === 'baru' && ! $baruHasOwn) <span class="badge">Belum diatur, ikut pelanggan lama</span>@endif</p>
+                <label>Poin <input type="number" name="poin" value="{{ $weights['poin'] }}" min="0" required></label>
+                <label>Voucher <input type="number" name="voucher" value="{{ $weights['voucher'] }}" min="0" required></label>
+                <label>Merch <input type="number" name="merch" value="{{ $weights['merch'] }}" min="0" required></label>
+                <label>Produk <input type="number" name="produk" value="{{ $weights['produk'] }}" min="0" required></label>
+                <button class="btn" type="submit">Simpan bobot {{ strtolower($label) }}</button>
+            </form>
+        </div>
+    @endforeach
+    <p class="muted hint">Bobot berlaku per kotak. Pelanggan membuka 3 kotak dan mengambil yang terbaik, jadi peluang nyata per kesempatan lebih besar dari angka ini. Bobot baru berlaku untuk pelanggan yang mulai main setelah disimpan. Bobot satu jenis dibagi rata ke hadiah aktif di jenis itu yang boleh untuk pelanggan tersebut. Contoh: bobot produk 4 dengan dua produk aktif berarti tiap produk berbobot 2. Kalau tidak ada hadiah di satu jenis yang boleh untuk pelanggan itu, kotaknya berisi poin.</p>
 @endsection

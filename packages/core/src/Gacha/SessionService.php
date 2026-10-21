@@ -14,6 +14,7 @@ use LoyaltyNew\Core\Points\GiftPoints;
 use LoyaltyNew\Core\Prizes\BigPrizeQuota;
 use LoyaltyNew\Core\Prizes\GameControls;
 use LoyaltyNew\Core\Prizes\PrizeStock;
+use LoyaltyNew\Core\Prizes\Segment;
 use LoyaltyNew\Core\Prizes\TierConfig;
 
 final class SessionService
@@ -111,13 +112,15 @@ final class SessionService
     private function createSession(Customer $customer, string $awb, ?int $orderAmount): GameSession
     {
         return DB::transaction(function () use ($customer, $awb, $orderAmount) {
+            $segment = Segment::forNewSession((int) $customer->id, $this->brand);
             $session = GameSession::create([
                 'customer_id' => $customer->id,
                 'brand' => $this->brand,
                 'session_token' => bin2hex(random_bytes(32)),
                 'chance_total' => 2,
                 'chance_used' => 0,
-                'tier_config' => TierConfig::current(),
+                'segment' => $segment,
+                'tier_config' => TierConfig::current($segment, $this->brand),
                 'awb' => $awb,
                 'gate_source' => (string) config('markom.gate', 'markom'),
                 'expires_at' => now()->addDays(30),
@@ -162,22 +165,11 @@ final class SessionService
         // Satu sesi paling banyak satu hadiah utama: yang sudah menang di
         // kesempatan sebelumnya tidak diberi lagi di papan berikutnya.
         $alreadyWon = $session->prizes()->where('tier', 'hadiah_besar')->where('taken', true)->exists();
-        if (! $paused && ! $alreadyWon && self::isRepeatOrder($session) && GameControls::rollBigPrize($this->brand)) {
+        // Hadiah utama yang boleh untuk jenis pelanggan ini saja (bawaan: pelanggan lama,
+        // keputusan Fai 2026-10-21). Diatur per hadiah di Panel Game.
+        if (! $paused && ! $alreadyWon && GameControls::rollBigPrize($this->brand)) {
             $this->placeBigPrize($session, $round);
         }
-    }
-
-    /**
-     * Hadiah utama hanya untuk pesanan kedua dan seterusnya (keputusan Fai 2026-10-21):
-     * nomor HP ini sudah punya sesi Gatcha dari paket lain sebelum sesi ini. Pembeli lama
-     * yang baru pertama kali main di program dihitung pesanan pertama.
-     */
-    public static function isRepeatOrder(GameSession $session): bool
-    {
-        return GameSession::where('customer_id', $session->customer_id)
-            ->where('brand', $session->brand)
-            ->where('id', '<', $session->id)
-            ->exists();
     }
 
     /** Kunci chance di DB. Return false kalau sudah habis. */
@@ -222,7 +214,7 @@ final class SessionService
 
             // Voucher/merch/produk mendapat item spesifik supaya CS tahu apa yang dikirim.
             if (in_array($prize->tier, ['voucher', 'merch', 'produk'], true) && ! $prize->prize_catalog_id) {
-                $prize->prize_catalog_id = PrizeStock::pick($this->brand, $prize->tier);
+                $prize->prize_catalog_id = PrizeStock::pick($this->brand, $prize->tier, Segment::ofSession($session));
                 if ($prize->prize_catalog_id === null) {
                     $prize->tier = 'poin';
                 }
@@ -259,11 +251,13 @@ final class SessionService
      */
     private function placeBigPrize(GameSession $session, int $round): ?GamePrize
     {
+        $segment = Segment::ofSession($session);
         $catalogs = PrizeCatalog::where('brand', $this->brand)
             ->where('tier', 'hadiah_besar')
             ->where('is_capped', true)
             ->where('active', true)
-            ->get();
+            ->get()
+            ->filter(fn (PrizeCatalog $catalog) => Segment::allows($catalog, $segment));
 
         foreach ($catalogs as $catalog) {
             if (! BigPrizeQuota::available($this->brand, $catalog)) {

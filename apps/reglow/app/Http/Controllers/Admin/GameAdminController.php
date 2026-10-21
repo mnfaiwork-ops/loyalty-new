@@ -10,6 +10,7 @@ use LoyaltyNew\Core\Models\PrizeCatalog;
 use LoyaltyNew\Core\Prizes\BigPrizeQuota;
 use LoyaltyNew\Core\Prizes\GameControls;
 use LoyaltyNew\Core\Prizes\PrizeStock;
+use LoyaltyNew\Core\Prizes\Segment;
 use LoyaltyNew\Core\Prizes\TierConfig;
 
 final class GameAdminController extends Controller
@@ -46,7 +47,11 @@ final class GameAdminController extends Controller
         return view('admin.game', [
             'catalog' => $catalog,
             'usage' => $usage,
-            'tiers' => TierConfig::current(),
+            'tiers' => [
+                Segment::BARU => TierConfig::current(Segment::BARU),
+                Segment::LAMA => TierConfig::current(Segment::LAMA),
+            ],
+            'baruHasOwn' => TierConfig::hasOwn(Segment::BARU),
             'controls' => GameControls::current($brand),
         ]);
     }
@@ -65,6 +70,7 @@ final class GameAdminController extends Controller
             'program_start' => ['nullable', 'date'],
             'program_end' => ['nullable', 'date', 'after_or_equal:program_start'],
             'release_from' => ['nullable', 'date', 'after_or_equal:program_start', 'before_or_equal:program_end'],
+            'segment' => ['nullable', 'in:'.implode(',', Segment::PRIZE)],
         ], self::RELEASE_MESSAGES);
 
         $brand = config('app.brand');
@@ -85,6 +91,7 @@ final class GameAdminController extends Controller
             'monthly_stock' => $isCapped ? null : ($data['monthly_stock'] ?? null),
             'is_capped' => $isCapped,
             'active' => true,
+            'segment' => $data['segment'] ?? Segment::defaultFor($data['tier']),
         ]);
 
         if ($isCapped) {
@@ -121,6 +128,7 @@ final class GameAdminController extends Controller
             'program_start' => [$cap ? 'required' : 'nullable', 'date'],
             'program_end' => [$cap ? 'required' : 'nullable', 'date', 'after_or_equal:program_start'],
             'release_from' => ['nullable', 'date', 'after_or_equal:program_start', 'before_or_equal:program_end'],
+            'segment' => ['nullable', 'in:'.implode(',', Segment::PRIZE)],
         ], [
             'cap_units.min' => 'Kuota tidak boleh di bawah unit yang sudah keluar.',
             ...self::RELEASE_MESSAGES,
@@ -130,6 +138,7 @@ final class GameAdminController extends Controller
             'active' => (bool) ($data['active'] ?? false),
             'face_value' => $data['face_value'] ?? null,
             'monthly_stock' => $prize->is_capped ? null : ($data['monthly_stock'] ?? null),
+            'segment' => $data['segment'] ?? Segment::ofPrize($prize),
         ]);
 
         if ($cap) {
@@ -171,8 +180,10 @@ final class GameAdminController extends Controller
 
     public function updateTiers(UpdateTierConfigRequest $request)
     {
-        TierConfig::store($request->validated());
+        $data = $request->validated();
+        $segment = $data['segment'] ?? Segment::LAMA;
+        TierConfig::store($data, null, $segment);
 
-        return back()->with('ok', 'Bobot tier disimpan');
+        return back()->with('ok', 'Bobot tier '.strtolower(Segment::label($segment)).' disimpan');
     }
 }

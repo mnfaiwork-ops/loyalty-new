@@ -8,6 +8,7 @@ use LoyaltyNew\Core\Points\LoyaltySettings;
 use LoyaltyNew\Core\Prizes\ClaimService;
 use LoyaltyNew\Core\Prizes\GameControls;
 use LoyaltyNew\Core\Prizes\RewardCatalogService;
+use LoyaltyNew\Core\Prizes\Segment;
 
 /**
  * Landing page cara main (/cara-main, rev 3 kanvas 2026-10-21). Publik, tanpa login.
@@ -29,6 +30,7 @@ final class GuideController extends Controller
         return view('guide', [
             'shots' => fn (string $name) => asset("img/cara-main/{$brand}/{$name}.webp"),
             'prizes' => $this->prizes($brand),
+            'bigPrizeRepeatOnly' => $this->bigPrizeRepeatOnly($brand),
             'catalog' => $catalog,
             'catalogItems' => $catalog ? $catalog->items()->where('active', true)->get() : collect(),
             'catalogMonth' => $catalog ? Carbon::createFromFormat('Y-m-d', $catalog->period.'-01')->translatedFormat('F Y') : null,
@@ -42,11 +44,19 @@ final class GuideController extends Controller
         ]);
     }
 
+    /** Semua hadiah utama aktif hanya untuk pelanggan lama: kalimat "mulai pesanan kedua" boleh tampil. */
+    private function bigPrizeRepeatOnly(string $brand): bool
+    {
+        $main = PrizeCatalog::where('brand', $brand)->where('tier', 'hadiah_besar')->where('active', true)->get();
+
+        return $main->isNotEmpty() && $main->every(fn (PrizeCatalog $prize) => Segment::ofPrize($prize) === Segment::LAMA);
+    }
+
     /** @return list<array{name:string,note:string,main:bool}> */
     private function prizes(string $brand): array
     {
         $rows = [];
-        $active = PrizeCatalog::where('brand', $brand)->where('active', true)->orderBy('id')->get(['name', 'tier']);
+        $active = PrizeCatalog::where('brand', $brand)->where('active', true)->orderBy('id')->get(['name', 'tier', 'segment']);
 
         foreach (self::TIER_ORDER as $tier) {
             $items = $active->where('tier', $tier);
@@ -59,8 +69,11 @@ final class GuideController extends Controller
                 continue;
             }
             foreach ($items->unique('name') as $item) {
+                // Aturan jenis pelanggan tidak ditampilkan, kecuali hadiah utama untuk pelanggan
+                // lama yang memang disebut di copy ("mulai pesanan kedua").
                 $main = $tier === 'hadiah_besar';
-                $rows[] = ['name' => $item->name, 'note' => $main ? 'Hadiah utama, mulai pesanan kedua' : '', 'main' => $main];
+                $note = $main ? (Segment::ofPrize($item) === Segment::LAMA ? 'Hadiah utama, mulai pesanan kedua' : 'Hadiah utama') : '';
+                $rows[] = ['name' => $item->name, 'note' => $note, 'main' => $main];
             }
         }
 
