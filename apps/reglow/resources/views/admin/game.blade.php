@@ -8,7 +8,8 @@
     .row-form input[type=number] { width: 110px; }
     .row-form input[type=date] { width: 150px; }
     .grid-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; padding: 16px; }
-    .grid-settings label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 800; }
+    .grid-settings label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 800; min-width: 0; }
+    .grid-settings select { width: 100%; min-width: 0; }
     .check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; min-height: 44px; }
     .paused { border: 2px solid #b42318; }
     .paused-note { margin: 0; padding: 12px 16px 0; color: #b42318; font-weight: 800; }
@@ -137,7 +138,7 @@
             </label>
             <label>Untuk
                 <select name="segment">
-                    <option value="">Bawaan (hadiah utama: pelanggan lama, lainnya: semua)</option>
+                    <option value="">Bawaan</option>
                     @foreach (\LoyaltyNew\Core\Prizes\Segment::PRIZE as $value)
                         <option value="{{ $value }}" @selected(old('segment') === $value)>{{ \LoyaltyNew\Core\Prizes\Segment::label($value) }}</option>
                     @endforeach
@@ -151,6 +152,7 @@
             <label>Mulai keluar (hadiah utama) <input type="date" name="release_from" value="{{ old('release_from') }}"></label>
             <button class="btn" type="submit">Tambah hadiah</button>
         </form>
+        <p class="muted hint" style="padding:12px 16px 0;margin:0">Bawaan: hadiah utama untuk pelanggan lama, jenis lain untuk semua pelanggan.</p>
     </div>
 
     <h2>Bobot tier per jenis pelanggan</h2>
