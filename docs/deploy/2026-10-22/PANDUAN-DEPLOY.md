@@ -38,6 +38,17 @@ Yang berubah untuk pengguna:
 
 ## 2. Sebelum mulai
 
+### 2.0 Patch PHP dulu (keamanan, wajib)
+
+PHP-FPM di server perlu diupdate karena celah PHP2Shell (CVE-2026-109618, CVE-2026-109619). Ikuti
+[PATCH-PHP2SHELL.md](PATCH-PHP2SHELL.md), lalu pastikan ini menampilkan `Hasil: AMAN`:
+
+```bash
+bash scripts/check-php2shell.sh
+```
+
+Kalau paket patch belum tersedia, pasang mitigasi sementara (langkah 4 di file itu) lalu lanjut deploy.
+
 ### 2.1 Cek versi yang sedang jalan
 
 Di server, di folder repo:

@@ -207,3 +207,9 @@ php artisan schedule:list                     # pastikan terjadwal
   Tanpa ini gambar pop up 404. Folder `storage/app/public` ikut dibackup.
 - Batas unggah 2 MB per gambar. Pastikan `upload_max_filesize` dan `post_max_size` PHP minimal 2M, dan `client_max_body_size` nginx minimal 3m.
 
+## Patch PHP2Shell (2026-10-22)
+
+- PHP di server wajib >= 8.5.12 (atau paket distro yang memuat patch CVE-2026-109618 dan CVE-2026-109619).
+  Cek dengan `bash scripts/check-php2shell.sh`. Langkah update, mitigasi sementara, dan cek tanda dibobol:
+  [`docs/deploy/2026-10-22/PATCH-PHP2SHELL.md`](deploy/2026-10-22/PATCH-PHP2SHELL.md).
+
