@@ -17,4 +17,13 @@ return [
      | disembunyikan dan voucher menampilkan "Nomor CS belum diatur".
      */
     'cs_whatsapp' => env('CS_WHATSAPP'),
+
+    /*
+     | Server demo (loyalty:demo-setup). setting_file: export setting produksi
+     | (demo/setting-<brand>.json). Ganti reset_key untuk mengosongkan data demo.
+     */
+    'demo' => [
+        'setting_file' => env('DEMO_SETTING_FILE'),
+        'reset_key' => env('DEMO_RESET_KEY', ''),
+    ],
 ];

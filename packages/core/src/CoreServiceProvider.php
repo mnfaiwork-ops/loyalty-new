@@ -3,11 +3,13 @@
 namespace LoyaltyNew\Core;
 
 use Illuminate\Support\ServiceProvider;
+use LoyaltyNew\Core\Console\DemoSetupCommand;
 use LoyaltyNew\Core\Console\ExpireClaimsCommand;
 use LoyaltyNew\Core\Console\ExpirePointsCommand;
 use LoyaltyNew\Core\Console\LaunchCatalogCommand;
 use LoyaltyNew\Core\Console\SmokeSeedCommand;
 use LoyaltyNew\Core\Gate\CachedOrderStatusSource;
+use LoyaltyNew\Core\Gate\DemoOrderStatusSource;
 use LoyaltyNew\Core\Gate\FairtrackSqliteOrderStatusSource;
 use LoyaltyNew\Core\Gate\MarkomApiOrderGate;
 use LoyaltyNew\Core\Gate\MarkomHttpOrderStatusSource;
@@ -27,7 +29,13 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->bind(OrderStatusSource::class, function () {
             $driver = (string) config('markom.driver', 'soscom_api');
 
+            // Daftar resi dummy hanya untuk server demo, tidak pernah di produksi.
+            if ($driver === 'demo' && $this->app->environment('production')) {
+                throw new \RuntimeException('MARKOM_DRIVER=demo tidak boleh dipakai saat APP_ENV=production.');
+            }
+
             $source = match ($driver) {
+                'demo' => new DemoOrderStatusSource((string) config('markom.demo.file', '')),
                 'fairtrack_sqlite' => new FairtrackSqliteOrderStatusSource(
                     (string) config('markom.fairtrack.database', ''),
                     (string) config('markom.fairtrack.orders_table', 'orders'),
@@ -75,7 +83,7 @@ final class CoreServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([SmokeSeedCommand::class, ExpireClaimsCommand::class, ExpirePointsCommand::class, LaunchCatalogCommand::class]);
+            $this->commands([SmokeSeedCommand::class, DemoSetupCommand::class,ExpireClaimsCommand::class, ExpirePointsCommand::class, LaunchCatalogCommand::class]);
 
             $this->publishes([
                 __DIR__.'/../config/markom.php' => config_path('markom.php'),

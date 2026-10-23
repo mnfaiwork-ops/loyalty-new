@@ -1,0 +1,93 @@
+# Server demo Loyalty New di Render (Blueprint). Untuk tim Markom merekam alur
+# pelanggan dengan resi dummy (demo/orders-<brand>.csv), terpisah total dari produksi.
+# Panduan: demo/README.md
+
+databases:
+  - name: loyalty-demo-db
+    plan: free
+    databaseName: loyalty_demo
+    user: loyalty_demo
+
+envVarGroups:
+  - name: loyalty-demo
+    envVars:
+      - key: APP_ENV
+        value: demo
+      - key: APP_DEBUG
+        value: "false"
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_ENCRYPT
+        value: "true"
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      # App hanya bisa diakses lewat proxy Render.
+      - key: TRUSTED_PROXIES
+        value: "*"
+      # Gate asli, sumber data resi dummy.
+      - key: MARKOM_GATE
+        value: markom
+      - key: MARKOM_DRIVER
+        value: demo
+      - key: MARKOM_CACHE_TTL
+        value: "0"
+      # Ganti nilainya (mis. 2, 3, ...) untuk mengosongkan semua data demo saat deploy berikutnya.
+      - key: DEMO_RESET_KEY
+        value: "1"
+
+services:
+  - type: web
+    name: loyalty-demo-amura
+    runtime: docker
+    plan: free
+    dockerfilePath: ./demo/Dockerfile
+    dockerContext: .
+    healthCheckPath: /up
+    envVars:
+      - fromGroup: loyalty-demo
+      - key: APP_BRAND
+        value: amura
+      - key: APP_NAME
+        value: Loyalty Amura
+      - key: APP_KEY_SEED
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: DB_URL
+        fromDatabase:
+          name: loyalty-demo-db
+          property: connectionString
+      - key: CS_WHATSAPP
+        sync: false
+
+  - type: web
+    name: loyalty-demo-reglow
+    runtime: docker
+    plan: free
+    dockerfilePath: ./demo/Dockerfile
+    dockerContext: .
+    healthCheckPath: /up
+    envVars:
+      - fromGroup: loyalty-demo
+      - key: APP_BRAND
+        value: reglow
+      - key: APP_NAME
+        value: Loyalty Reglow
+      - key: APP_KEY_SEED
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: DB_URL
+        fromDatabase:
+          name: loyalty-demo-db
+          property: connectionString
+      - key: CS_WHATSAPP
+        sync: false

@@ -8,6 +8,8 @@ return [
      | - 'markom_api'       : kontrak Markom tebakan lama (sebelum API Soscom ada).
      | - 'fairtrack_sqlite' : baca langsung DB FairTrack Lead (read-only).
      |                        DIPAKAI untuk smoke test / fase transisi.
+     | - 'demo'             : daftar resi dummy di CSV (markom.demo.file), hanya
+     |                        server demo. Ditolak saat APP_ENV=production.
      |
      | Penentu kelulusan SELALU status_fulfillment='complete' (spec §3),
      | bukan status_order. Padanan aman: status_order='completed'.
@@ -62,6 +64,11 @@ return [
      | HMAC-SHA256 body). Kosong = webhook ditolak (fail-closed).
      */
     'webhook_secret' => env('MARKOM_WEBHOOK_SECRET'),
+
+    'demo' => [
+        // CSV resi dummy (demo/orders-<brand>.csv). Hanya dibaca driver 'demo'.
+        'file' => env('MARKOM_DEMO_FILE'),
+    ],
 
     'fairtrack' => [
         // Path DB FairTrack Lead (SQLite). Kosongkan di produksi.
