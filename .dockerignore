@@ -1,0 +1,17 @@
+.git
+.db-credentials
+.superpowers
+design
+docs
+scripts
+**/.env
+**/vendor
+**/node_modules
+**/.phpunit.result.cache
+apps/*/tests
+apps/*/database/*.sqlite
+apps/*/public/storage
+apps/*/bootstrap/cache/*.php
+apps/*/storage/logs/*
+apps/*/storage/framework/*/*
+!apps/*/storage/**/.gitignore

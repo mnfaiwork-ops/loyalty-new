@@ -1,0 +1,54 @@
+awb,phone,customer_name,order_amount,ordered_at,status_order,status_fulfillment,catatan
+DEMORGL001,089991000001,Ayu Lestari,344000,2026-11-03,completed,completed,"pelanggan baru, satu paket"
+DEMORGL002,089991000002,Dewi Kartika,354000,2026-11-01,completed,completed,"pelanggan baru, satu paket"
+DEMORGL003,089991000003,Rina Wulandari,94000,2026-11-06,completed,completed,"pelanggan baru, satu paket"
+DEMORGL004,089991000004,Sari Puspita,390000,2026-11-06,completed,completed,"pelanggan baru, satu paket"
+DEMORGL005,089991000005,Nadia Putri,294000,2026-10-27,completed,completed,"pelanggan baru, satu paket"
+DEMORGL006,089991000006,Intan Permata,110000,2026-11-01,completed,completed,"pelanggan baru, satu paket"
+DEMORGL007,089991000007,Fitri Handayani,346000,2026-11-06,completed,completed,"pelanggan baru, satu paket"
+DEMORGL008,089991000008,Maya Anggraini,362000,2026-10-30,completed,completed,"pelanggan baru, satu paket"
+DEMORGL009,089991000009,Putri Rahmawati,91000,2026-10-30,completed,completed,"pelanggan baru, satu paket"
+DEMORGL010,089991000010,Wulan Sari,284000,2026-10-29,completed,completed,"pelanggan baru, satu paket"
+DEMORGL011,089991000011,Dian Safitri,278000,2026-10-28,completed,completed,"pelanggan baru, satu paket"
+DEMORGL012,089991000012,Lia Amalia,277000,2026-11-01,completed,completed,"pelanggan baru, satu paket"
+DEMORGL013,089991000013,Tika Ramadhani,356000,2026-11-03,completed,completed,"pelanggan baru, satu paket"
+DEMORGL014,089991000014,Nisa Aulia,89000,2026-10-31,completed,completed,"pelanggan baru, satu paket"
+DEMORGL015,089991000015,Rizka Maharani,298000,2026-11-01,completed,completed,"pelanggan baru, satu paket"
+DEMORGL016,089991000016,Anisa Fauziah,339000,2026-10-28,completed,completed,"pelanggan baru, satu paket"
+DEMORGL017,089991000017,Yuni Astuti,245000,2026-10-27,completed,completed,"pelanggan baru, satu paket"
+DEMORGL018,089991000018,Siti Nurhaliza,346000,2026-10-28,completed,completed,"pelanggan baru, satu paket"
+DEMORGL019,089991000019,Eka Pratiwi,263000,2026-11-05,completed,completed,"pelanggan baru, satu paket"
+DEMORGL020,089991000020,Vina Melati,233000,2026-11-03,completed,completed,"pelanggan baru, satu paket"
+DEMORGL021,089991000021,Laras Ayuningtyas,362000,2026-11-06,completed,completed,"pelanggan baru, satu paket"
+DEMORGL022,089991000022,Citra Kirana,170000,2026-10-30,completed,completed,"pelanggan baru, satu paket"
+DEMORGL023,089991000023,Bella Oktaviani,176000,2026-10-31,completed,completed,"pelanggan baru, satu paket"
+DEMORGL024,089991000024,Indah Purnama,263000,2026-11-04,completed,completed,"pelanggan baru, satu paket"
+DEMORGL025,089991000025,Mega Saputri,329000,2026-10-28,completed,completed,"pelanggan baru, satu paket"
+DEMORGL026,089991000026,Ratna Dewanti,268000,2026-10-29,completed,completed,"pelanggan baru, satu paket"
+DEMORGL027,089991000027,Salsa Nabila,374000,2026-11-06,completed,completed,"pelanggan baru, satu paket"
+DEMORGL028,089991000028,Tiara Andini,301000,2026-10-29,completed,completed,"pelanggan baru, satu paket"
+DEMORGL029,089991000029,Novi Susanti,271000,2026-10-29,completed,completed,"pelanggan baru, satu paket"
+DEMORGL030,089991000030,Kiki Amelia,110000,2026-10-31,completed,completed,"pelanggan baru, satu paket"
+DEMORGL031,089991000031,Yola Febriani,384000,2026-10-31,completed,completed,dua paket: mainkan ini dulu (pesanan ke-1)
+DEMORGL032,089991000031,Yola Febriani,151000,2026-11-11,completed,completed,"dua paket: pesanan ke-2, hadiah utama bisa keluar"
+DEMORGL033,089991000032,Gita Savitri,397000,2026-11-02,completed,completed,dua paket: mainkan ini dulu (pesanan ke-1)
+DEMORGL034,089991000032,Gita Savitri,117000,2026-11-15,completed,completed,"dua paket: pesanan ke-2, hadiah utama bisa keluar"
+DEMORGL035,089991000033,Hana Zahira,289000,2026-11-02,completed,completed,dua paket: mainkan ini dulu (pesanan ke-1)
+DEMORGL036,089991000033,Hana Zahira,109000,2026-11-07,completed,completed,"dua paket: pesanan ke-2, hadiah utama bisa keluar"
+DEMORGL037,089991000034,Rani Kusuma,359000,2026-10-27,completed,completed,dua paket: mainkan ini dulu (pesanan ke-1)
+DEMORGL038,089991000034,Rani Kusuma,303000,2026-11-02,completed,completed,"dua paket: pesanan ke-2, hadiah utama bisa keluar"
+DEMORGL039,089991000035,Fira Rahayu,291000,2026-10-27,completed,completed,dua paket: mainkan ini dulu (pesanan ke-1)
+DEMORGL040,089991000035,Fira Rahayu,282000,2026-11-06,completed,completed,"dua paket: pesanan ke-2, hadiah utama bisa keluar"
+DEMORGL041,089991000036,Sinta Maulida,89000,2026-10-28,completed,completed,dua paket: mainkan ini dulu (pesanan ke-1)
+DEMORGL042,089991000036,Sinta Maulida,148000,2026-11-10,completed,completed,"dua paket: pesanan ke-2, hadiah utama bisa keluar"
+DEMORGL043,089991000037,Lina Marlina,243000,2026-10-29,completed,completed,dua paket: mainkan ini dulu (pesanan ke-1)
+DEMORGL044,089991000037,Lina Marlina,381000,2026-11-05,completed,completed,"dua paket: pesanan ke-2, hadiah utama bisa keluar"
+DEMORGL045,089991000038,Zahra Khairunnisa,340000,2026-11-02,completed,completed,dua paket: mainkan ini dulu (pesanan ke-1)
+DEMORGL046,089991000038,Zahra Khairunnisa,290000,2026-11-08,completed,completed,"dua paket: pesanan ke-2, hadiah utama bisa keluar"
+DEMORGL047,089991000039,Puji Lestari,375000,2026-10-28,completed,completed,dua paket: mainkan ini dulu (pesanan ke-1)
+DEMORGL048,089991000039,Puji Lestari,105000,2026-11-02,completed,completed,"dua paket: pesanan ke-2, hadiah utama bisa keluar"
+DEMORGL049,089991000040,Desi Natalia,348000,2026-11-01,completed,completed,dua paket: mainkan ini dulu (pesanan ke-1)
+DEMORGL050,089991000040,Desi Natalia,263000,2026-11-10,completed,completed,"dua paket: pesanan ke-2, hadiah utama bisa keluar"
+DEMORGL901,089991000041,Ira Setiawati,150000,2026-10-29,sent,on_delivery,GAGAL: paket belum diterima
+DEMORGL902,089991000042,Mira Agustina,210000,2026-10-29,sent,returned,GAGAL: paket diretur
+DEMORGL903,089991000043,Tari Wijaya,180000,2026-10-20,completed,completed,GAGAL: order sebelum periode program

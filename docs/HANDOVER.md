@@ -162,6 +162,13 @@ Semua perintah berlaku untuk brand app tempat perintah dijalankan.
 
 Panduan deploy rilis 22 Okt 2026 untuk tim IT: `docs/deploy/2026-10-22/PANDUAN-DEPLOY.md` (file setting hadiah di folder yang sama).
 
+## 9b. Server demo (23 Okt 2026)
+
+Server demo di Render untuk tim Markom (`render.yaml`, panduan `demo/README.md`). Kode sama dengan
+produksi, cek resi membaca daftar dummy (`MARKOM_DRIVER=demo`), database terpisah. Tidak ada yang
+berubah di server produksi: driver `demo` dan `php artisan loyalty:demo-setup` ditolak saat
+`APP_ENV=production`. `config/database.php` sekarang membaca `DB_SEARCH_PATH` (bawaan `public`).
+
 ## 10. Kontak
 
 - Produk dan keputusan bisnis: Fai (CRM).
