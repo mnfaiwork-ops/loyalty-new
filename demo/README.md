@@ -12,12 +12,14 @@ alur pelanggan tanpa menyentuh produksi. Kodenya sama dengan produksi. Bedanya t
 
 ## Resi dan nomor HP dummy
 
-Tiap brand punya 50 pasangan resi + HP, ditambah 3 resi untuk menunjukkan pesan gagal.
+Tiap brand punya 150 resi + HP (batch awal 001-050, tambahan 101-200 untuk latihan CS), ditambah 3 resi untuk menunjukkan pesan gagal.
 
 | Resi | HP | Isi |
 |---|---|---|
 | `DEMOAMR001`-`030` / `DEMORGL001`-`030` | satu nomor per resi | pelanggan baru, satu paket |
 | `DEMOAMR031`-`050` / `DEMORGL031`-`050` | dua resi per nomor | pelanggan dengan dua paket |
+| `DEMOAMR101`-`160` / `DEMORGL101`-`160` | satu nomor per resi (HP `0899 9000 0101`-`0160` / `0899 9100 0101`-`0160`) | pelanggan baru, satu paket |
+| `DEMOAMR161`-`200` / `DEMORGL161`-`200` | dua resi per nomor (HP `…0161`-`0180`) | pelanggan dengan dua paket |
 | `DEMOAMR901` / `DEMORGL901` | | gagal: paket belum diterima |
 | `DEMOAMR902` / `DEMORGL902` | | gagal: paket diretur |
 | `DEMOAMR903` / `DEMORGL903` | | gagal: order sebelum program mulai |
@@ -30,7 +32,7 @@ Yang perlu diingat saat merekam:
 
 - Satu resi hanya bisa dimainkan sekali, sama seperti produksi. Setelah 50 resi terpakai,
   kosongkan data demo (lihat "Mengosongkan data demo").
-- Hadiah utama hanya bisa keluar di pesanan kedua. Untuk resi `031`-`050`, mainkan dulu
+- Hadiah utama hanya bisa keluar di pesanan kedua. Untuk resi `031`-`050` dan `161`-`200`, mainkan dulu
   resi bernomor ganjil (pesanan ke-1), baru resi genap dengan HP yang sama (pesanan ke-2).
 - Hadiah utama juga ikut kuota dan tanggal rilis dari setting produksi (Philips mulai
   1 Nov 2026, Emas mulai 25 Des 2026), dan peluangnya tidak 100%. Kalau perlu merekam
